@@ -14,9 +14,12 @@ from app.api.clients import get_fhir_client as get_fhir_client
 from app.api.clients import get_http as get_http
 from app.api.clients import get_settings as get_settings
 from app.domain.common import PartyRef
+from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
 from app.extraction.llm import LLMClient
+from app.extraction.pipeline import CompletionClient
 from app.fhir.cases import CaseReader
 from app.fhir.directory import DirectoryProvider
+from app.fhir.handover_store import HandoverStore
 from app.fhir.referrals import ReferralWriter
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
@@ -85,6 +88,37 @@ def get_triage_reader(repository: RepositoryDep, reader: CaseReaderDep, llm: Llm
 
 
 TriageReaderDep = Annotated[TriageReader, Depends(get_triage_reader)]
+
+
+def get_handover_store(repository: RepositoryDep) -> HandoverStore:
+    return HandoverStore(repository)
+
+
+HandoverStoreDep = Annotated[HandoverStore, Depends(get_handover_store)]
+
+
+class LlmClients:
+    """The extraction and epicrisis clients (separate prompt versions = separate cache keys)."""
+
+    def __init__(self, extraction: CompletionClient, epicrisis: CompletionClient) -> None:
+        self.extraction = extraction
+        self.epicrisis = epicrisis
+
+
+def get_llm_clients(request: Request, settings: SettingsDep) -> LlmClients:
+    """Created on first use (not at startup: live mode needs APIM settings) and shared, so the clients'
+    concurrency limits apply across requests."""
+    clients: LlmClients | None = getattr(request.app.state, "llm_clients", None)
+    if clients is None:
+        clients = LlmClients(
+            LLMClient.from_settings(settings),
+            LLMClient.from_settings(settings, prompt_version=EPICRISIS_PROMPT_VERSION),
+        )
+        request.app.state.llm_clients = clients
+    return clients
+
+
+LlmClientsDep = Annotated[LlmClients, Depends(get_llm_clients)]
 
 
 def get_retriever(request: Request) -> HybridRetriever:

@@ -24,6 +24,9 @@ SID_SERVICE_REQUEST: Final = SID + "service-request"
 SID_CONSENT: Final = SID + "consent"
 SID_COMMUNICATION_REQUEST: Final = SID + "communication-request"
 SID_REQUEST_TASK: Final = SID + "request-task"
+SID_HANDOVER: Final = SID + "handover"
+SID_HANDOVER_ENTRY: Final = SID + "handover-entry"
+SID_DEVICE: Final = SID + "device"
 
 # CZ Core (hl7.cz/fhir/core 1.0.0) identifier systems.
 # Rodné číslo: fixedUri of StructureDefinition cz-rodcis-identifier; value = digits without the slash.
@@ -58,6 +61,22 @@ EXT_MDT_START: Final = SD + "mdt-start"
 EXT_CONCLUSION_CONFIRMED: Final = SD + "conclusion-confirmed"
 EXT_DELIVERY_RECEIPT: Final = SD + "delivery-receipt"
 
+CS_COMPOSITION_TYPE: Final = CS + "composition-type"
+CS_HANDOVER_SECTION: Final = CS + "handover-section"
+CS_HANDOVER_STATUS: Final = CS + "handover-field-status"
+CS_REVIEW_STATE: Final = CS + "handover-review-state"
+CS_PROVENANCE_ACTIVITY: Final = CS + "provenance-activity"
+
+# --- Our extensions (StructureDefinition URLs; not loaded into IRIS, listed in docs/fhir-mapping.md) ---
+EXT_HANDOVER_EPISODE: Final = SD + "handover-episode"
+EXT_HANDOVER_AS_OF: Final = SD + "handover-as-of"
+EXT_HANDOVER_FIELD_STATUS: Final = SD + "handover-field-status"
+EXT_HANDOVER_REVIEW: Final = SD + "handover-review"
+EXT_HANDOVER_EDITED_VALUE: Final = SD + "handover-edited-value"
+EXT_HANDOVER_SECTION: Final = SD + "handover-section"
+EXT_EVIDENCE_QUOTE: Final = SD + "evidence-quote"
+EXT_PREVIOUS_VALUE_HASH: Final = SD + "previous-value-sha256"
+
 DEMO_TAG_CODE: Final = "stafeta-demo"
 TEST_TAG_CODE: Final = "stafeta-test"
 TASK_CODE_COORDINATE_CASE: Final = "coordinate-case"
@@ -72,6 +91,13 @@ PROVENANCE_PARTICIPANT_TYPE: Final = "http://terminology.hl7.org/CodeSystem/prov
 V3_ACT_CODE: Final = "http://terminology.hl7.org/CodeSystem/v3-ActCode"
 V3_PARTICIPATION_TYPE: Final = "http://terminology.hl7.org/CodeSystem/v3-ParticipationType"
 DATA_OPERATION: Final = "http://terminology.hl7.org/CodeSystem/v3-DataOperation"
+ICDO3: Final = "http://terminology.hl7.org/CodeSystem/icd-o-3"
+CONDITION_CATEGORY: Final = "http://terminology.hl7.org/CodeSystem/condition-category"
+CONDITION_VERIFICATION: Final = "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+OBSERVATION_CATEGORY: Final = "http://terminology.hl7.org/CodeSystem/observation-category"
+LIST_EMPTY_REASON: Final = "http://terminology.hl7.org/CodeSystem/list-empty-reason"
+PROVENANCE_AGENT_TYPE: Final = PROVENANCE_PARTICIPANT_TYPE
+UCUM: Final = "http://unitsofmeasure.org"
 V3_ROLE_CODE: Final = "http://terminology.hl7.org/CodeSystem/v3-RoleCode"
 COVERAGE_TYPE: Final = "http://terminology.hl7.org/CodeSystem/v3-ActCode"
 ORGANIZATION_TYPE: Final = "http://terminology.hl7.org/CodeSystem/organization-type"

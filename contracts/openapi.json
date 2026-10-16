@@ -894,14 +894,81 @@
         "title": "CheckResult",
         "type": "object"
       },
-      "ContactPerson": {
+      "CitedSentence": {
         "additionalProperties": false,
         "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
+          "aliases": {
+            "description": "Readable citation markers in `text` (e.g. 'F3'), parallel to `fact_ids`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
           },
-          "phone": {
+          "fact_ids": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Fact Ids",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "fact_ids"
+        ],
+        "title": "CitedSentence",
+        "type": "object"
+      },
+      "ComorbiditiesField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
             "anyOf": [
               {
                 "type": "string"
@@ -910,19 +977,268 @@
                 "type": "null"
               }
             ],
-            "title": "Phone"
+            "title": "Note"
           },
-          "relation": {
-            "description": "As written in the source, e.g. 'dcera'.",
-            "title": "Relation",
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Comorbidity"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ComorbiditiesField",
+        "type": "object"
+      },
+      "Comorbidity": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "icd10": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icd10"
+          },
+          "text": {
+            "title": "Text",
             "type": "string"
           }
         },
         "required": [
-          "name",
-          "relation"
+          "text"
         ],
-        "title": "ContactPerson",
+        "title": "Comorbidity",
+        "type": "object"
+      },
+      "ConfirmSection": {
+        "additionalProperties": false,
+        "description": "Body of a section confirmation. Without fields: the assembled value is confirmed as is.",
+        "examples": [
+          {
+            "expected_value_hash": "<value_hash of the section as shown>"
+          },
+          {
+            "accept_missing": true,
+            "expected_value_hash": "<value_hash>"
+          }
+        ],
+        "properties": {
+          "accept_missing": {
+            "default": false,
+            "description": "Confirm that a missing section stays missing for the MDT.",
+            "title": "Accept Missing",
+            "type": "boolean"
+          },
+          "edited_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Physician's value; must fit the section's value schema (contracts/handover.schema.json)."
+          },
+          "expected_value_hash": {
+            "description": "`value_hash` of the section as the physician saw it; 409 if the content changed since.",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Value Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_value_hash"
+        ],
+        "title": "ConfirmSection",
+        "type": "object"
+      },
+      "Contacts": {
+        "additionalProperties": false,
+        "properties": {
+          "contact_person": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__domain__handover__ContactPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "patient_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Email"
+          },
+          "patient_phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Patient Phone"
+          }
+        },
+        "title": "Contacts",
+        "type": "object"
+      },
+      "ContactsField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Contacts"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ContactsField",
         "type": "object"
       },
       "CoordinatorContact": {
@@ -955,6 +1271,164 @@
           "display"
         ],
         "title": "CoordinatorContact",
+        "type": "object"
+      },
+      "Diagnosis": {
+        "additionalProperties": false,
+        "properties": {
+          "icd10": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MKN-10 code, e.g. 'C25.0'.",
+            "title": "Icd10"
+          },
+          "icdo3_morphology": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "ICD-O-3 morphology, e.g. '8500/3'.",
+            "title": "Icdo3 Morphology"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "tnm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tnm"
+          },
+          "verified_histologically_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Histologically On"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Diagnosis",
+        "type": "object"
+      },
+      "DiagnosisField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Diagnosis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "DiagnosisField",
         "type": "object"
       },
       "DocumentReceived": {
@@ -1212,6 +1686,142 @@
         "title": "DocumentSummary",
         "type": "object"
       },
+      "Epicrisis": {
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "default": "Návrh AI – čeká na potvrzení lékařem",
+            "description": "Shown next to the text until a physician confirms it.",
+            "title": "Label",
+            "type": "string"
+          },
+          "mode": {
+            "default": "llm",
+            "description": "llm = one cited LLM summary; fallback = code-built list of the facts with citations.",
+            "enum": [
+              "llm",
+              "fallback"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "sentences": {
+            "description": "Each sentence with its cited facts.",
+            "items": {
+              "$ref": "#/components/schemas/CitedSentence"
+            },
+            "title": "Sentences",
+            "type": "array"
+          },
+          "text": {
+            "description": "AI draft ('Návrh AI') until a physician confirms it.",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Epicrisis",
+        "type": "object"
+      },
+      "EpicrisisField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Epicrisis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "EpicrisisField",
+        "type": "object"
+      },
       "Evidence": {
         "additionalProperties": false,
         "description": "A verbatim (whitespace-normalised) quote from a source document.\n\nThe golden file (`data/golden`) names the document key `doc`; the API and code use `doc_id`.",
@@ -1362,7 +1972,7 @@
           "value": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ContactPerson"
+                "$ref": "#/components/schemas/app__domain__patient__ContactPerson"
               },
               {
                 "type": "null"
@@ -1571,6 +2181,160 @@
         "title": "Evidenced[str]",
         "type": "object"
       },
+      "Examination": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "doc_id": {
+            "description": "Document with the full text.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "place",
+          "type",
+          "doc_id"
+        ],
+        "title": "Examination",
+        "type": "object"
+      },
+      "ExaminationsField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Examination"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ExaminationsField",
+        "type": "object"
+      },
+      "ExcludedDocument": {
+        "additionalProperties": false,
+        "properties": {
+          "doc_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "reason": {
+            "description": "E.g. 'authored after as_of'.",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc_id",
+          "reason"
+        ],
+        "title": "ExcludedDocument",
+        "type": "object"
+      },
       "FieldStatus": {
         "description": "Subset of the shared handover field status enum.",
         "enum": [
@@ -1579,6 +2343,92 @@
           "needs_clarification"
         ],
         "title": "FieldStatus",
+        "type": "string"
+      },
+      "Finding": {
+        "additionalProperties": false,
+        "properties": {
+          "docs": {
+            "description": "doc_ids involved.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Docs",
+            "type": "array"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Affected handover field or path, e.g. '3_diagnosis.tnm'.",
+            "title": "Field"
+          },
+          "id": {
+            "description": "Stable id referenced from handover fields, e.g. 'C1'.",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/FindingKind"
+          },
+          "message": {
+            "description": "Neutral Czech description of what is inconsistent or missing.",
+            "title": "Message",
+            "type": "string"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "suggested_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Workflow action, e.g. 'create_verification_task'.",
+            "title": "Suggested Action"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "severity",
+          "message"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
+      "FindingKind": {
+        "enum": [
+          "date_conflict",
+          "sla_breach",
+          "missing",
+          "stale",
+          "missing_document",
+          "temporal_cutoff",
+          "metadata_mismatch",
+          "insurer",
+          "needs_clarification",
+          "not_documented",
+          "lost_information",
+          "role_mismatch"
+        ],
+        "title": "FindingKind",
         "type": "string"
       },
       "HTTPValidationError": {
@@ -1593,6 +2443,267 @@
         },
         "title": "HTTPValidationError",
         "type": "object"
+      },
+      "Handover": {
+        "additionalProperties": false,
+        "description": "Handover for one case. Documents count only if authored <= as_of AND received <= as_of.",
+        "properties": {
+          "as_of": {
+            "description": "Cut-off timestamp, e.g. MDT start 2026-10-21T08:00:00+02:00.",
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "case_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Case Id",
+            "type": "string"
+          },
+          "composition_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Business id of the persisted Composition, if any.",
+            "title": "Composition Id"
+          },
+          "excluded_documents": {
+            "items": {
+              "$ref": "#/components/schemas/ExcludedDocument"
+            },
+            "title": "Excluded Documents",
+            "type": "array"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/HandoverFields"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "included_documents": {
+            "description": "doc_ids used for this handover.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Included Documents",
+            "type": "array"
+          },
+          "rules": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Configurable assembly rules applied, e.g. {'stale_vitals_days': '30'}.",
+            "title": "Rules",
+            "type": "object"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "preliminary",
+                  "final"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Composition status once persisted; final when every section is confirmed.",
+            "title": "Status"
+          }
+        },
+        "required": [
+          "case_id",
+          "as_of",
+          "included_documents",
+          "fields"
+        ],
+        "title": "Handover",
+        "type": "object"
+      },
+      "HandoverFields": {
+        "additionalProperties": false,
+        "properties": {
+          "10_weight_height": {
+            "$ref": "#/components/schemas/WeightHeightField",
+            "description": "Váha a výška"
+          },
+          "11_symptoms": {
+            "$ref": "#/components/schemas/SymptomsField",
+            "description": "Symptomy a jejich počátek"
+          },
+          "12_examinations": {
+            "$ref": "#/components/schemas/ExaminationsField",
+            "description": "Provedená vyšetření"
+          },
+          "13_labs": {
+            "$ref": "#/components/schemas/LabsField",
+            "description": "Laboratoř vč. onkomarkerů"
+          },
+          "14_histology": {
+            "$ref": "#/components/schemas/HistologyField",
+            "description": "Histologie"
+          },
+          "15_other": {
+            "$ref": "#/components/schemas/TextListField",
+            "description": "Jiná důležitá sdělení vč. přání pacienta"
+          },
+          "1_patient": {
+            "$ref": "#/components/schemas/PatientField",
+            "description": "Nacionále"
+          },
+          "2_contacts": {
+            "$ref": "#/components/schemas/ContactsField",
+            "description": "Kontakty"
+          },
+          "3_diagnosis": {
+            "$ref": "#/components/schemas/DiagnosisField",
+            "description": "Diagnóza"
+          },
+          "4_epicrisis": {
+            "$ref": "#/components/schemas/EpicrisisField",
+            "description": "Epikríza"
+          },
+          "5_mdt_question": {
+            "$ref": "#/components/schemas/TextField",
+            "description": "Požadavek / otázka na MDT"
+          },
+          "6_comorbidities": {
+            "$ref": "#/components/schemas/ComorbiditiesField",
+            "description": "Komorbidity (OA)"
+          },
+          "7_medications": {
+            "$ref": "#/components/schemas/MedicationsField",
+            "description": "Léková anamnéza (FA)"
+          },
+          "8_allergies": {
+            "$ref": "#/components/schemas/TextField",
+            "description": "Alergie (AA)"
+          },
+          "9_performance_status": {
+            "$ref": "#/components/schemas/PerformanceStatusField",
+            "description": "PS / Karnofsky"
+          }
+        },
+        "required": [
+          "1_patient",
+          "2_contacts",
+          "3_diagnosis",
+          "4_epicrisis",
+          "5_mdt_question",
+          "6_comorbidities",
+          "7_medications",
+          "8_allergies",
+          "9_performance_status",
+          "10_weight_height",
+          "11_symptoms",
+          "12_examinations",
+          "13_labs",
+          "14_histology",
+          "15_other"
+        ],
+        "title": "HandoverFields",
+        "type": "object"
+      },
+      "HandoverItem": {
+        "additionalProperties": false,
+        "description": "One displayed value of a field with its own evidence (one chip per value).",
+        "properties": {
+          "clinical_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Date"
+          },
+          "evidence": {
+            "description": "Empty only for document-metadata rows (field 12: see the row's doc_id).",
+            "items": {
+              "$ref": "#/components/schemas/ItemEvidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Czech label, e.g. 'Hmotnost' or the test name.",
+            "title": "Label"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "As written in the source (or a code-list lookup, see the label).",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "value"
+        ],
+        "title": "HandoverItem",
+        "type": "object"
+      },
+      "HandoverStatus": {
+        "enum": [
+          "complete",
+          "partial",
+          "missing",
+          "stale",
+          "needs_clarification",
+          "complete_with_conflict",
+          "generated_with_citations"
+        ],
+        "title": "HandoverStatus",
+        "type": "string"
       },
       "HealthChecks": {
         "properties": {
@@ -1654,6 +2765,227 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "Histology": {
+        "additionalProperties": false,
+        "properties": {
+          "grade": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade"
+          },
+          "ihc": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Immunohistochemistry marker -> result as written.",
+            "title": "Ihc",
+            "type": "object"
+          },
+          "issued": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issued"
+          },
+          "perineural_invasion": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Perineural Invasion"
+          },
+          "report_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Id"
+          }
+        },
+        "title": "Histology",
+        "type": "object"
+      },
+      "HistologyField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Histology"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HistologyField",
+        "type": "object"
+      },
+      "ItemEvidence": {
+        "additionalProperties": false,
+        "description": "Evidence of one displayed value, with the source document's dates (one evidence chip in the UI).",
+        "properties": {
+          "authored_at": {
+            "description": "Date the source document was written.",
+            "format": "date",
+            "title": "Authored At",
+            "type": "string"
+          },
+          "char_end": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Char End"
+          },
+          "char_start": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Offset of the quote in the normalised text.",
+            "title": "Char Start"
+          },
+          "doc_id": {
+            "description": "File stem of the source document.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "quote": {
+            "description": "Must occur verbatim in the normalised document text.",
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          },
+          "received_at": {
+            "description": "When the KOC received the source document.",
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc_id",
+          "quote",
+          "authored_at",
+          "received_at"
+        ],
+        "title": "ItemEvidence",
+        "type": "object"
+      },
+      "JsonValue": {},
       "KocEntry": {
         "examples": [
           {
@@ -1706,6 +3038,546 @@
         "title": "KocEntry",
         "type": "object"
       },
+      "LabResult": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "doc_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "As written in the report, e.g. 'H' or 'L'.",
+            "title": "Flag"
+          },
+          "test": {
+            "title": "Test",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "test",
+          "value",
+          "date",
+          "doc_id"
+        ],
+        "title": "LabResult",
+        "type": "object"
+      },
+      "LabsField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LabResult"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Key values incl. tumour markers (golden: key_values).",
+            "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LabsField",
+        "type": "object"
+      },
+      "Medication": {
+        "additionalProperties": false,
+        "properties": {
+          "dose": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dose"
+          },
+          "drug": {
+            "title": "Drug",
+            "type": "string"
+          },
+          "schedule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "As written, e.g. '1-0-1'.",
+            "title": "Schedule"
+          }
+        },
+        "required": [
+          "drug"
+        ],
+        "title": "Medication",
+        "type": "object"
+      },
+      "MedicationsField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Medication"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "MedicationsField",
+        "type": "object"
+      },
+      "MissingItem": {
+        "additionalProperties": false,
+        "description": "A sub-item the sources do not state: never inferred, but routed to whoever can supply it.",
+        "properties": {
+          "item": {
+            "description": "Item key, e.g. 'ecog', 'patient_email', 'tnm_clinical_stage'.",
+            "title": "Item",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Neutral Czech reason, e.g. 'v dokumentaci neuvedeno'.",
+            "title": "Reason",
+            "type": "string"
+          },
+          "suggested_owner": {
+            "$ref": "#/components/schemas/Role",
+            "description": "Role expected to supply the value."
+          }
+        },
+        "required": [
+          "item",
+          "reason",
+          "suggested_owner"
+        ],
+        "title": "MissingItem",
+        "type": "object"
+      },
+      "PartyRef": {
+        "additionalProperties": false,
+        "description": "A person or role acting in the workflow (baton holder, task owner, actor of an audit record).",
+        "properties": {
+          "display": {
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "description": "Business id, e.g. 'dvorakova-lucie@koc2-nemocnice-lipova'.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "required": [
+          "id",
+          "display",
+          "role"
+        ],
+        "title": "PartyRef",
+        "type": "object"
+      },
+      "PatientField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PatientIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PatientField",
+        "type": "object"
+      },
+      "PatientIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "age_years": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Years"
+          },
+          "birth_date": {
+            "format": "date",
+            "title": "Birth Date",
+            "type": "string"
+          },
+          "birth_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Number"
+          },
+          "birth_number_checksum_valid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Number Checksum Valid"
+          },
+          "family": {
+            "title": "Family",
+            "type": "string"
+          },
+          "given": {
+            "title": "Given",
+            "type": "string"
+          },
+          "insurer_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Insurer Code"
+          },
+          "insurer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Code-list lookup, not extracted text.",
+            "title": "Insurer Name"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Sex"
+          }
+        },
+        "required": [
+          "given",
+          "family",
+          "sex",
+          "birth_date"
+        ],
+        "title": "PatientIdentity",
+        "type": "object"
+      },
       "PatientSummary": {
         "properties": {
           "age_years": {
@@ -1745,6 +3617,127 @@
           "sex"
         ],
         "title": "PatientSummary",
+        "type": "object"
+      },
+      "PerformanceStatus": {
+        "additionalProperties": false,
+        "properties": {
+          "scale": {
+            "enum": [
+              "ECOG",
+              "Karnofsky"
+            ],
+            "title": "Scale",
+            "type": "string"
+          },
+          "value": {
+            "description": "As documented; never inferred (e.g. not from 'soběstačná').",
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scale",
+          "value"
+        ],
+        "title": "PerformanceStatus",
+        "type": "object"
+      },
+      "PerformanceStatusField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "PerformanceStatusField",
         "type": "object"
       },
       "ProblemDetails": {
@@ -2151,6 +4144,15 @@
         "title": "RequestProposal",
         "type": "object"
       },
+      "ReviewState": {
+        "enum": [
+          "draft",
+          "confirmed",
+          "accepted_missing"
+        ],
+        "title": "ReviewState",
+        "type": "string"
+      },
       "Role": {
         "description": "Workflow role of a party: decides who may act and in which board lane a task appears.",
         "enum": [
@@ -2166,6 +4168,68 @@
         "title": "Role",
         "type": "string"
       },
+      "SectionReview": {
+        "additionalProperties": false,
+        "description": "Physician review of one section (human in the loop); recorded in FHIR as Provenance.",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PartyRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "edited": {
+            "default": false,
+            "description": "True if the physician changed the assembled value.",
+            "title": "Edited",
+            "type": "boolean"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ReviewState",
+            "default": "draft"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`value_hash` of the section the physician confirmed; a later change reopens the review.",
+            "title": "Value Hash"
+          }
+        },
+        "title": "SectionReview",
+        "type": "object"
+      },
+      "Severity": {
+        "enum": [
+          "high",
+          "medium",
+          "low",
+          "info"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
       "Sex": {
         "enum": [
           "female",
@@ -2175,6 +4239,129 @@
         ],
         "title": "Sex",
         "type": "string"
+      },
+      "Symptoms": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "onset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "As written, e.g. 'polovina srpna 2026'.",
+            "title": "Onset"
+          }
+        },
+        "title": "Symptoms",
+        "type": "object"
+      },
+      "SymptomsField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Symptoms"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "SymptomsField",
+        "type": "object"
       },
       "TaskBusinessStatus": {
         "description": "FBMI principle: a sent request is not an ordered examination.",
@@ -2198,6 +4385,205 @@
         ],
         "title": "TaskStatus",
         "type": "string"
+      },
+      "TextField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TextField",
+        "type": "object"
+      },
+      "TextListField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TextListField",
+        "type": "object"
       },
       "TransitionRequest": {
         "additionalProperties": false,
@@ -2323,6 +4709,160 @@
         "title": "ValidationIssue",
         "type": "object"
       },
+      "WeightHeight": {
+        "additionalProperties": false,
+        "properties": {
+          "height_cm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Cm"
+          },
+          "height_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Height Date"
+          },
+          "weights": {
+            "items": {
+              "$ref": "#/components/schemas/WeightMeasurement"
+            },
+            "title": "Weights",
+            "type": "array"
+          }
+        },
+        "title": "WeightHeight",
+        "type": "object"
+      },
+      "WeightHeightField": {
+        "additionalProperties": false,
+        "properties": {
+          "conflicts": {
+            "description": "Ids of findings that contradict the value.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Conflicts",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "All evidence of the section (union).",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "items": {
+            "description": "Displayed values, each with its evidence.",
+            "items": {
+              "$ref": "#/components/schemas/HandoverItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "missing": {
+            "description": "Sub-items not stated in the sources.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "missing_items": {
+            "description": "Same items as `missing`, with reason and suggested owner.",
+            "items": {
+              "$ref": "#/components/schemas/MissingItem"
+            },
+            "title": "Missing Items",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SectionReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the handover is persisted for review."
+          },
+          "status": {
+            "$ref": "#/components/schemas/HandoverStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeightHeight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "WeightHeightField",
+        "type": "object"
+      },
+      "WeightMeasurement": {
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "kg": {
+            "title": "Kg",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kg",
+          "date"
+        ],
+        "title": "WeightMeasurement",
+        "type": "object"
+      },
       "app__api__schemas__cases__SuspectedDiagnosis": {
         "properties": {
           "code": {
@@ -2355,6 +4895,67 @@
           "evidence"
         ],
         "title": "SuspectedDiagnosis",
+        "type": "object"
+      },
+      "app__domain__handover__ContactPerson": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "relation": {
+            "title": "Relation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "relation"
+        ],
+        "title": "ContactPerson",
+        "type": "object"
+      },
+      "app__domain__patient__ContactPerson": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "relation": {
+            "description": "As written in the source, e.g. 'dcera'.",
+            "title": "Relation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "relation"
+        ],
+        "title": "ContactPerson",
         "type": "object"
       },
       "app__domain__referral__SuspectedDiagnosis": {
@@ -3194,6 +5795,576 @@
         ]
       }
     },
+    "/api/cases/{case_id}/handover": {
+      "get": {
+        "description": "Deterministic assembly from evidence-locked facts; every value cites its source. Documents authored or received after `as_of` are listed in `excluded_documents`. AI parts are drafts ('Návrh AI'). If the handover was persisted, the stored review state and confirmed edits are applied.",
+        "operationId": "handover-get_handover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+              "examples": [
+                "2026-10-21",
+                "2026-10-21T08:00:00+02:00"
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Handover (15 fields) as of a timestamp",
+        "tags": [
+          "handover"
+        ]
+      },
+      "post": {
+        "description": "Idempotent per (case, as_of): an existing Composition and its review state are kept.",
+        "operationId": "handover-persist_handover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+              "examples": [
+                "2026-10-21",
+                "2026-10-21T08:00:00+02:00"
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Persist the handover for review (Composition preliminary + Provenance)",
+        "tags": [
+          "handover"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/handover/export": {
+      "get": {
+        "operationId": "handover-export_handover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+              "examples": [
+                "2026-10-21",
+                "2026-10-21T08:00:00+02:00"
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "description": "Only Markdown for now.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "const": "md",
+              "default": "md",
+              "description": "Only Markdown for now.",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Markdown"
+          },
+          "404": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Handover as copyable text (Markdown), one block per section",
+        "tags": [
+          "handover"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/handover/sections/{number}/confirm": {
+      "post": {
+        "description": "Recorded as Provenance (who, when, previous value hash) on the Composition; the Composition becomes final when all 15 sections are confirmed or accepted as missing. A missing section needs `accept_missing: true` or an `edited_value`.",
+        "operationId": "handover-confirm_section",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Section 1..15 (Handover_obsah order).",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Section 1..15 (Handover_obsah order).",
+              "maximum": 15,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+              "examples": [
+                "2026-10-21",
+                "2026-10-21T08:00:00+02:00"
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmSection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "A KOC physician confirms, edits or accepts as missing one handover section",
+        "tags": [
+          "handover"
+        ]
+      }
+    },
     "/api/cases/{case_id}/transitions": {
       "post": {
         "description": "Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode).",
@@ -3693,6 +6864,10 @@
     {
       "description": "GP referral: prefill from the letter, confirm, create the case.",
       "name": "referrals"
+    },
+    {
+      "description": "15-field MDT handover assembled from evidence-locked facts.",
+      "name": "handover"
     }
   ]
 }

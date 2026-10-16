@@ -76,6 +76,15 @@ def document_from_fhir(resource: Resource) -> SourceDocument:
     )
 
 
+def document_content(resource: Resource) -> bytes:
+    """The attachment bytes (base64 `data`) of a DocumentReference."""
+    attachment = (resource.get("content") or [{}])[0].get("attachment", {})
+    data = attachment.get("data")
+    if not data:
+        raise ValueError("DocumentReference has no inline attachment data")
+    return base64.b64decode(str(data))
+
+
 @dataclass(frozen=True)
 class StoredDocument:
     """A DocumentReference as stored in IRIS: metadata, server references and the decoded attachment."""
@@ -93,13 +102,11 @@ def stored_document_from_fhir(resource: Resource) -> StoredDocument:
     if not subject.startswith("Patient/"):
         raise ValueError("DocumentReference.subject is not a Patient")
     attachment = (resource.get("content") or [{}])[0].get("attachment", {})
-    if "data" not in attachment:
-        raise ValueError("DocumentReference has no inline attachment data")
     return StoredDocument(
         source=source,
         reference=f"DocumentReference/{resource['id']}",
         patient_reference=subject,
-        content=base64.b64decode(attachment["data"]),
+        content=document_content(resource),
         content_type=str(attachment.get("contentType") or DOCX_MEDIA_TYPE),
     )
 

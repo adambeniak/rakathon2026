@@ -91,7 +91,7 @@ class LLMClient:
         model: str | None = None,
         persist: bool = True,
     ) -> LLMClient:
-        """Extraction by default; `app.retrieval.ask` passes its own prompt version (separate cache keys)."""
+        """`prompt_version` is part of the cache key: each prompt (extraction, epicrisis, ask) uses its own."""
         model = model or settings.llm_model_extract or CACHE_MODEL
         client = cls(
             model=model,

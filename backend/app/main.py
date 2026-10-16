@@ -42,6 +42,7 @@ OPENAPI_TAGS = [
     {"name": "cases", "description": "Shared oncology case: state, baton holder, documents, ask the case."},
     {"name": "directory", "description": "Workplaces (KOC) and their coordinators."},
     {"name": "referrals", "description": "GP referral: prefill from the letter, confirm, create the case."},
+    {"name": "handover", "description": "15-field MDT handover assembled from evidence-locked facts."},
 ]
 
 

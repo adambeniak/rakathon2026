@@ -41,6 +41,9 @@ class Settings(BaseSettings):
         None, description="Simulated 'now' for the demo, e.g. 2026-10-21T08:00:00+02:00."
     )
     stafeta_llm_cache: bool = Field(True, description="1 = use cached LLM responses only (demo/CI).")
+    handover_stale_vitals_days: int = Field(
+        30, ge=1, description="DEMO RULE: weight older than this at as_of is reported as stale in the handover."
+    )
 
     # --- InterSystems IRIS for Health ---
     fhir_base_url: str = "http://localhost:52773/fhir/r4"

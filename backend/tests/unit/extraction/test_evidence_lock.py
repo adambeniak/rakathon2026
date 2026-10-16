@@ -9,6 +9,8 @@ import pytest
 
 from app.documents.normalize import doc_from_text
 from app.extraction.lock import (
+    MAX_REPAIR_QUOTE_LEN,
+    NEGATED_VALUE_REPAIRED,
     Accepted,
     Rejected,
     doc_included,
@@ -110,14 +112,36 @@ def test_negated_value_must_carry_the_negation(doc) -> None:  # type: ignore[no-
         evidence_lock(text_fact("examination", 12, q, "Truncus coeliacus", "negated"), doc("08_")),
         "negation_not_in_value",
     )
-    rejected(
-        evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus", "negated"), doc("05_")),
-        "negation_not_in_value",
-    )
     accepted(
         evidence_lock(
             text_fact("examination", 12, q, "a. hepatica communis bez kontaktu s tumorem", "negated"), doc("08_")
         )
+    )
+
+
+def test_short_negated_quote_repairs_value(doc) -> None:  # type: ignore[no-untyped-def]
+    # cache run: the model returned value "AA" for "AA: neguje" -> the value becomes the exact source quote
+    a = accepted(evidence_lock(text_fact("allergy", 8, "AA: neguje", "AA", "negated"), doc("07_")))
+    assert parse_value(a.fact.value).model_dump()["text"] == "AA: neguje"
+    assert a.fact.lock_notes == [NEGATED_VALUE_REPAIRED]
+    b = accepted(evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus", "negated"), doc("05_")))
+    assert parse_value(b.fact.value).model_dump()["text"] == "Pruritus neguje."
+
+
+def test_repair_needs_cue_in_quote_and_short_text_value(doc) -> None:  # type: ignore[no-untyped-def]
+    # no cue in the quote: still a negation mismatch, never repaired
+    f = text_fact("symptom", 11, "Nechutenství, pokračující úbytek hmotnosti", "nechutenství", "negated")
+    rejected(evidence_lock(f, doc("07_")), "negation_mismatch")
+    # cue present but two clauses: repairing would hide the positive finding
+    mixed = doc_from_text("99_Synteticky_2026-10-01", "Bez metastáz, ascites přítomen.", date(2026, 10, 1))
+    q2 = "Bez metastáz, ascites přítomen."
+    rejected(evidence_lock(text_fact("examination", 12, q2, "metastáz", "negated"), mixed), "negation_not_in_value")
+    # cue present but the quote is longer than the repair limit
+    q = "Truncus coeliacus a a. hepatica communis bez kontaktu s tumorem."
+    assert len(q) > MAX_REPAIR_QUOTE_LEN
+    rejected(
+        evidence_lock(text_fact("examination", 12, q, "Truncus coeliacus", "negated"), doc("08_")),
+        "negation_not_in_value",
     )
 
 

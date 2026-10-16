@@ -15,7 +15,7 @@ from app.domain.evidence import Evidence
 from app.fhir.client import Resource
 from app.fhir.errors import FhirNotFoundError
 from app.fhir.mappers.case import case_from_fhir
-from app.fhir.mappers.document import document_from_fhir
+from app.fhir.mappers.document import document_content, document_from_fhir
 from app.fhir.mappers.patient import insurer_code_from_coverage, patient_from_fhir
 from app.fhir.mappers.referral import diagnosis_from_service_request
 from app.fhir.repository import FhirRepository
@@ -59,6 +59,13 @@ class LoadedCase:
     case: Case
 
 
+@dataclass(frozen=True)
+class CaseContentsView:
+    case: Case
+    documents: list[SourceDocument]
+    contents: dict[str, bytes]
+
+
 class CaseReader:
     def __init__(self, repository: FhirRepository) -> None:
         self._repo = repository
@@ -91,6 +98,25 @@ class CaseReader:
             [*_audit_entities([task]), *(f"DocumentReference/{r['id']}" for r in resources)], subtype="read"
         )
         return CaseDetailView(case=case, documents=documents, extras=extras)
+
+    async def get_case_contents(self, case_id: str) -> CaseContentsView:
+        """Case, document metadata and the documents' DOCX bytes (handover assembly). Audited as one read."""
+        task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)
+        if task is None:
+            raise NotFoundError("case", case_id)
+        case = await self._case(task)
+        resources = await self._repo.search("DocumentReference", {"encounter": _focus(task), "_count": "100"})
+        await self._repo.audit_read(
+            [*_audit_entities([task]), *(f"DocumentReference/{r['id']}" for r in resources)], subtype="read"
+        )
+        documents: list[SourceDocument] = []
+        contents: dict[str, bytes] = {}
+        for resource in resources:
+            document = document_from_fhir(resource)
+            documents.append(document)
+            contents[document.doc_id] = document_content(resource)
+        documents.sort(key=lambda d: (d.received_at, d.doc_id))
+        return CaseContentsView(case=case, documents=documents, contents=contents)
 
     async def overview(self, case_id: str) -> CaseOverview:
         """Summary of one case (fresh read, e.g. after a write); the read is audited like `list_cases`."""

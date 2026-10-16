@@ -13,6 +13,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Literal
 
 from app.documents.normalize import (
     NormalizedDoc,
@@ -35,8 +36,12 @@ from app.extraction.values import (
     TextValue,
     make_fact_id,
 )
+from app.settings import PRAGUE
 
 MAX_QUOTE_LEN = 600
+# A negated text fact whose value lacks the negation word is repaired only for quotes up to this length.
+MAX_REPAIR_QUOTE_LEN = 40
+NEGATED_VALUE_REPAIRED = "negated_value_from_quote"
 
 # Explicit negation words and negated-finding stems only; a generic "ne-" prefix is NOT a cue
 # ("nehomogenní", "neostře ohraničené" describe positive findings).
@@ -271,7 +276,14 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         # vzdálených metastáz", "AA: neguje"); consumers never compose a negation themselves. A value
         # without the negation word ("Truncus coeliacus") would read as a present finding.
         if not NEGATION_CUE.search(" ".join(value_strings(raw))):
-            return Rejected("negation_not_in_value", raw)
+            # Narrow repair: a short single-clause negative statement ("AA: neguje") whose value lost the cue
+            # ("AA") becomes the exact source quote, which is self-contained. Longer or multi-clause quotes stay
+            # rejected ("bez metastáz, ascites přítomen" would hide a positive finding).
+            single_clause = not any(sep in source_quote for sep in ",;")
+            if not isinstance(v, TextValue) or len(source_quote) > MAX_REPAIR_QUOTE_LEN or not single_clause:
+                return Rejected("negation_not_in_value", raw)
+            value = v.model_copy(update={"text": source_quote})
+            notes.append(NEGATED_VALUE_REPAIRED)
     if raw.certainty == "stated" and raw.type in CERTAINTY_CHECKED_TYPES and (m := SUSPICION_CUE.search(source_quote)):
         return Rejected("certainty_mismatch", raw, m.group(0))
 
@@ -333,13 +345,26 @@ def doc_included(doc: NormalizedDoc, as_of: datetime, *, require_received: bool 
     timestamp (seed/FHIR) compared exactly. An unknown received time excludes the document unless
     require_received=False (raw-file tooling only; the backend path always requires it).
     """
+    return as_of_exclusion(doc.authored_date, doc.received_at, as_of, require_received=require_received) is None
+
+
+AsOfExclusion = Literal["authored_unknown", "authored_after_as_of", "received_unknown", "received_after_as_of"]
+
+
+def as_of_exclusion(
+    authored: date | None, received: datetime | None, as_of: datetime, *, require_received: bool = True
+) -> AsOfExclusion | None:
+    """Why a document is not known at `as_of` (None = included). Semantics: see `doc_included`."""
     if as_of.tzinfo is None:
         raise ValueError("as_of must be timezone-aware")
-    if doc.authored_date is None or doc.authored_date >= as_of.date():
-        return False
-    if doc.received_at is None:
-        return not require_received
-    return doc.received_at <= as_of
+    if authored is None:
+        return "authored_unknown"
+    # The authored date is a Prague calendar day: compare with the as_of day in Prague, whatever offset was given.
+    if authored >= as_of.astimezone(PRAGUE).date():
+        return "authored_after_as_of"
+    if received is None:
+        return "received_unknown" if require_received else None
+    return "received_after_as_of" if received > as_of else None
 
 
 def filter_as_of(

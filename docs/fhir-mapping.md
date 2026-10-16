@@ -19,9 +19,14 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | Step (`domain.task.Task`) | `Task` partOf case Task | owner, `restriction.period.end` = due, `businessStatus` (`task-business-status`), location, dependencies | F2-4 |
 | Pathway template | `PlanDefinition` → `CarePlan` | "Karcinom pankreatu – diagnostika", relatedAction before/after | F1-4 / F2-4 |
 | Lab result | `Observation` (LOINC) in `DiagnosticReport` | effectiveDateTime = collection time | F2/F3-5 |
-| Diagnosis | `Condition` (mCODE PrimaryCancerCondition idea) | ICD-10 C25.0, verificationStatus provisional → confirmed, morphology 8500/3 | F2-2 |
-| Handover / MDT record | `Composition` (preliminary → final) | sections = 15 handover fields / MDT_zapis; attester = confirming physician | F2-2 / F3-3 |
-| AI evidence / confirmation | `Provenance` | target = derived resource, entity.what = source DocumentReference, quote in extension, agent = model (Device) + confirming Practitioner | F2-2 |
+| Diagnosis | `Condition` (mCODE PrimaryCancerCondition idea) | category encounter-diagnosis, code ICD-10 + text, verificationStatus provisional → confirmed (histology), morphology ICD-O-3 in the mCODE `histology-morphology-behavior` extension | F2-2 `mappers/handover.py` |
+| Comorbidity | `Condition` | category problem-list-item, code ICD-10 if stated + text, `note` = detail as written | F2-2 |
+| Medication (handover field 7) | `MedicationStatement` | status active, medicationCodeableConcept.text = drug as written, dosage.text = dose + schedule, dateAsserted | F2-2 |
+| Weight/height, lab, histology values | `Observation` | category vital-signs (LOINC 29463-7 / 8302-2, UCUM) or laboratory (code.text = test as written), valueQuantity/valueString, effectiveDateTime, interpretation H/L | F2-2 |
+| Handover | `Composition` (preliminary → final) | identifier `sid/handover|<case>@<as_of UTC>`, type `composition-type|handover`, author = Device (logical), extensions episode + as_of; 15 sections: code `handover-section|<key>`, generated narrative, `handover-field-status` + `handover-review` extensions, `handover-edited-value` after an edit, `emptyReason` unavailable when missing, entries → derived resources / DocumentReferences (field 12) / Patient (field 1); `final` + `attester` (professional) when all 15 are confirmed or accepted as missing | F2-2 `mappers/handover.py`, `handover_store.py` |
+| MDT record | `Composition` | sections = MDT_zapis | F3-3 |
+| AI evidence | `Provenance` | target = derived resource (or the Composition, activity `assemble`), activity `extract`, agent assembler = Device (model + prompt versions), entity.role source, what = DocumentReference, `evidence-quote` extension (quote, charStart, charEnd) | F2-2 |
+| Physician confirmation | `Provenance` | target = Composition, activity confirm / edit / accept-missing, agent verifier = PractitionerRole (business identifier + display, workflow role), extensions `handover-section` + `previous-value-sha256` | F2-2 |
 | Consent / wishes | `Consent` | identifier `consent|<case id>`, scope patient-privacy, patient, organization KOC, sourceReference letter, provision permit/disclose to the KOC; statements of the letter verbatim in `consent-statement` extensions (not interpreted) | F2-1 |
 | Messages | `CommunicationRequest` / `Communication` | request missing reports (fixed template + label as written in the letter; status `active` → `completed` when the report arrives); MDT result to GP; `received` = delivery proof | F2-1 / F3-4 |
 | Report request step | `Task` code `request-report` | partOf case Task, basedOn CommunicationRequest, owner coordinator, `restriction.period.end` = due (+2 working days), `restriction.recipient` = workplace, businessStatus `objednano` → `vysledek_dorucen`, `output` = delivered DocumentReference, extension `request-exam-date` | F2-1 `mappers/document_request.py` |
@@ -44,6 +49,9 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `https://stafeta.example/fhir/sid/consent` | Consent | case id |
 | `https://stafeta.example/fhir/sid/communication-request` | CommunicationRequest | request task id |
 | `https://stafeta.example/fhir/sid/request-task` | report-request Task | `<case id>-req-<n>` |
+| `https://stafeta.example/fhir/sid/handover` | Composition (handover) | `<case id>@<as_of UTC YYYYMMDDTHHMMZ>` |
+| `https://stafeta.example/fhir/sid/handover-entry` | Condition / MedicationStatement / Observation derived from a handover | `<handover id>#<field key>.<n>` |
+| `https://stafeta.example/fhir/sid/device` | Composition.author, Provenance agent (logical Device reference) | `stafeta-handover-ai` |
 | `https://ncez.mzcr.cz/fhir/sid/icp` | Organization IČP (CZ Core) | e.g. `72045318` |
 | `https://ncez.mzcr.cz/fhir/sid/kp` | Insurer code (CZ Core), Organization + `Coverage.payor.identifier` | `211` |
 
@@ -58,6 +66,23 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `workflow-role` | gp, coordinator, koc_physician, koc_staff, external_workplace, patient, reviewer, system |
 | `organization-kind` | gp_practice, koc, laboratory, outpatient, imaging, insurer |
 | `episode-type` | oncology-diagnostics |
+| `composition-type` | handover |
+| `handover-section` | 1_patient … 15_other (keys shared with `data/golden`) |
+| `handover-field-status` | complete, partial, missing, stale, needs_clarification, complete_with_conflict, generated_with_citations |
+| `handover-review-state` | draft, confirmed, accepted_missing (used as `valueCode` in the review extension) |
+| `provenance-activity` | assemble, extract, confirm, edit, accept-missing |
+
+## Our extensions (`https://stafeta.example/fhir/StructureDefinition/<name>`, not loaded into IRIS)
+| Name | On | Value |
+| --- | --- | --- |
+| `handover-episode` | Composition | valueReference → EpisodeOfCare (Composition.encounter allows Encounter only) |
+| `handover-as-of` | Composition | valueDateTime, the cut-off |
+| `handover-field-status` | Composition.section | valueCoding `handover-field-status` |
+| `handover-review` | Composition.section | complex: state (code), by (Reference, PractitionerRole business id), role (code), at (dateTime), edited (boolean), value-hash (string: SHA-256 of the section value the physician confirmed; a later change reopens the review) |
+| `handover-edited-value` | Composition.section | valueString, the physician's value as JSON (validated against `contracts/handover.schema.json`) |
+| `evidence-quote` | Provenance.entity | complex: quote (string), charStart, charEnd (integer) |
+| `handover-section` | Provenance (confirmation) | valueCode, the section key |
+| `previous-value-sha256` | Provenance (confirmation) | valueString, SHA-256 of the section value before the confirmation |
 | `tag` | stafeta-demo (all demo writes; wiped by `make demo-reset` except AuditEvents, which are never deleted), stafeta-test (integration tests, cleaned up by the tests) |
 
 ## Modelling notes and deliberate deviations
@@ -72,6 +97,11 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
   EpisodeOfCare `onhold`; rejected referral → Task `rejected`.
 - **References with identifier + display** (`Task.owner`, `EpisodeOfCare.careManager`) carry the PractitionerRole
   business id so readers need no extra lookup.
+- **Handover writes audit atomically**: persist and confirm put the AuditEvent into the same transaction Bundle
+  (`FhirRepository.transaction(audit_in_bundle=True)`); its entities are the entries' `fullUrl`s, resolved by the
+  server. A confirmation PUT always carries `If-Match` (the stored `meta.versionId`); 412 → API 409 `conflict`.
+  `ifNoneExist` tokens are URL-encoded (entry identifiers contain `#`). Vital-signs Observations need a numeric
+  value and a date; otherwise category `exam` without LOINC.
 - **AuditEvent**: `source.observer` is display-only ("Štafeta backend"); `agent.type` uses our `workflow-role`
   (extensible binding → validator warning, accepted); people are identified with the PractitionerRole business id
   (same system as `Task.owner`), technical actors (`system`, `seed`) with `sid/user`. Searches are audited with

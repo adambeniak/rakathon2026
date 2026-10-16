@@ -35,7 +35,8 @@ export const cases = {
   triage: {
     title: 'Chybějící podklady k vyžádání',
     proposal: 'Návrh k vyžádání – zkontrolujte a odešlete.',
-    hint: 'V žádosti praktického lékaře jsou uvedeny výsledky, které nejsou přiloženy. Vyberte, které vyžádat.',
+    hint: 'Žádost praktického lékaře odkazuje na vyšetření, jejichž zprávy nejsou k případu přiloženy. Vyberte, které vyžádat.',
+    source: 'Zdroj odkazu v žádosti',
     recipient: 'Adresát',
     selectAll: 'Vybrat vše',
     submit: 'Vyžádat vybrané',

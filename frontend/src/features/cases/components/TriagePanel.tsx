@@ -3,18 +3,21 @@ import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { LoadingBlock } from '@/components/Skeleton'
 import { Button } from '@/components/ui/button'
 import { cases as t } from '@/i18n/cs/cases'
-import { useDocumentRequests, useRequestDocuments } from '../api'
+import { EvidenceChip } from '@/components/EvidenceChip'
+import { useDocumentRequests, useDocuments, useRequestDocuments } from '../api'
 
 /** Demo step 2: proposed document requests as one checklist, sent with a single click. */
 export function TriagePanel({ caseId, canAct }: { caseId: string; canAct: boolean }) {
   const q = useDocumentRequests(caseId)
   const send = useRequestDocuments(caseId)
+  const docs = useDocuments(caseId)
   const [unchecked, setUnchecked] = useState<Set<string>>(new Set())
 
   if (q.isPending) return <LoadingBlock lines={3} />
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
   if (q.data.length === 0) return <EmptyState title={t.triage.empty} hint={t.triage.emptyHint} />
 
+  const ev = q.data[0]!.evidence // the API returns the same source with every proposal
   const open = q.data.filter((r) => !r.requested)
   const selected = open.filter((r) => !unchecked.has(r.id))
   const toggle = (id: string) =>
@@ -31,6 +34,10 @@ export function TriagePanel({ caseId, canAct }: { caseId: string; canAct: boolea
           {t.triage.title}
         </h2>
         <p className="text-sm text-muted">{t.triage.hint}</p>
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted">{t.triage.source}:</span>
+          <EvidenceChip docId={ev.docId} quote={ev.quote} doc={docs.data?.find((d) => d.id === ev.docId)} />
+        </p>
         <p className="text-sm font-medium">{t.triage.proposal}</p>
       </div>
       <ul className="divide-y divide-hairline">

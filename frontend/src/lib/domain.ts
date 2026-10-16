@@ -39,7 +39,16 @@ export const handoverSectionSchema = z.object({
   number: z.number(),
   title: z.string(),
   status: z.enum(HANDOVER_STATUSES),
-  rows: z.array(z.object({ label: z.string().optional(), value: z.string(), note: z.string().optional() })),
+  rows: z.array(
+    z.object({
+      label: z.string().optional(),
+      value: z.string(),
+      note: z.string().optional(),
+      /** Consent / personal wishes: shown with their source, never editable. */
+      readOnly: z.boolean().optional(),
+      evidence: z.array(evidenceSchema).optional(),
+    }),
+  ),
   missing: z.array(z.string()),
   evidence: z.array(evidenceSchema),
   findingIds: z.array(z.string()),
@@ -97,7 +106,8 @@ export interface DocumentInfo {
   place: string
   authored: string // ISO date
   received: string // ISO timestamp
-  afterAsOf: boolean
+  /** Set by the API (handover `excluded_documents`); the UI never derives it from dates. */
+  afterAsOf?: boolean
 }
 
 export interface Finding {
@@ -139,6 +149,7 @@ export interface DocumentRequest {
   recipient: string
   docId: string
   requested: boolean
+  evidence: Evidence
 }
 
 export interface TimelineEvent {

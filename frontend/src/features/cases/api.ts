@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDemo } from '@/app/DemoContext'
 import { client, unwrap } from '@/lib/api/client'
 import { api } from '@/lib/api/http'
+import { useHandover } from '@/features/handover/api'
 import { adaptCase, adaptDetail } from './adapter'
 import type { AuditEntry, DocumentRequest, Finding, Message, TaskItem, TaskPhase, TimelineEvent } from '@/lib/domain'
 
@@ -22,12 +23,16 @@ export function useCase(id: string) {
 }
 
 export const useFindings = (id: string) => useCaseQuery<Finding[]>(id, 'findings')
+/** Documents of the case; the "po MDT" flag comes from the handover's `excluded_documents`, not from dates. */
 export function useDocuments(id: string) {
   const { today } = useDemo()
-  return useQuery({
+  const handover = useHandover(id)
+  const q = useQuery({
     queryKey: ['case', id, 'documents', today],
     queryFn: async () => adaptDetail(unwrap(await client.GET('/api/cases/{case_id}', { params: { path: { case_id: id } } }))).documents,
   })
+  const excluded = new Set((handover.data?.excluded ?? []).map((d) => d.id))
+  return { ...q, data: q.data?.map((d) => ({ ...d, afterAsOf: excluded.has(d.id) })) }
 }
 export const useTasks = (id: string) => useCaseQuery<TaskItem[]>(id, 'tasks')
 export const useTimeline = (id: string) => useCaseQuery<TimelineEvent[]>(id, 'timeline')

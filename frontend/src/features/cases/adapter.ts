@@ -1,5 +1,4 @@
 import { common } from '@/i18n/cs/common'
-import { DEMO_AS_OF } from '@/lib/demo'
 import type { components } from '@/lib/api/schema'
 import type { CaseDetail, CaseState, CaseSummary, DocumentInfo } from '@/lib/domain'
 
@@ -34,8 +33,6 @@ export function adaptDocument(d: ApiDocument): DocumentInfo {
     place: d.custodian ?? '—',
     authored: d.authored_at,
     received: d.received_at,
-    // Demo as-of rule (AGENTS.md #4): received after the MDT start is shown as "Po MDT" and left out of the handover.
-    afterAsOf: new Date(d.received_at).getTime() > new Date(DEMO_AS_OF).getTime(),
   }
 }
 

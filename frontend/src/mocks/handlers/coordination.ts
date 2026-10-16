@@ -10,6 +10,12 @@ import { problem, roleOf, todayOf } from './util'
 
 const ORDER: TaskPhase[] = ['to_order', 'ordered', 'performed', 'result_delivered']
 
+// Verbatim line from report 07 (the list of examinations the GP refers to); the API returns it with each proposal.
+const REFERRAL_EVIDENCE = {
+  docId: '07_PL_zadost_KOC2_2026-10-02',
+  quote: 'UZ břicha 29. 9. 2026 (RDG pracoviště, Poliklinika Jižní)',
+}
+
 /** Reports 01–06 are referenced by the GP's request but not attached (demo step 2). */
 function proposals(): DocumentRequest[] {
   return DOCUMENTS.slice(0, 6).map((d) => ({
@@ -18,6 +24,7 @@ function proposals(): DocumentRequest[] {
     recipient: d.place,
     docId: d.id,
     requested: store.requested.includes(`req-${d.id}`),
+    evidence: REFERRAL_EVIDENCE,
   }))
 }
 

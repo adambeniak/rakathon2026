@@ -145,6 +145,33 @@ describe('handover review', () => {
   })
 })
 
+describe('API-decided rendering', () => {
+  it('consent rows are read-only and show their source chip', async () => {
+    renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Upravit sekci: Jiná sdělení' }))
+    const section = screen.getByRole('region', { name: /Jiná sdělení/ })
+    expect(within(section).getByText('Souhlasí se sdílením informací s dcerou.')).toBeInTheDocument()
+    expect(within(section).getByText('Souhlas pacienta – nelze upravit')).toBeInTheDocument()
+    // The consent row has a source chip and no input; the other rows are editable.
+    const inputs = within(section).getAllByRole('textbox', { name: /^Hodnota:/ })
+    expect(inputs.length).toBeGreaterThan(0)
+    expect(inputs.some((i) => (i as HTMLInputElement).value.startsWith('Souhlasí'))).toBe(false)
+  })
+
+  it('triage hint shows the evidence chip returned with the proposals', async () => {
+    renderRoute(ALENA, { today: '2026-10-02' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Alena Procházková' }))
+    const panel = await screen.findByRole('heading', { name: 'Chybějící podklady k vyžádání' })
+    expect(within(panel.closest('section')!).getAllByRole('button', { name: /^Zdroj:/ }).length).toBeGreaterThan(0)
+  })
+
+  it('documents tab marks "Po MDT" from the handover data, not from dates', async () => {
+    renderRoute(`${ALENA}/documents`, { today: '2026-10-27' })
+    await screen.findByText('Algeziologické vyšetření')
+    await waitFor(() => expect(screen.getAllByText('Po MDT')).toHaveLength(2))
+  })
+})
+
 describe('referral confirmation', () => {
   it('sends the optional note and explains what happens next', async () => {
     renderRoute('/referral/new', { role: 'gp' })

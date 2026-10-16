@@ -8,14 +8,17 @@ import type { HandoverView } from './types'
 const viewSchema = z.object({
   asOf: z.string(),
   sections: z.array(handoverSectionSchema),
-  excluded: z.array(z.any()),
+  excluded_documents: z.array(z.any()),
 })
 
 export function useHandover(id: string) {
   const { today } = useDemo()
   return useQuery({
     queryKey: ['case', id, 'handover', today],
-    queryFn: async () => viewSchema.parse(await api.get(`/api/cases/${id}/handover`)) as HandoverView,
+    queryFn: async () => {
+      const v = viewSchema.parse(await api.get(`/api/cases/${id}/handover`))
+      return { asOf: v.asOf, sections: v.sections, excluded: v.excluded_documents } as HandoverView
+    },
   })
 }
 

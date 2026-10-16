@@ -84,6 +84,7 @@ def test_case_round_trip_through_coordinating_task() -> None:
         baton_holder=holder,
         next_deadline=datetime(2026, 10, 21, 8, 0, tzinfo=PRAGUE),
         opened_at=datetime(2026, 10, 2, 9, 30, tzinfo=PRAGUE),
+        mdt_start=datetime(2026, 10, 21, 8, 0, tzinfo=PRAGUE),
     )
 
     task = case_task_to_fhir(

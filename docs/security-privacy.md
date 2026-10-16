@@ -21,9 +21,22 @@ pilot must add. Owner: P1 (infra) + P4 (auth, audit); reviewed by the `security-
 ## Accepted risks for the hackathon
 - The team IRIS runs on a **public Azure Container Instance over plain HTTP** with basic auth (ports 1972/52773).
   Acceptable only because all data is fictitious; ACI storage is wiped on restart.
-- No user authentication yet: the actor is `system` (issue #4); the API must stay on loopback until #4 lands.
-  `POST /api/cases/{id}/ask` returns retrieved chunk text (document excerpts). It is gated by case membership
+- No real user authentication yet (issue #4); the API must stay on loopback until #4 lands. With `STAFETA_DEMO_MODE=1`
+  (the only demo switch, default on) the **`X-Demo-Role` header selects the acting role** through the one shared
+  `current_actor` (it is not authentication); outside demo mode every request is 401. Accepted risk: because demo
+  mode defaults to on, any deployment that forgets `STAFETA_DEMO_MODE=0` trusts the header – never expose such a
+  deployment beyond the demo.
+- `POST /api/cases/{id}/ask` returns retrieved chunk text (document excerpts). It is gated by case membership
   (`authorize_case`, like triage: referring GP or staff of the managing KOC; a reviewer gets 403) and audited.
+- Coordination (board, alerts, launch, ad-hoc tasks, task transitions) is gated by case membership (`authorize_case`:
+  referring GP or staff of the managing KOC; anyone else 403). Task ownership is checked by role, not by person, and
+  launch and ad-hoc task creation are coordinator-only. Real access control belongs to #4.
+- Launching a pathway requires an indicating KOC physician (`indicated_by`); the coordinator attests it (Provenance
+  `onBehalfOf`), the physician does not confirm in Štafeta yet.
+- Coordination: the SLA watchdog (technical job, one replica only) reads tasks without a per-round AuditEvent to avoid
+  flooding the trail; its escalations are audited. Free-text reasons of a fail / cancel stay on the Task and never go
+  into the AuditEvent text. Case ids embed the patient surname (`rakathon-2026-prochazkova`): opaque ids are required
+  before real data.
 - Write + AuditEvent are two calls, not atomic (#9); failed/denied reads are not audited yet (#8).
 - Identifiers (RČ) appear in FHIR search query strings between backend and IRIS, and inside the RelatedPerson and
   Coverage identifier values (#7).

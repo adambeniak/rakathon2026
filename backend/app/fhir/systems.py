@@ -18,6 +18,9 @@ SID_RELATED_PERSON: Final = SID + "related-person"
 SID_COVERAGE: Final = SID + "coverage"
 SID_CASE: Final = SID + "case"
 SID_CASE_TASK: Final = SID + "case-task"
+SID_CASE_STEP: Final = SID + "case-step"  # pathway step / ad-hoc Task, value = domain Task.id
+SID_STEP_ORDER: Final = SID + "case-step-order"  # ServiceRequest of a pathway step, value = domain Task.id
+SID_CAREPLAN: Final = SID + "careplan"  # value = "<case id>.<plan key>"
 SID_SOURCE_DOCUMENT: Final = SID + "source-document"
 SID_USER: Final = SID + "user"
 SID_SERVICE_REQUEST: Final = SID + "service-request"
@@ -77,10 +80,27 @@ EXT_HANDOVER_SECTION: Final = SD + "handover-section"
 EXT_EVIDENCE_QUOTE: Final = SD + "evidence-quote"
 EXT_PREVIOUS_VALUE_HASH: Final = SD + "previous-value-sha256"
 
+# --- Pathway coordination (F2-4) ---
+CS_PATHWAY_ACTION: Final = CS + "pathway-action"
+
+EXT_DUE: Final = SD + "due-rule"  # PlanDefinition.action
+EXT_SLA: Final = SD + "sla-rule"  # PlanDefinition.action
+EXT_PLACE: Final = SD + "place"  # PlanDefinition.action, Task: workplace as text
+EXT_OWNER: Final = SD + "owner-role"  # PlanDefinition.action
+EXT_READINESS: Final = SD + "mdt-required-items"  # PlanDefinition
+EXT_DEPENDS_ON: Final = SD + "depends-on"  # Task: business id of a Task that must finish first (repeats)
+EXT_SLA_DUE: Final = SD + "sla-due"  # Task: agreed deadline
+EXT_ESCALATED_AT: Final = SD + "escalated-at"  # Task: when the overdue escalation fired
+EXT_AD_HOC: Final = SD + "ad-hoc"  # Task: single task outside a pathway
+EXT_DEMO_ASSUMPTION: Final = SD + "demo-assumption"  # Task: due date comes from a demo template
+EXT_RECORDED_BY: Final = SD + "recorded-on-behalf-by"  # Task: coordinator who recorded progress for a workplace
+EXT_ON_BEHALF_OF: Final = SD + "on-behalf-of"  # AuditEvent.agent: workplace the actor recorded a step for
+
 DEMO_TAG_CODE: Final = "stafeta-demo"
 TEST_TAG_CODE: Final = "stafeta-test"
 TASK_CODE_COORDINATE_CASE: Final = "coordinate-case"
 TASK_CODE_REQUEST_REPORT: Final = "request-report"
+TASK_CODE_RESULT_DOCUMENT: Final = "result-document"  # Task.output.type
 
 # --- External terminologies ---
 LOINC: Final = "http://loinc.org"
@@ -103,6 +123,7 @@ COVERAGE_TYPE: Final = "http://terminology.hl7.org/CodeSystem/v3-ActCode"
 ORGANIZATION_TYPE: Final = "http://terminology.hl7.org/CodeSystem/organization-type"
 AUDIT_EVENT_TYPE: Final = "http://terminology.hl7.org/CodeSystem/audit-event-type"
 RESTFUL_INTERACTION: Final = "http://hl7.org/fhir/restful-interaction"
+V3_DATA_OPERATION: Final = "http://terminology.hl7.org/CodeSystem/v3-DataOperation"
 SECURITY_SOURCE_TYPE: Final = "http://terminology.hl7.org/CodeSystem/security-source-type"
 
 DOCX_MEDIA_TYPE: Final = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

@@ -1,0 +1,25 @@
+# Known issues and open problems
+
+Problems found while building and reviewing the coordination feature (branch `wf/coordination`) that are **not fixed**
+there. Each has an impact, a proposed fix and an owner role; when one is taken up, link its issue/PR here. Fixed items
+are removed (see git history). Security-related ones are also summarised in `docs/security-privacy.md`.
+
+| # | Problem | Impact | Proposed fix | Owner |
+| --- | --- | --- | --- | --- |
+| K1 | `STAFETA_DEMO_MODE` defaults to on and is the only guard of the `X-Demo-Role` header | A deployment that forgets `STAFETA_DEMO_MODE=0` trusts the header; every caller can pick a role (outside demo mode every request is 401) | Real login (#4); until then set `STAFETA_DEMO_MODE=0` for anything that is not the demo and keep the API off the public internet | P1 / P4 |
+| K2 | Task ownership is checked by role, not by person (case membership is enforced with `authorize_case`) | Within a case, any participant of the owner's role can act on a task | Compare `task.owner.id` with the actor once login exists (#4) | P4 |
+| K3 | Denied operations (403) and failed reads are not audited (#8) | Attempts to act outside one's role leave no trace | Write an AuditEvent with `outcome` 4/8 on forbidden actions | P1 |
+| K4 | The indicating physician does not confirm in Štafeta: the coordinator attests the indication (Provenance `onBehalfOf`) | Nothing proves the physician agreed | Physician confirmation step (a Provenance signed by the physician) before the orders count as indicated | P4 + clinical owner |
+| K5 | The backend stores no "responsible physician" per case | The UI cannot pre-fill `indicated_by` from data | A `responsible_physician` on the case (or the MDT chair) exposed in `GET /api/cases/{id}`; until then the UI offers a picker of `koc_physician` roles | P1 / P3 |
+| K6 | A lost-race launch answers 409, but non-matching entries of the transaction (the Provenance has no identifier) are still written | An orphan Provenance can remain after two concurrent launches | Give the Provenance a business key or write it only after the CarePlan is known to be new | P1 |
+| K7 | A failed step keeps its ServiceRequest `active` (R4 has no "failed" request status) | The order looks open after the examination could not be done | Decide the wording with the clinical owner (e.g. `revoked` + reason, or a new order) | clinical owner |
+| K8 | `Case.baton_holder` of the case list is not synced from the board | The case queue can show another baton holder than the board | Sync through the case state machine (ask before touching it) | P4 |
+| K9 | The SLA watchdog runs in every replica and has no delivery channel (`app.notify` is a stub) | Duplicate work with several replicas (`If-Match` prevents duplicate escalations); coordinators see escalations only in alerts/board | Run one replica; mail/notification when `app.notify` exists | P4 |
+| K10 | Demo fallback "seeded tasks via `make seed`" is not done: the story scenario seeds no step tasks | The 16. 10. demo needs CT/EUS/labs moved by hand first, otherwise they alert too | Launch the pathway in the story seed (start 2. 10.) and advance CT/EUS/labs, histology to `provedeno` | P4 |
+| K11 | The launch Bundle, `If-Match`, `part-of` search, `urn:uuid` rewriting and acceptance of ServiceRequest/Provenance are verified only by mocks and offline R4B validation | Possible rejections or mis-links on a real IRIS | Run `pytest -m iris` on `make up-local` (never the shared team IRIS; tests create cases) | P1 |
+| K12 | `Task.executionPeriod.start` holds the *confirmed* (future) date; `Task.owner`/`location` are display-only References; the CarePlan is linked to its case only by identifier; step Tasks have no `basedOn` | Weaker FHIR semantics and searches (`Task?owner=`) | Appointment for the date; PractitionerRole/Location resources; `basedOn` once IRIS accepts the cycle | P1 |
+| K13 | Transition refusals have English `detail` texts | The UI must map `code` to Czech | Map `forbidden_role`, `invalid_transition`, `guard_failed` in `frontend/src/i18n/cs/` | P3 |
+| K14 | Case ids embed the patient surname (`rakathon-2026-prochazkova`); free-text task notes sit on the Task | Identifying data in ids, logs and audit entities | Opaque case ids before real data; keep notes out of logs | P1 |
+| K15 | Request dates (`start_date`, `mdt_start`, `due`) have no sanity range | A coordinator can create tasks dated 1900 or 9999 | Bound to a window around the (demo) now | P4 |
+| K16 | Frontend half of `make check` and `schema.d.ts` were not run (no `node_modules` in the worktree) | The generated TS client is stale until regenerated | `pnpm install && make contract` | P3 |
+| K17 | Mock/backend mismatches in the frontend (`physician` vs `koc_physician`, mock histology due 15. 10. vs backend due 19. 10. + `sla_due` 15. 10., step id `eus_fnb` → `eus-fnb`, English state codes) | Board UI built on the mocks will not match the API | Align the mocks with the generated client | P3 |

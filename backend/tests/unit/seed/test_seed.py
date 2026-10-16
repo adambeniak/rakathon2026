@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from app.fhir.client import Resource
+from app.fhir.mappers.plan_definition import plan_definition_to_template
 from app.fhir.repository import EnsureResult, primary_identifier
 from app.fhir.systems import SID_SOURCE_DOCUMENT
 from app.seed import demo_case
@@ -37,6 +38,16 @@ class InMemoryRepository:
 
     async def read(self, resource_type: str, resource_id: str) -> Resource:
         return next(r for (t, _, _), r in self.store.items() if t == resource_type and r["id"] == resource_id)
+
+    async def ensure_by_url(self, resource: Resource) -> EnsureResult:
+        resource_type = resource["resourceType"]
+        key = (resource_type, resource["url"], "")
+        if key in self.store:
+            return EnsureResult(resource_type, self.store[key]["id"], created=False)
+        stored = {k: v for k, v in resource.items() if k != "id"} | {"id": str(len(self.store) + 1)}
+        self.store[key] = stored
+        self.writes[resource_type] += 1
+        return EnsureResult(resource_type, stored["id"], created=True)
 
     def of_type(self, resource_type: str) -> list[Resource]:
         return [r for (t, _, _), r in self.store.items() if t == resource_type]
@@ -87,6 +98,7 @@ async def test_story_scenario_is_idempotent() -> None:
             "EpisodeOfCare": 1,
             "Task": 1,
             "DocumentReference": 13,
+            "PlanDefinition": 1,
         }
     )
     assert second.total_created == 0
@@ -113,7 +125,25 @@ async def test_demo_start_seeds_directory_and_patient_only() -> None:
 
     report = await seed(repo, Scenario.DEMO_START)
 
-    assert set(report.created) == {"Organization", "Practitioner", "PractitionerRole", "Patient"}
+    assert set(report.created) == {"Organization", "Practitioner", "PractitionerRole", "Patient", "PlanDefinition"}
+
+
+async def test_pathway_template_is_seeded_by_url_and_usable() -> None:
+    repo = InMemoryRepository()
+    await seed(repo, Scenario.STORY)
+
+    [plan] = repo.of_type("PlanDefinition")
+    assert plan["url"] == "https://stafeta.example/fhir/PlanDefinition/pancreas-dx"
+    assert plan_definition_to_template(plan).title == "Karcinom pankreatu – diagnostika"
+
+
+async def test_seeded_case_carries_the_mdt_start() -> None:
+    repo = InMemoryRepository()
+    await seed(repo, Scenario.STORY)
+
+    [task] = repo.of_type("Task")
+    [extension] = task["extension"]
+    assert extension["valueDateTime"] == demo_case.MDT_START.isoformat()
 
 
 @pytest.mark.parametrize("missing", ["email"])

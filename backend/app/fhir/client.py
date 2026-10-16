@@ -104,9 +104,13 @@ class FhirClient:
         found_type, found_id = reference_from_location(location)
         return CreateResult(found_type, found_id, created=response.status_code == httpx.codes.CREATED)
 
-    async def update(self, resource: Resource) -> Resource:
+    async def update(self, resource: Resource, *, if_match: str | None = None) -> Resource:
+        """PUT. `if_match` is the `meta.versionId` read earlier; a concurrent change answers 409/412 (conflict)."""
         path = f"{resource['resourceType']}/{resource['id']}"
-        response = await self._send("PUT", path, json=resource, headers={"Prefer": "return=representation"})
+        headers = {"Prefer": "return=representation"}
+        if if_match:
+            headers["If-Match"] = f'W/"{if_match}"'
+        response = await self._send("PUT", path, json=resource, headers=headers)
         return _json_or_empty(response)
 
     async def delete(self, resource_type: str, resource_id: str) -> None:

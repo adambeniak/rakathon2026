@@ -66,6 +66,15 @@ class CaseContentsView:
     contents: dict[str, bytes]
 
 
+@dataclass(frozen=True)
+class CaseHeader:
+    """The case without its documents, plus the references coordination resources attach to."""
+
+    case: Case
+    task_reference: str  # the coordinating Task, target of `Task.partOf`
+    patient_reference: str
+
+
 class CaseReader:
     def __init__(self, repository: FhirRepository) -> None:
         self._repo = repository

@@ -12,14 +12,16 @@ def test_maps_steps_rules_and_readiness_items() -> None:
     t = plan_definition_to_template(load_plan())
     steps = {s.id: s for s in t.steps}
     assert next(s.id for s in t.steps) == "ct"
-    assert steps["eus_fnb"].after == ("ct",)
+    assert steps["eus-fnb"].after == ("ct",)
     assert set(steps["mdt"].after) == {"ct", "histology", "labs"}
     assert steps["mdt"].owner_role is Role.KOC_PHYSICIAN
+    assert steps["ct"].owner_role is Role.EXTERNAL_WORKPLACE
+    assert steps["eus-fnb"].owner_role is Role.KOC_PHYSICIAN
     assert steps["ct"].due.anchor is Anchor.START
     assert steps["ct"].due.days == 6
     sla = steps["histology"].sla
     assert sla is not None
-    assert sla.step_id == "eus_fnb"
+    assert sla.step_id == "eus-fnb"
     assert sla.days == 3
     assert sla.workdays
     assert "performance_status" in t.mdt_required_items

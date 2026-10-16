@@ -13,6 +13,7 @@ from app.api.clients import get_directory_provider as get_directory_provider
 from app.api.clients import get_fhir_client as get_fhir_client
 from app.api.clients import get_http as get_http
 from app.api.clients import get_settings as get_settings
+from app.api.services.coordination import CoordinationService
 from app.domain.common import PartyRef
 from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
 from app.extraction.llm import LLMClient
@@ -23,6 +24,7 @@ from app.fhir.handover_store import HandoverStore
 from app.fhir.referrals import ReferralWriter
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
+from app.fhir.tasks import TaskStore
 from app.fhir.triage import TriageReader
 from app.fhir.workflow import CaseWorkflow, RequestWorkflow, authorize_case
 from app.iris.db import IrisPool
@@ -171,3 +173,19 @@ def get_document_indexer(request: Request, repository: RepositoryDep) -> Documen
 
 
 DocumentIndexerDep = Annotated[DocumentIndexer, Depends(get_document_indexer)]
+
+
+def get_task_store(repository: RepositoryDep) -> TaskStore:
+    return TaskStore(repository)
+
+
+TaskStoreDep = Annotated[TaskStore, Depends(get_task_store)]
+
+
+def get_coordination(
+    reader: CaseReaderDep, store: TaskStoreDep, settings: SettingsDep, directory: DirectoryProviderDep
+) -> CoordinationService:
+    return CoordinationService(reader, store, settings.now, directory)
+
+
+CoordinationDep = Annotated[CoordinationService, Depends(get_coordination)]

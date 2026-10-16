@@ -14,6 +14,7 @@ from app.fhir.systems import (
     CS_AUDIT_EVENT_CODE,
     CS_AUDIT_TYPE,
     CS_WORKFLOW_ROLE,
+    EXT_ON_BEHALF_OF,
     RESTFUL_INTERACTION,
     SECURITY_SOURCE_TYPE,
     SID_PRACTITIONER_ROLE,
@@ -35,8 +36,13 @@ def build_audit_event(
     entities: Sequence[str],
     recorded: datetime,
     description: str | None = None,
+    on_behalf_of: str | None = None,
 ) -> Resource:
-    """AuditEvent for one interaction. `entities` are FHIR references ('Patient/12'); `recorded` must be aware."""
+    """AuditEvent for one interaction. `entities` are FHIR references ('Patient/12'); `recorded` must be aware.
+
+    `on_behalf_of` names the workplace the actor recorded a step for (R4 AuditEvent.agent has no onBehalfOf, so it
+    is an extension carrying a display-only Reference).
+    """
     if recorded.tzinfo is None:
         raise ValueError("recorded must be timezone-aware")
     event: Resource = {
@@ -58,6 +64,8 @@ def build_audit_event(
             "type": [{"system": SECURITY_SOURCE_TYPE, "code": "4", "display": "Application Server"}],
         },
     }
+    if on_behalf_of:
+        event["agent"][0]["extension"] = [{"url": EXT_ON_BEHALF_OF, "valueReference": {"display": on_behalf_of}}]
     if entities:  # FHIR JSON forbids empty arrays
         event["entity"] = [{"what": {"reference": reference}} for reference in entities]
     if description:

@@ -11,13 +11,7 @@ from typing import Any
 
 from app.domain.common import Role
 from app.domain.pathway import Anchor, DueRule, PathwayStep, PathwayTemplate
-
-EXT = "https://stafeta.example/fhir/StructureDefinition/"
-EXT_DUE = EXT + "due-rule"
-EXT_SLA = EXT + "sla-rule"
-EXT_PLACE = EXT + "place"
-EXT_OWNER = EXT + "owner-role"
-EXT_READINESS = EXT + "mdt-required-items"
+from app.fhir.systems import EXT_DUE, EXT_OWNER, EXT_PLACE, EXT_READINESS, EXT_SLA
 
 
 def _ext(node: Mapping[str, Any], url: str) -> Mapping[str, Any] | None:

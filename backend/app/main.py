@@ -6,8 +6,9 @@ even when IRIS is down or still booting, and `/api/health` reports `degraded` un
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 import httpx
@@ -25,6 +26,7 @@ from app.api.middleware import (
 )
 from app.api.routes import API_PREFIX, discover_routers
 from app.api.routes.referrals import MAX_ATTACHMENTS
+from app.api.watchdog import start_watchdog
 from app.iris.db import IrisPool
 from app.iris.vector_store import VectorStore
 from app.logging_config import configure_logging
@@ -43,6 +45,8 @@ OPENAPI_TAGS = [
     {"name": "directory", "description": "Workplaces (KOC) and their coordinators."},
     {"name": "referrals", "description": "GP referral: prefill from the letter, confirm, create the case."},
     {"name": "handover", "description": "15-field MDT handover assembled from evidence-locked facts."},
+    {"name": "coordination", "description": "Care pathway of a case: launch, board with baton holder, alerts, tasks."},
+    {"name": "tasks", "description": "Moving a single task along its lifecycle."},
 ]
 
 
@@ -69,9 +73,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.embedder = embedder
             app.state.retriever = HybridRetriever(store, embedder)
             app.state.ask_llm = ask_llm_from_settings(settings)
+            watchdog = start_watchdog(settings, http) if settings.watchdog_enabled else None
             try:
                 yield
             finally:
+                if watchdog is not None:
+                    watchdog.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await watchdog
                 pool.close_all()
 
     app = FastAPI(

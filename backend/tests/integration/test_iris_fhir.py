@@ -1,4 +1,4 @@
-"""Against a live IRIS (local or the shared team ACI): `uv run --env-file ../.env pytest -m iris`.
+"""Against the local IRIS container only (`make up-local`; shared servers are skipped, see tests/conftest.py).
 
 Each test run uses its own tag (`stafeta-test-<run>`) and cleans up only the resources it created plus the
 AuditEvents that reference them, so parallel runs on the shared server never delete each other's data.

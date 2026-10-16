@@ -1,0 +1,37 @@
+{
+ "key": "f40279d56f19c1136e571c9114be54704ed74c7f1ccb8dd10d8359ddb2affdf1",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "ask-v2",
+ "doc_id": "ask:rakathon-2026-prochazkova",
+ "created": "2026-10-16T19:51:01+00:00",
+ "usage": {
+  "completion_tokens": 22,
+  "prompt_tokens": 2412,
+  "total_tokens": 2434,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 0,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": null
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cache_write_tokens": 0,
+   "cached_tokens": 2409,
+   "image_tokens": null,
+   "text_tokens": null
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 30,
+   "engine_ttft_ms": 542,
+   "engine_ttlt_ms": 1225,
+   "pre_inference_ms": 137,
+   "service_tbt_ms": 31,
+   "service_ttft_ms": 822,
+   "service_ttlt_ms": 1495,
+   "user_visible_ttft_ms": 685
+  }
+ },
+ "response_text": "{\"question_type\":\"factual\",\"answer_found\":false,\"sentences\":[]}"
+}

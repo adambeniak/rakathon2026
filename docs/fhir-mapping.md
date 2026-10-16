@@ -68,6 +68,11 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
   (extensible binding → validator warning, accepted); people are identified with the PractitionerRole business id
   (same system as `Task.owner`), technical actors (`system`, `seed`) with `sid/user`. Searches are audited with
   action `E`, reads of identified resources with `R`.
+- **Vector index (ADR-0004)**: rows in IRIS SQL `Stafeta.DocChunk` are derived from a DocumentReference. Each
+  indexed document is audited with action `C`, subtype `create`, entity = the DocumentReference and `outcomeDesc`
+  "Stafeta.DocChunk: N chunks embedded with <model>" (actor `seed` or `vector-index`). Every `/ask` question is
+  audited as one read (`R`) of the case Task, the Patient and every DocumentReference whose chunks were retrieved.
+  Ask answers are not stored in FHIR: they are display-only drafts ("Návrh AI").
 - **No empty arrays**: mappers omit optional lists instead of writing `[]` (FHIR JSON forbids empty arrays).
 - **Later**: `doc_id` (file stem) is unique per case, not globally — uploads (F2-1) must scope `ensure` by
   `subject`/case; consider `masterIdentifier` for IHE MHD (#6). RelatedPerson/Coverage identifier values embed the RČ

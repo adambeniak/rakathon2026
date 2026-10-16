@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.schemas.common import ProblemDetails, ValidationIssue
-from app.domain.errors import ConflictError, DomainError, InvalidInputError, NotFoundError
+from app.domain.errors import ConflictError, DomainError, InvalidInputError, NotFoundError, ServiceUnavailableError
 from app.fhir.errors import (
     AuditWriteError,
     FhirAuthError,
@@ -79,6 +79,8 @@ def _domain_status(exc: DomainError) -> tuple[int, str]:
         return 409, "conflict"
     if isinstance(exc, InvalidInputError):
         return 422, "invalid-input"
+    if isinstance(exc, ServiceUnavailableError):
+        return 503, exc.problem
     return 400, "domain-error"
 
 

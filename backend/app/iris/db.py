@@ -6,6 +6,10 @@ The driver is synchronous: call pool methods from async code via `asyncio.to_thr
     with pool.cursor() as cur:            # cursor is always closed first,
         cur.execute("SELECT TOP 5 …", [x])  # then the connection goes back to the pool,
         rows = cur.fetchall()               # or is closed and discarded if anything failed.
+
+    with pool.transaction() as cur:       # autocommit off: commit on success, rollback on any error
+        cur.execute("DELETE …", [x])
+        cur.executemany("INSERT …", rows)
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ MAX_POOL_SIZE = 3
 
 class DbCursor(Protocol):
     def execute(self, operation: str, params: Sequence[Any] = ...) -> Any: ...
+    def executemany(self, operation: str, seq_of_params: Sequence[Sequence[Any]]) -> Any: ...
     def fetchone(self) -> Sequence[Any] | None: ...
     def fetchall(self) -> Sequence[Sequence[Any]]: ...
     def close(self) -> None: ...
@@ -35,6 +40,7 @@ class DbCursor(Protocol):
 class DbConnection(Protocol):
     def cursor(self) -> DbCursor: ...
     def commit(self) -> None: ...
+    def rollback(self) -> None: ...
     def close(self) -> None: ...
 
 
@@ -109,6 +115,28 @@ class IrisPool:
                 yield cur
             finally:
                 cur.close()
+
+    @contextmanager
+    def transaction(self) -> Iterator[DbCursor]:
+        """One connection with autocommit off (the driver default is on): commit on success, rollback on error.
+
+        After an error the connection is discarded by `connection()`, so autocommit is restored only on success.
+        """
+        with self.connection() as conn:
+            set_autocommit: Callable[[bool], None] | None = getattr(conn, "setAutoCommit", None)
+            if set_autocommit is not None:
+                set_autocommit(False)
+            cur = conn.cursor()
+            try:
+                yield cur
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
+            finally:
+                cur.close()
+            if set_autocommit is not None:
+                set_autocommit(True)
 
     def ping(self) -> None:
         """Round-trip `SELECT 1`; raises on any failure."""

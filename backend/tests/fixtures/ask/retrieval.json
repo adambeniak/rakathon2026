@@ -1,0 +1,1188 @@
+{
+ "case_id": "rakathon-2026-prochazkova",
+ "as_of": "2026-10-21T08:00:00+02:00",
+ "questions": {
+  "anticoagulation": {
+   "question": "Kdy byla vysazena antikoagulace před biopsií?",
+   "top_k": 10,
+   "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+   "sources": [
+    {
+     "hit": {
+      "row_id": 259,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 11,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "obtíží a nezajištěnému termínu CT prosím o urgentní řešení.\nUpozorňuji na antikoagulační léčbu apixabanem – před invazivními výkony nutné vysazení dle doporučení kardiologa. Vzhledem k výrazné úzkosti pacientky prosím o zvážení psychologické podpory.\nPacientka je o podezření na nádorové onemocnění informována. Souhlasí se sdílením informací s dcerou.\nDěkuji za spolupráci.\nV Dolních Břežanech dne 2. 10. 2026\nMUDr. Tomáš Řezníček",
+      "char_start": 2942,
+      "char_end": 3373,
+      "score": 0.5290857994215296
+     },
+     "score": 0.03252247488101534,
+     "vector_rank": 2,
+     "text_rank": 1,
+     "vector_score": 0.5290857994215296
+    },
+    {
+     "hit": {
+      "row_id": 268,
+      "doc_ref": "DocumentReference/248",
+      "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+      "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+      "seq": 1,
+      "authored_on": "2026-10-12",
+      "received_at": "2026-10-12T11:00:00+00:00",
+      "text": "endosonografie s biopsií ložiska hlavy pankreatu (EUS-FNB)\nIndikace: histologická verifikace ložiska hlavy pankreatu\nPŘÍPRAVA\nNalačno od půlnoci. Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer). Informovaný souhlas podepsán.\nANESTEZIE A MONITORACE",
+      "char_start": 292,
+      "char_end": 562,
+      "score": 0.4733182450450176
+     },
+     "score": 0.031054405392392875,
+     "vector_rank": 7,
+     "text_rank": 2,
+     "vector_score": 0.4733182450450176
+    },
+    {
+     "hit": {
+      "row_id": 282,
+      "doc_ref": "DocumentReference/252",
+      "doc_id": "11_Histologie_KOC2_2026-10-19",
+      "title": "Histologie – bioptický nález (KOC 2)",
+      "seq": 1,
+      "authored_on": "2026-10-19",
+      "received_at": "2026-10-19T14:00:00+00:00",
+      "text": "MUDr. Martin Svoboda, endoskopické pracoviště KOC\nDatum vydání: 19. 10. 2026\nMAKROSKOPICKY\n4 válečky šedobílé tkáně délky 3–12 mm, zpracovány celé.\nMIKROSKOPICKY\nVe vzorcích infiltrace adenokarcinomem tvořeným nepravidelnými, místy splývajícími žláznatými strukturami s jadernou atypií středního až vysokého stupně a výraznou desmoplastickou stromální reakcí. Zastižena perineurální invaze.",
+      "char_start": 312,
+      "char_end": 702,
+      "score": 0.43380280711008756
+     },
+     "score": 0.028790389395194696,
+     "vector_rank": 11,
+     "text_rank": 8,
+     "vector_score": 0.43380280711008756
+    },
+    {
+     "hit": {
+      "row_id": 267,
+      "doc_ref": "DocumentReference/248",
+      "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+      "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+      "seq": 0,
+      "authored_on": "2026-10-12",
+      "received_at": "2026-10-12T11:00:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKOC Nemocnice Lipová (fiktivní)\nEndoskopické pracoviště, Interní gastroenterologická klinika\nNemocniční 15, 140 00 Praha 4\nProtokol o výkonu – EUS-FNB\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nDatum výkonu: 12. 10. 2026\nVýkon: endosonografie s biopsií ložiska hlavy pankreatu (EUS-FNB)",
+      "char_start": 0,
+      "char_end": 350,
+      "score": 0.42237972378414856
+     },
+     "score": 0.028309409888357256,
+     "vector_rank": 16,
+     "text_rank": 6,
+     "vector_score": 0.42237972378414856
+    },
+    {
+     "hit": {
+      "row_id": 234,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 7,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "diabetes mellitus 2. typu, otec infarkt myokardu v 70 letech\nOA: paroxysmální fibrilace síní od r. 2021 na antikoagulaci (sledována kardiologem, poslední kontrola 20. 7. 2026), arteriální hypertenze, hypercholesterolémie, st. p. hysterektomii pro myomy (2010), v r. 2019 po úmrtí manžela přechodně depresivní ladění, neléčena",
+      "char_start": 1522,
+      "char_end": 1847,
+      "score": 0.3796394618953411
+     },
+     "score": 0.027252906976744186,
+     "vector_rank": 26,
+     "text_rank": 4,
+     "vector_score": 0.3796394618953411
+    },
+    {
+     "hit": {
+      "row_id": 254,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 6,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "Psychicky pacientka velmi úzkostná, špatně spí.\nANAMNÉZA\nRA: matka diabetes mellitus 2. typu, otec infarkt myokardu v 70 letech\nOA: paroxysmální fibrilace síní od r. 2021 na antikoagulaci (kardiolog MUDr. Petr Malý, Jesenice), arteriální hypertenze, hypercholesterolémie, st. p. hysterektomii pro myomy (2010), v r. 2019 po úmrtí manžela přechodně depresivní ladění, neléčena",
+      "char_start": 1593,
+      "char_end": 1968,
+      "score": 0.3731068493954688
+     },
+     "score": 0.02662057044079516,
+     "vector_rank": 29,
+     "text_rank": 5,
+     "vector_score": 0.3731068493954688
+    },
+    {
+     "hit": {
+      "row_id": 281,
+      "doc_ref": "DocumentReference/252",
+      "doc_id": "11_Histologie_KOC2_2026-10-19",
+      "title": "Histologie – bioptický nález (KOC 2)",
+      "seq": 0,
+      "authored_on": "2026-10-19",
+      "received_at": "2026-10-19T14:00:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKOC Nemocnice Lipová (fiktivní)\nÚstav patologie\nNemocniční 15, 140 00 Praha 4\nBioptický nález\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nČíslo vyšetření: B-2026/15921\nMateriál: ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)\nOdesílající: MUDr. Martin Svoboda, endoskopické pracoviště KOC",
+      "char_start": 0,
+      "char_end": 361,
+      "score": 0.37709376379838866
+     },
+     "score": 0.026419626007891578,
+     "vector_rank": 27,
+     "text_rank": 7,
+     "vector_score": 0.37709376379838866
+    },
+    {
+     "hit": {
+      "row_id": 223,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 10,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "s ohledem na klinický stav.\nVydal:\nRNDr. Hana Kolářová\nodborný pracovník laboratoře",
+      "char_start": 1981,
+      "char_end": 2064,
+      "score": 0.5346791895576577
+     },
+     "score": 0.01639344262295082,
+     "vector_rank": 1,
+     "text_rank": null,
+     "vector_score": 0.5346791895576577
+    },
+    {
+     "hit": {
+      "row_id": 207,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 1,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "17, 252 41 Dolní Břežany\nZdravotní pojišťovna: 211\nDIAGNÓZY\nI48.0 Paroxysmální fibrilace síní, CHA₂DS₂-VASc 2 b., HAS-BLED 1 b., na antikoagulační léčbě\nI10 Arteriální hypertenze\nE78.0 Hypercholesterolémie\nSUBJEKTIVNĚ",
+      "char_start": 291,
+      "char_end": 508,
+      "score": 0.0
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": null,
+     "text_rank": 3,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 252,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 4,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "infekci léčena ciprofloxacinem 7 dní, poté afebrilní.\nPro přetrvávající cholestázu vyšetřena 15. 9. 2026 gastroenterologem, který doporučil UZ břicha. UZ provedené 29. 9. 2026 prokázalo ložisko hlavy pankreatu suspektní z malignity. Gastroenterolog doporučil doplnit CT břicha dle pankreatického protokolu, případně EUS.\nTermín CT se nám v dostupných pracovištích nepodařilo zajistit.",
+      "char_start": 932,
+      "char_end": 1316,
+      "score": 0.49788079002493
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": 3,
+     "text_rank": null,
+     "vector_score": 0.49788079002493
+    }
+   ]
+  },
+  "ecog": {
+   "question": "Jaký je ECOG?",
+   "top_k": 10,
+   "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+   "sources": [
+    {
+     "hit": {
+      "row_id": 280,
+      "doc_ref": "DocumentReference/250",
+      "doc_id": "10_Laborator_KOC2_2026-10-15",
+      "title": "Laboratoř KOC 2 – výsledky",
+      "seq": 7,
+      "authored_on": "2026-10-15",
+      "received_at": "2026-10-15T12:00:00+00:00",
+      "text": "Vydáno: 15. 10. 2026\nIng. Martina Šebestová\nodborný pracovník laboratoře",
+      "char_start": 1393,
+      "char_end": 1465,
+      "score": 0.24227356385302315
+     },
+     "score": 0.01639344262295082,
+     "vector_rank": 1,
+     "text_rank": null,
+     "vector_score": 0.24227356385302315
+    },
+    {
+     "hit": {
+      "row_id": 267,
+      "doc_ref": "DocumentReference/248",
+      "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+      "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+      "seq": 0,
+      "authored_on": "2026-10-12",
+      "received_at": "2026-10-12T11:00:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKOC Nemocnice Lipová (fiktivní)\nEndoskopické pracoviště, Interní gastroenterologická klinika\nNemocniční 15, 140 00 Praha 4\nProtokol o výkonu – EUS-FNB\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nDatum výkonu: 12. 10. 2026\nVýkon: endosonografie s biopsií ložiska hlavy pankreatu (EUS-FNB)",
+      "char_start": 0,
+      "char_end": 350,
+      "score": 0.20676968749509606
+     },
+     "score": 0.016129032258064516,
+     "vector_rank": 2,
+     "text_rank": null,
+     "vector_score": 0.20676968749509606
+    },
+    {
+     "hit": {
+      "row_id": 256,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 8,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "bydlí v téže obci\nPA: účetní, t. č. v pracovní neschopnosti\nPROVEDENÁ VYŠETŘENÍ (VÝSLEDKY K DISPOZICI NA JEDNOTLIVÝCH PRACOVIŠTÍCH)\n1. Laboratorní vyšetření 1. 9. 2026 – krevní obraz, biochemie, moč chemicky a sediment, kultivace moči (LabJih)\n2. RTG plic 3. 9. 2026 (Radiologické centrum Modřany)",
+      "char_start": 2190,
+      "char_end": 2487,
+      "score": 0.20319351206839337
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": 3,
+     "text_rank": null,
+     "vector_score": 0.20319351206839337
+    },
+    {
+     "hit": {
+      "row_id": 221,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 8,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "MOČ – SEDIMENT\nVyšetření | Výsledek | Jednotky | Ref. meze\nErytrocyty | 8 | /µl | 0–5\nLeukocyty | 65 H | /µl | 0–10\nBakterie | + |  | neg.\nEpitelie ploché | ojediněle\nHlen | +\nMIKROBIOLOGIE – KULTIVACE MOČI (VÝSLEDEK 4. 9. 2026)\nEscherichia coli 10⁴ CFU/ml",
+      "char_start": 1517,
+      "char_end": 1773,
+      "score": 0.19977818195179087
+     },
+     "score": 0.015625,
+     "vector_rank": 4,
+     "text_rank": null,
+     "vector_score": 0.19977818195179087
+    },
+    {
+     "hit": {
+      "row_id": 232,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 5,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "CFU/ml (hraniční). RTG hrudníku 3. 9. bez zánětlivých změn.\nZávěr: febrilní stav, suspektní infekce močových cest vs. biliární infekce, cholestatický syndrom nejasné etiologie.",
+      "char_start": 1105,
+      "char_end": 1281,
+      "score": 0.1883750037846349
+     },
+     "score": 0.015384615384615385,
+     "vector_rank": 5,
+     "text_rank": null,
+     "vector_score": 0.1883750037846349
+    },
+    {
+     "hit": {
+      "row_id": 277,
+      "doc_ref": "DocumentReference/250",
+      "doc_id": "10_Laborator_KOC2_2026-10-15",
+      "title": "Laboratoř KOC 2 – výsledky",
+      "seq": 4,
+      "authored_on": "2026-10-15",
+      "received_at": "2026-10-15T12:00:00+00:00",
+      "text": "eGFR (CKD-EPI) | 1,25 | ml/s/1,73 m² | > 1,0\nGlukóza | 6,2 H | mmol/l | 3,9–5,6\nBilirubin celkový | 23 H | µmol/l | 2–17\nBilirubin konjugovaný | 6 H | µmol/l | 0–5\nALT | 1,62 H | µkat/l | 0,10–0,60",
+      "char_start": 861,
+      "char_end": 1058,
+      "score": 0.18498552940071827
+     },
+     "score": 0.015151515151515152,
+     "vector_rank": 6,
+     "text_rank": null,
+     "vector_score": 0.18498552940071827
+    },
+    {
+     "hit": {
+      "row_id": 281,
+      "doc_ref": "DocumentReference/252",
+      "doc_id": "11_Histologie_KOC2_2026-10-19",
+      "title": "Histologie – bioptický nález (KOC 2)",
+      "seq": 0,
+      "authored_on": "2026-10-19",
+      "received_at": "2026-10-19T14:00:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKOC Nemocnice Lipová (fiktivní)\nÚstav patologie\nNemocniční 15, 140 00 Praha 4\nBioptický nález\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nČíslo vyšetření: B-2026/15921\nMateriál: ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)\nOdesílající: MUDr. Martin Svoboda, endoskopické pracoviště KOC",
+      "char_start": 0,
+      "char_end": 361,
+      "score": 0.18200183149983518
+     },
+     "score": 0.014925373134328358,
+     "vector_rank": 7,
+     "text_rank": null,
+     "vector_score": 0.18200183149983518
+    },
+    {
+     "hit": {
+      "row_id": 223,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 10,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "s ohledem na klinický stav.\nVydal:\nRNDr. Hana Kolářová\nodborný pracovník laboratoře",
+      "char_start": 1981,
+      "char_end": 2064,
+      "score": 0.16724638041231557
+     },
+     "score": 0.014705882352941176,
+     "vector_rank": 8,
+     "text_rank": null,
+     "vector_score": 0.16724638041231557
+    },
+    {
+     "hit": {
+      "row_id": 219,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 6,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "Lipáza | 0,85 | µkat/l | 0,22–1,00\nCRP | 86 H | mg/l | 0–5\nMOČ – CHEMICKY\nVyšetření | Výsledek |  | Ref.\npH | 6,0 |  | 5–7\nBílkovina | + H |  | neg.\nGlukóza | neg. |  | neg.\nKetolátky | neg. |  | neg.\nBilirubin | ++ H |  | neg.",
+      "char_start": 1184,
+      "char_end": 1411,
+      "score": 0.1645461490606835
+     },
+     "score": 0.014492753623188406,
+     "vector_rank": 9,
+     "text_rank": null,
+     "vector_score": 0.1645461490606835
+    },
+    {
+     "hit": {
+      "row_id": 273,
+      "doc_ref": "DocumentReference/250",
+      "doc_id": "10_Laborator_KOC2_2026-10-15",
+      "title": "Laboratoř KOC 2 – výsledky",
+      "seq": 0,
+      "authored_on": "2026-10-15",
+      "received_at": "2026-10-15T12:00:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKOC Nemocnice Lipová (fiktivní)\nOddělení klinické biochemie a hematologie\nNemocniční 15, 140 00 Praha 4\nVýsledky laboratorního vyšetření\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nIndikující lékař: MUDr. Lenka Marková, onkologická ambulance KOC\nOdběr: 15. 10. 2026 7:45\nKREVNÍ OBRAZ",
+      "char_start": 0,
+      "char_end": 346,
+      "score": 0.16065794323970908
+     },
+     "score": 0.014285714285714285,
+     "vector_rank": 10,
+     "text_rank": null,
+     "vector_score": 0.16065794323970908
+    }
+   ]
+  },
+  "advice": {
+   "question": "Jakou léčbu doporučujete?",
+   "top_k": 10,
+   "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+   "sources": [
+    {
+     "hit": {
+      "row_id": 259,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 11,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "obtíží a nezajištěnému termínu CT prosím o urgentní řešení.\nUpozorňuji na antikoagulační léčbu apixabanem – před invazivními výkony nutné vysazení dle doporučení kardiologa. Vzhledem k výrazné úzkosti pacientky prosím o zvážení psychologické podpory.\nPacientka je o podezření na nádorové onemocnění informována. Souhlasí se sdílením informací s dcerou.\nDěkuji za spolupráci.\nV Dolních Břežanech dne 2. 10. 2026\nMUDr. Tomáš Řezníček",
+      "char_start": 2942,
+      "char_end": 3373,
+      "score": 0.6063752463436495
+     },
+     "score": 0.03252247488101534,
+     "vector_rank": 1,
+     "text_rank": 2,
+     "vector_score": 0.6063752463436495
+    },
+    {
+     "hit": {
+      "row_id": 211,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 5,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "4 mg 1-0-0, rosuvastatin 10 mg 0-0-1\nZÁVĚR A DOPORUČENÍ\nStabilní stav, sinusový rytmus, bez recidivy fibrilace síní. Hypertenze kompenzovaná. Medikace beze změn. Kontrola za 6 měsíců (leden 2027).\nPřed plánovaným invazivním výkonem s vysokým rizikem krvácení vysadit apixaban 48 hodin předem, bez nutnosti překlenovací léčby.\nV Jesenici dne 20. 7. 2026\nMUDr. Petr Malý\nkardiolog",
+      "char_start": 1188,
+      "char_end": 1566,
+      "score": 0.47978361726557395
+     },
+     "score": 0.032018442622950824,
+     "vector_rank": 4,
+     "text_rank": 1,
+     "vector_score": 0.47978361726557395
+    },
+    {
+     "hit": {
+      "row_id": 235,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 8,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "2019 po úmrtí manžela přechodně depresivní ladění, neléčena\nFA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1\nAA: neguje\nAbusus: nekuřačka, alkohol abstinentka\nSA: vdova, žije sama v bytě, dcera bydlí v téže obci\nPA: účetní, dosud pracuje\nDOPORUČENÍ",
+      "char_start": 1788,
+      "char_end": 2084,
+      "score": 0.4053966249536776
+     },
+     "score": 0.03007688828584351,
+     "vector_rank": 7,
+     "text_rank": 6,
+     "vector_score": 0.4053966249536776
+    },
+    {
+     "hit": {
+      "row_id": 242,
+      "doc_ref": "DocumentReference/240",
+      "doc_id": "05_Gastroenterologie_2026-09-15",
+      "title": "Gastroenterologie – vstupní vyšetření",
+      "seq": 4,
+      "authored_on": "2026-09-15",
+      "received_at": "2026-10-07T06:50:00+00:00",
+      "text": "játra nezvětšena, bez ascitu. Per rektum neprovedeno.\nZÁVĚR\nCholestatický syndrom s bolestmi v epigastriu propagujícími do zad a úbytkem hmotnosti, st. p. febrilní epizodě léčené ATB. Diferenciálně diagnosticky choledocholitiáza, stenóza žlučových cest, tumor pankreatu.\nDOPORUČENÍ\n1. UZ břicha – objednána na nejbližší volný termín 29. 9. 2026, RDG pracoviště Polikliniky Jižní.",
+      "char_start": 865,
+      "char_end": 1244,
+      "score": 0.3947955500444638
+     },
+     "score": 0.029411764705882353,
+     "vector_rank": 8,
+     "text_rank": 8,
+     "vector_score": 0.3947955500444638
+    },
+    {
+     "hit": {
+      "row_id": 207,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 1,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "17, 252 41 Dolní Břežany\nZdravotní pojišťovna: 211\nDIAGNÓZY\nI48.0 Paroxysmální fibrilace síní, CHA₂DS₂-VASc 2 b., HAS-BLED 1 b., na antikoagulační léčbě\nI10 Arteriální hypertenze\nE78.0 Hypercholesterolémie\nSUBJEKTIVNĚ",
+      "char_start": 291,
+      "char_end": 508,
+      "score": 0.33930736637866415
+     },
+     "score": 0.028531243721117136,
+     "vector_rank": 19,
+     "text_rank": 3,
+     "vector_score": 0.33930736637866415
+    },
+    {
+     "hit": {
+      "row_id": 252,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 4,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "infekci léčena ciprofloxacinem 7 dní, poté afebrilní.\nPro přetrvávající cholestázu vyšetřena 15. 9. 2026 gastroenterologem, který doporučil UZ břicha. UZ provedené 29. 9. 2026 prokázalo ložisko hlavy pankreatu suspektní z malignity. Gastroenterolog doporučil doplnit CT břicha dle pankreatického protokolu, případně EUS.\nTermín CT se nám v dostupných pracovištích nepodařilo zajistit.",
+      "char_start": 932,
+      "char_end": 1316,
+      "score": 0.34630453101604675
+     },
+     "score": 0.027272727272727275,
+     "vector_rank": 17,
+     "text_rank": 10,
+     "vector_score": 0.34630453101604675
+    },
+    {
+     "hit": {
+      "row_id": 271,
+      "doc_ref": "DocumentReference/248",
+      "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+      "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+      "seq": 4,
+      "authored_on": "2026-10-12",
+      "received_at": "2026-10-12T11:00:00+00:00",
+      "text": "jehlou FNB 22G technikou slow-pull, 12–15 pohybů na průchod. Makroskopicky získány dostatečné válečky tkáně, fixovány ve formolu a odeslány k histologickému vyšetření. Po výkonu v místě vpichu minimální krvácení, spontánně zastavené. Endoskop vytažen, bez komplikací.\nDOPORUČENÍ",
+      "char_start": 1005,
+      "char_end": 1283,
+      "score": 0.34323861629545294
+     },
+     "score": 0.02690501986276634,
+     "vector_rank": 18,
+     "text_rank": 11,
+     "vector_score": 0.34323861629545294
+    },
+    {
+     "hit": {
+      "row_id": 212,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 6,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "léčby.\nV Jesenici dne 20. 7. 2026\nMUDr. Petr Malý\nkardiolog\nKopie: MUDr. Tomáš Řezníček, praktický lékař",
+      "char_start": 1507,
+      "char_end": 1611,
+      "score": 0.2800407827607765
+     },
+     "score": 0.026736111111111113,
+     "vector_rank": 30,
+     "text_rank": 4,
+     "vector_score": 0.2800407827607765
+    },
+    {
+     "hit": {
+      "row_id": 233,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 6,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "biliární infekce, cholestatický syndrom nejasné etiologie.\nTerapie: od 2. 9. 2026 ciprofloxacin 500 mg 1-0-1 po dobu 7 dní, paracetamol 500 mg při bolesti nebo teplotě max. 4× denně, dostatek tekutin. Při telefonické kontrole 4. 9. afebrilní, bolesti mírnější, moč nadále tmavší.\nANAMNÉZA\nRA: matka diabetes mellitus 2. typu, otec infarkt myokardu v 70 letech",
+      "char_start": 1223,
+      "char_end": 1582,
+      "score": 0.5199371141980007
+     },
+     "score": 0.016129032258064516,
+     "vector_rank": 2,
+     "text_rank": null,
+     "vector_score": 0.5199371141980007
+    },
+    {
+     "hit": {
+      "row_id": 223,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 10,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "s ohledem na klinický stav.\nVydal:\nRNDr. Hana Kolářová\nodborný pracovník laboratoře",
+      "char_start": 1981,
+      "char_end": 2064,
+      "score": 0.49425724761006284
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": 3,
+     "text_rank": null,
+     "vector_score": 0.49425724761006284
+    }
+   ]
+  },
+  "histology": {
+   "question": "Jaký je výsledek histologie?",
+   "top_k": 10,
+   "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+   "sources": [
+    {
+     "hit": {
+      "row_id": 272,
+      "doc_ref": "DocumentReference/248",
+      "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+      "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+      "seq": 5,
+      "authored_on": "2026-10-12",
+      "received_at": "2026-10-12T11:00:00+00:00",
+      "text": "zastavené. Endoskop vytažen, bez komplikací.\nDOPORUČENÍ\n2 hodiny klid na lůžku, poté tekutiny per os. Při nekomplikovaném průběhu apixaban znovu od 21. 10. 2026 ráno. Výsledek histologie do 3 pracovních dnů.\nV Praze dne 12. 10. 2026\nMUDr. Martin Svoboda\ngastroenterolog, endoskopista",
+      "char_start": 1228,
+      "char_end": 1511,
+      "score": 0.2862173050048211
+     },
+     "score": 0.030679156908665108,
+     "vector_rank": 10,
+     "text_rank": 1,
+     "vector_score": 0.2862173050048211
+    },
+    {
+     "hit": {
+      "row_id": 214,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 1,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "praktický lékař, Dolní Břežany\nOdběr: 1. 9. 2026 8:10\nVydáno: 4. 9. 2026 (kultivace), 1. 9. 2026 (ostatní)\nHEMATOLOGIE – KREVNÍ OBRAZ\nVyšetření | Výsledek | Jednotky | Ref. meze\nLeukocyty | 12,8 H | 10⁹/l | 4,0–10,0\nErytrocyty | 4,21 | 10¹²/l | 3,80–5,20",
+      "char_start": 291,
+      "char_end": 545,
+      "score": 0.38272282210026504
+     },
+     "score": 0.030621785881252923,
+     "vector_rank": 2,
+     "text_rank": 9,
+     "vector_score": 0.38272282210026504
+    },
+    {
+     "hit": {
+      "row_id": 268,
+      "doc_ref": "DocumentReference/248",
+      "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+      "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+      "seq": 1,
+      "authored_on": "2026-10-12",
+      "received_at": "2026-10-12T11:00:00+00:00",
+      "text": "endosonografie s biopsií ložiska hlavy pankreatu (EUS-FNB)\nIndikace: histologická verifikace ložiska hlavy pankreatu\nPŘÍPRAVA\nNalačno od půlnoci. Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer). Informovaný souhlas podepsán.\nANESTEZIE A MONITORACE",
+      "char_start": 292,
+      "char_end": 562,
+      "score": 0.2799843623010815
+     },
+     "score": 0.029957522915269395,
+     "vector_rank": 11,
+     "text_rank": 3,
+     "vector_score": 0.2799843623010815
+    },
+    {
+     "hit": {
+      "row_id": 223,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 10,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "s ohledem na klinický stav.\nVydal:\nRNDr. Hana Kolářová\nodborný pracovník laboratoře",
+      "char_start": 1981,
+      "char_end": 2064,
+      "score": 0.4655956155926369
+     },
+     "score": 0.02921395544346364,
+     "vector_rank": 1,
+     "text_rank": 18,
+     "vector_score": 0.4655956155926369
+    },
+    {
+     "hit": {
+      "row_id": 258,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 10,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "– suspektní tumor hlavy pankreatu, cholestatický syndrom\nŽádám o převzetí pacientky do péče KOC k dokončení diagnostiky (CT břicha, histologická verifikace) a stanovení dalšího postupu v rámci MDT. Vzhledem k progresi obtíží a nezajištěnému termínu CT prosím o urgentní řešení.",
+      "char_start": 2724,
+      "char_end": 3001,
+      "score": 0.22703989331743016
+     },
+     "score": 0.02878726010616578,
+     "vector_rank": 19,
+     "text_rank": 2,
+     "vector_score": 0.22703989331743016
+    },
+    {
+     "hit": {
+      "row_id": 281,
+      "doc_ref": "DocumentReference/252",
+      "doc_id": "11_Histologie_KOC2_2026-10-19",
+      "title": "Histologie – bioptický nález (KOC 2)",
+      "seq": 0,
+      "authored_on": "2026-10-19",
+      "received_at": "2026-10-19T14:00:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKOC Nemocnice Lipová (fiktivní)\nÚstav patologie\nNemocniční 15, 140 00 Praha 4\nBioptický nález\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nČíslo vyšetření: B-2026/15921\nMateriál: ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)\nOdesílající: MUDr. Martin Svoboda, endoskopické pracoviště KOC",
+      "char_start": 0,
+      "char_end": 361,
+      "score": 0.24376115041563107
+     },
+     "score": 0.02854251012145749,
+     "vector_rank": 16,
+     "text_rank": 5,
+     "vector_score": 0.24376115041563107
+    },
+    {
+     "hit": {
+      "row_id": 213,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 0,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nLaboratoř LabJih s.r.o. (fiktivní)\nKlinická biochemie, hematologie, mikrobiologie\nLibušská 300, 142 00 Praha 4\nVýsledky laboratorního vyšetření\nPacientka: Alena Procházková, RČ 635722/1013, ZP 211\nIndikující lékař: MUDr. Tomáš Řezníček, praktický lékař, Dolní Břežany\nOdběr: 1. 9. 2026 8:10",
+      "char_start": 0,
+      "char_end": 344,
+      "score": 0.2687264183358297
+     },
+     "score": 0.028404512489927477,
+     "vector_rank": 13,
+     "text_rank": 8,
+     "vector_score": 0.2687264183358297
+    },
+    {
+     "hit": {
+      "row_id": 282,
+      "doc_ref": "DocumentReference/252",
+      "doc_id": "11_Histologie_KOC2_2026-10-19",
+      "title": "Histologie – bioptický nález (KOC 2)",
+      "seq": 1,
+      "authored_on": "2026-10-19",
+      "received_at": "2026-10-19T14:00:00+00:00",
+      "text": "MUDr. Martin Svoboda, endoskopické pracoviště KOC\nDatum vydání: 19. 10. 2026\nMAKROSKOPICKY\n4 válečky šedobílé tkáně délky 3–12 mm, zpracovány celé.\nMIKROSKOPICKY\nVe vzorcích infiltrace adenokarcinomem tvořeným nepravidelnými, místy splývajícími žláznatými strukturami s jadernou atypií středního až vysokého stupně a výraznou desmoplastickou stromální reakcí. Zastižena perineurální invaze.",
+      "char_start": 312,
+      "char_end": 702,
+      "score": 0.2423904480913964
+     },
+     "score": 0.02813852813852814,
+     "vector_rank": 17,
+     "text_rank": 6,
+     "vector_score": 0.2423904480913964
+    },
+    {
+     "hit": {
+      "row_id": 283,
+      "doc_ref": "DocumentReference/252",
+      "doc_id": "11_Histologie_KOC2_2026-10-19",
+      "title": "Histologie – bioptický nález (KOC 2)",
+      "seq": 2,
+      "authored_on": "2026-10-19",
+      "received_at": "2026-10-19T14:00:00+00:00",
+      "text": "stromální reakcí. Zastižena perineurální invaze.\nImunohistochemicky: CK7 pozitivní, CK19 pozitivní, CK20 negativní, CDX2 negativní, SMAD4 exprese zachována.\nZÁVĚR\nDuktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí. MKN-O 8500/3.\nDatum: 19. 10. 2026\nMUDr. Radek Pokorný, Ph.D.\npatolog",
+      "char_start": 654,
+      "char_end": 981,
+      "score": 0.20945496394062021
+     },
+     "score": 0.026419626007891578,
+     "vector_rank": 27,
+     "text_rank": 7,
+     "vector_score": 0.20945496394062021
+    },
+    {
+     "hit": {
+      "row_id": 260,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 12,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "V Dolních Břežanech dne 2. 10. 2026\nMUDr. Tomáš Řezníček\npraktický lékař, Na Návsi 3, 252 41 Dolní Břežany",
+      "char_start": 3317,
+      "char_end": 3423,
+      "score": 0.34454895580965966
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": 3,
+     "text_rank": null,
+     "vector_score": 0.34454895580965966
+    }
+   ]
+  },
+  "after_as_of": {
+   "question": "Co uvádí algeziologická zpráva?",
+   "top_k": 10,
+   "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+   "sources": [
+    {
+     "hit": {
+      "row_id": 212,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 6,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "léčby.\nV Jesenici dne 20. 7. 2026\nMUDr. Petr Malý\nkardiolog\nKopie: MUDr. Tomáš Řezníček, praktický lékař",
+      "char_start": 1507,
+      "char_end": 1611,
+      "score": 0.2856337811136053
+     },
+     "score": 0.029211087420042643,
+     "vector_rank": 10,
+     "text_rank": 7,
+     "vector_score": 0.2856337811136053
+    },
+    {
+     "hit": {
+      "row_id": 206,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 0,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "FIKTIVNÍ PACIENTKA – testovací data pro Rakathon 2026\nKardiologická ambulance Jesenice (fiktivní)\nMUDr. Petr Malý, kardiolog\nBudějovická 410, 252 42 Jesenice\nAmbulantní zpráva – kontrolní vyšetření\nDatum: 20. 7. 2026\nPacientka: Alena Procházková\nRodné číslo: 635722/1013\nBydliště: Za Školou 17, 252 41 Dolní Břežany\nZdravotní pojišťovna: 211\nDIAGNÓZY",
+      "char_start": 0,
+      "char_end": 350,
+      "score": 0.0
+     },
+     "score": 0.01639344262295082,
+     "vector_rank": null,
+     "text_rank": 1,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 220,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 7,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "Ketolátky | neg. |  | neg.\nBilirubin | ++ H |  | neg.\nUrobilinogen | norm. |  | norm.\nKrev | + H |  | neg.\nLeukocyty | ++ H |  | neg.\nNitrity | neg. |  | neg.\nMOČ – SEDIMENT\nVyšetření | Výsledek | Jednotky | Ref. meze",
+      "char_start": 1358,
+      "char_end": 1575,
+      "score": 0.40382090951388405
+     },
+     "score": 0.01639344262295082,
+     "vector_rank": 1,
+     "text_rank": null,
+     "vector_score": 0.40382090951388405
+    },
+    {
+     "hit": {
+      "row_id": 207,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 1,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "17, 252 41 Dolní Břežany\nZdravotní pojišťovna: 211\nDIAGNÓZY\nI48.0 Paroxysmální fibrilace síní, CHA₂DS₂-VASc 2 b., HAS-BLED 1 b., na antikoagulační léčbě\nI10 Arteriální hypertenze\nE78.0 Hypercholesterolémie\nSUBJEKTIVNĚ",
+      "char_start": 291,
+      "char_end": 508,
+      "score": 0.0
+     },
+     "score": 0.016129032258064516,
+     "vector_rank": null,
+     "text_rank": 2,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 280,
+      "doc_ref": "DocumentReference/250",
+      "doc_id": "10_Laborator_KOC2_2026-10-15",
+      "title": "Laboratoř KOC 2 – výsledky",
+      "seq": 7,
+      "authored_on": "2026-10-15",
+      "received_at": "2026-10-15T12:00:00+00:00",
+      "text": "Vydáno: 15. 10. 2026\nIng. Martina Šebestová\nodborný pracovník laboratoře",
+      "char_start": 1393,
+      "char_end": 1465,
+      "score": 0.380966896228033
+     },
+     "score": 0.016129032258064516,
+     "vector_rank": 2,
+     "text_rank": null,
+     "vector_score": 0.380966896228033
+    },
+    {
+     "hit": {
+      "row_id": 208,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 2,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "Arteriální hypertenze\nE78.0 Hypercholesterolémie\nSUBJEKTIVNĚ\nOd poslední kontroly v lednu 2026 bez palpitací, bez dušnosti, bolesti na hrudi neguje. Zátěž toleruje dobře (2 patra bez zastavení). Otoky dolních končetin neguje. Zažívací obtíže neguje.\nOBJEKTIVNĚ",
+      "char_start": 448,
+      "char_end": 708,
+      "score": 0.0
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": null,
+     "text_rank": 3,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 237,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 10,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "V Dolních Břežanech dne 4. 9. 2026\nMUDr. Tomáš Řezníček\npraktický lékař, Na Návsi 3, 252 41 Dolní Břežany",
+      "char_start": 2363,
+      "char_end": 2468,
+      "score": 0.3666207426562466
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": 3,
+     "text_rank": null,
+     "vector_score": 0.3666207426562466
+    },
+    {
+     "hit": {
+      "row_id": 209,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 3,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "dolních končetin neguje. Zažívací obtíže neguje.\nOBJEKTIVNĚ\nTK 132/80 mmHg, TF 68/min, pravidelná. Výška 165 cm, hmotnost 69 kg. Akce srdeční pravidelná, ozvy ohraničené, bez šelestu. Dýchání čisté, sklípkové. Bez otoků DK.\nEKG\nSinusový rytmus, 68/min, PQ 0,16 s, QRS 0,09 s, osa intermediární, bez ischemických změn ST-T.",
+      "char_start": 649,
+      "char_end": 971,
+      "score": 0.0
+     },
+     "score": 0.015625,
+     "vector_rank": null,
+     "text_rank": 4,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 260,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 12,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "V Dolních Břežanech dne 2. 10. 2026\nMUDr. Tomáš Řezníček\npraktický lékař, Na Návsi 3, 252 41 Dolní Břežany",
+      "char_start": 3317,
+      "char_end": 3423,
+      "score": 0.36391814306169235
+     },
+     "score": 0.015625,
+     "vector_rank": 4,
+     "text_rank": null,
+     "vector_score": 0.36391814306169235
+    },
+    {
+     "hit": {
+      "row_id": 210,
+      "doc_ref": "DocumentReference/232",
+      "doc_id": "01_Kardiologie_2026-07-20",
+      "title": "Kardiologie – ambulantní zpráva (kontrola)",
+      "seq": 4,
+      "authored_on": "2026-07-20",
+      "received_at": "2026-10-06T07:15:00+00:00",
+      "text": "QRS 0,09 s, osa intermediární, bez ischemických změn ST-T.\nEchokardiografie (orientační)\nLK nedilatovaná, normální kinetika, EF LK 60 %. LS 42 mm. Chlopně bez hemodynamicky významné vady. Perikard bez výpotku.\nMEDIKACE\napixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1\nZÁVĚR A DOPORUČENÍ",
+      "char_start": 913,
+      "char_end": 1243,
+      "score": 0.0
+     },
+     "score": 0.015384615384615385,
+     "vector_rank": null,
+     "text_rank": 5,
+     "vector_score": null
+    }
+   ]
+  },
+  "allergy": {
+   "question": "Má pacientka nějaké alergie?",
+   "top_k": 10,
+   "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+   "sources": [
+    {
+     "hit": {
+      "row_id": 229,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 2,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "osoba: Petra Horká (dcera), tel. +420 777 000 542\nEPIKRÍZA\n63letá pacientka přišla 1. 9. 2026 pro asi 2 týdny trvající bolesti břicha v epigastriu a pravém podžebří, intermitentní teploty do 38,6 °C se zimnicí, únavu, nechutenství a tmavší moč posledních 5 dní. Dysurii a polakisurii neguje, průjem ani zvracení neguje.",
+      "char_start": 394,
+      "char_end": 713,
+      "score": 0.4839563847918155
+     },
+     "score": 0.01639344262295082,
+     "vector_rank": 1,
+     "text_rank": null,
+     "vector_score": 0.4839563847918155
+    },
+    {
+     "hit": {
+      "row_id": 235,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 8,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "2019 po úmrtí manžela přechodně depresivní ladění, neléčena\nFA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1\nAA: neguje\nAbusus: nekuřačka, alkohol abstinentka\nSA: vdova, žije sama v bytě, dcera bydlí v téže obci\nPA: účetní, dosud pracuje\nDOPORUČENÍ",
+      "char_start": 1788,
+      "char_end": 2084,
+      "score": 0.0
+     },
+     "score": 0.01639344262295082,
+     "vector_rank": null,
+     "text_rank": 1,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 250,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 2,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "000 542\nEPIKRÍZA\n63letá pacientka sledovaná v naší ordinaci. Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří, na přelomu srpna a září intermitentní teploty se zimnicí a tmavší moč. Při vyšetření 1. 9. 2026 febrilní (38,1 °C), se subikterem sklér. Provedeny laboratorní odběry včetně vyšetření moči a kultivace a RTG plic.",
+      "char_start": 540,
+      "char_end": 882,
+      "score": 0.4687448914732531
+     },
+     "score": 0.016129032258064516,
+     "vector_rank": 2,
+     "text_rank": null,
+     "vector_score": 0.4687448914732531
+    },
+    {
+     "hit": {
+      "row_id": 255,
+      "doc_ref": "DocumentReference/244",
+      "doc_id": "07_PL_zadost_KOC2_2026-10-02",
+      "title": "PL – epikríza a žádost o převzetí do péče KOC",
+      "seq": 7,
+      "authored_on": "2026-10-02",
+      "received_at": "2026-10-02T07:30:00+00:00",
+      "text": "2019 po úmrtí manžela přechodně depresivní ladění, neléčena\nFA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1, paracetamol 500 mg při bolesti max. 4× denně\nAA: neguje\nAbusus: nekuřačka, alkohol abstinentka\nSA: vdova, žije sama, dcera bydlí v téže obci\nPA: účetní, t. č. v pracovní neschopnosti",
+      "char_start": 1909,
+      "char_end": 2249,
+      "score": 0.0
+     },
+     "score": 0.016129032258064516,
+     "vector_rank": null,
+     "text_rank": 2,
+     "vector_score": null
+    },
+    {
+     "hit": {
+      "row_id": 240,
+      "doc_ref": "DocumentReference/240",
+      "doc_id": "05_Gastroenterologie_2026-09-15",
+      "title": "Gastroenterologie – vstupní vyšetření",
+      "seq": 2,
+      "authored_on": "2026-09-15",
+      "received_at": "2026-10-07T06:50:00+00:00",
+      "text": "Odeslána PL pro cholestázu po febrilní epizodě. Po ciprofloxacinu afebrilní od 4. 9. Přetrvávají tupé bolesti v epigastriu s propagací do zad, horší po jídle a v noci. Nechutenství, úbytek hmotnosti 4 kg za poslední měsíc (z 69 na 65 kg). Moč stále tmavší, stolice občas světlejší. Pruritus neguje. Nauzea občasná, zvracení neguje.\nOBJEKTIVNĚ",
+      "char_start": 420,
+      "char_end": 762,
+      "score": 0.4158797773647905
+     },
+     "score": 0.015873015873015872,
+     "vector_rank": 3,
+     "text_rank": null,
+     "vector_score": 0.4158797773647905
+    },
+    {
+     "hit": {
+      "row_id": 223,
+      "doc_ref": "DocumentReference/234",
+      "doc_id": "02_Laborator_2026-09-01",
+      "title": "Laboratoř LabJih – výsledky",
+      "seq": 10,
+      "authored_on": "2026-09-01",
+      "received_at": "2026-10-06T08:40:00+00:00",
+      "text": "s ohledem na klinický stav.\nVydal:\nRNDr. Hana Kolářová\nodborný pracovník laboratoře",
+      "char_start": 1981,
+      "char_end": 2064,
+      "score": 0.3981448238700263
+     },
+     "score": 0.015625,
+     "vector_rank": 4,
+     "text_rank": null,
+     "vector_score": 0.3981448238700263
+    },
+    {
+     "hit": {
+      "row_id": 243,
+      "doc_ref": "DocumentReference/240",
+      "doc_id": "05_Gastroenterologie_2026-09-15",
+      "title": "Gastroenterologie – vstupní vyšetření",
+      "seq": 5,
+      "authored_on": "2026-09-15",
+      "received_at": "2026-10-07T06:50:00+00:00",
+      "text": "volný termín 29. 9. 2026, RDG pracoviště Polikliniky Jižní.\n2. Dle výsledku UZ CT břicha dle pankreatického protokolu, případně EUS.\n3. Kontrola v gastroenterologické ambulanci s výsledkem UZ.\n4. Pacientka užívá apixaban – před případným invazivním výkonem nutno vysadit 48 h předem.\n5. Při teplotách nebo progresi ikteru neprodleně kontaktovat lékaře / LSPP.\nV Praze dne 15. 9. 2026\nMUDr. Ivana Křížová\ngastroenterolog",
+      "char_start": 1185,
+      "char_end": 1604,
+      "score": 0.3969599286425242
+     },
+     "score": 0.015384615384615385,
+     "vector_rank": 5,
+     "text_rank": null,
+     "vector_score": 0.3969599286425242
+    },
+    {
+     "hit": {
+      "row_id": 232,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 5,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "CFU/ml (hraniční). RTG hrudníku 3. 9. bez zánětlivých změn.\nZávěr: febrilní stav, suspektní infekce močových cest vs. biliární infekce, cholestatický syndrom nejasné etiologie.",
+      "char_start": 1105,
+      "char_end": 1281,
+      "score": 0.3903438694137821
+     },
+     "score": 0.015151515151515152,
+     "vector_rank": 6,
+     "text_rank": null,
+     "vector_score": 0.3903438694137821
+    },
+    {
+     "hit": {
+      "row_id": 230,
+      "doc_ref": "DocumentReference/238",
+      "doc_id": "04_PL_epikriza_2026-09-04",
+      "title": "PL – epikríza a žádost o gastroenterologické vyšetření",
+      "seq": 3,
+      "authored_on": "2026-09-04",
+      "received_at": "2026-10-05T09:00:00+00:00",
+      "text": "Dysurii a polakisurii neguje, průjem ani zvracení neguje.\nObjektivně TT 38,1 °C, TK 128/78 mmHg, TF 92/min pravidelná. Subikterus sklér. Břicho měkké, palpačně citlivé v epigastriu a pravém podžebří, Murphyho znamení negativní, bez hmatné rezistence. Tapottement bilaterálně negativní.",
+      "char_start": 656,
+      "char_end": 941,
+      "score": 0.3849577427913775
+     },
+     "score": 0.014925373134328358,
+     "vector_rank": 7,
+     "text_rank": null,
+     "vector_score": 0.3849577427913775
+    },
+    {
+     "hit": {
+      "row_id": 242,
+      "doc_ref": "DocumentReference/240",
+      "doc_id": "05_Gastroenterologie_2026-09-15",
+      "title": "Gastroenterologie – vstupní vyšetření",
+      "seq": 4,
+      "authored_on": "2026-09-15",
+      "received_at": "2026-10-07T06:50:00+00:00",
+      "text": "játra nezvětšena, bez ascitu. Per rektum neprovedeno.\nZÁVĚR\nCholestatický syndrom s bolestmi v epigastriu propagujícími do zad a úbytkem hmotnosti, st. p. febrilní epizodě léčené ATB. Diferenciálně diagnosticky choledocholitiáza, stenóza žlučových cest, tumor pankreatu.\nDOPORUČENÍ\n1. UZ břicha – objednána na nejbližší volný termín 29. 9. 2026, RDG pracoviště Polikliniky Jižní.",
+      "char_start": 865,
+      "char_end": 1244,
+      "score": 0.3628498305648586
+     },
+     "score": 0.014705882352941176,
+     "vector_rank": 8,
+     "text_rank": null,
+     "vector_score": 0.3628498305648586
+    }
+   ]
+  }
+ }
+}

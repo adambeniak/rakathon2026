@@ -12,7 +12,7 @@ from app.domain.patient import Address, ContactPerson, Patient, Sex
 from app.fhir.audit import build_audit_event
 from app.fhir.mappers.case import case_from_fhir, case_task_to_fhir, episode_of_care_to_fhir
 from app.fhir.mappers.directory import practitioner_to_fhir
-from app.fhir.mappers.document import document_from_fhir, document_to_fhir
+from app.fhir.mappers.document import document_from_fhir, document_to_fhir, stored_document_from_fhir
 from app.fhir.mappers.patient import (
     coverage_to_fhir,
     format_rc,
@@ -145,6 +145,12 @@ def test_document_round_trip_keeps_received_and_authored_apart() -> None:
     assert attachment["size"] == len(b"docx-bytes")
     assert resource["context"] == {"encounter": [{"reference": "EpisodeOfCare/5"}]}
     assert document_from_fhir(resource) == document
+
+    stored = stored_document_from_fhir({**resource, "id": "42"})
+    assert stored.reference == "DocumentReference/42"
+    assert stored.patient_reference == "Patient/3"
+    assert stored.content == b"docx-bytes"
+    assert stored.source == document
 
 
 def test_practitioner_display_name_with_titles() -> None:

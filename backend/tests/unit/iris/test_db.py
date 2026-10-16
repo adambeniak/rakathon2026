@@ -18,6 +18,9 @@ class FakeCursor:
             raise RuntimeError("sql error")
         self.log.append(f"execute {operation}")
 
+    def executemany(self, operation: str, seq_of_params: Sequence[Sequence[Any]]) -> None:
+        self.log.append(f"executemany {operation} x{len(seq_of_params)}")
+
     def fetchone(self) -> Sequence[Any] | None:
         return (1,)
 
@@ -36,7 +39,13 @@ class FakeConnection:
         return FakeCursor(self.log)
 
     def commit(self) -> None:
-        pass
+        self.log.append("commit")
+
+    def rollback(self) -> None:
+        self.log.append("rollback")
+
+    def setAutoCommit(self, value: bool) -> None:  # noqa: N802 - name of the IRIS driver method
+        self.log.append(f"autocommit {value}")
 
     def close(self) -> None:
         self.log.append("connection.close")
@@ -115,3 +124,34 @@ def test_close_all_closes_idle_and_refuses_new_work(pool: IrisPool, log: list[st
     assert log[-1] == "connection.close"
     with pytest.raises(PoolClosedError):
         pool.ping()
+
+
+def test_transaction_commits_and_restores_autocommit(pool: IrisPool, log: list[str]) -> None:
+    with pool.transaction() as cur:
+        cur.execute("DELETE X")
+        cur.executemany("INSERT X", [[1], [2]])
+
+    assert log == [
+        "autocommit False",
+        "execute DELETE X",
+        "executemany INSERT X x2",
+        "commit",
+        "cursor.close",
+        "autocommit True",
+    ]
+
+
+def test_transaction_rolls_back_and_discards_connection(
+    pool: IrisPool, log: list[str], opened: list[FakeConnection]
+) -> None:
+    def delete_then_fail() -> None:
+        with pool.transaction() as cur:
+            cur.execute("DELETE X")
+            cur.execute("FAIL")
+
+    with pytest.raises(RuntimeError):
+        delete_then_fail()
+
+    assert log == ["autocommit False", "execute DELETE X", "rollback", "cursor.close", "connection.close"]
+    pool.ping()
+    assert len(opened) == 2

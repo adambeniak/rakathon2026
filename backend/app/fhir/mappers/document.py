@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+from dataclasses import dataclass
 from datetime import date, datetime
 
 from app.domain.document import SourceDocument
@@ -72,6 +73,34 @@ def document_from_fhir(resource: Resource) -> SourceDocument:
         author=authors[0].get("display"),
         file_name=attachment.get("title"),
         content_type=attachment.get("contentType"),
+    )
+
+
+@dataclass(frozen=True)
+class StoredDocument:
+    """A DocumentReference as stored in IRIS: metadata, server references and the decoded attachment."""
+
+    source: SourceDocument
+    reference: str  # "DocumentReference/<id>"
+    patient_reference: str  # "Patient/<id>"
+    content: bytes
+    content_type: str
+
+
+def stored_document_from_fhir(resource: Resource) -> StoredDocument:
+    source = document_from_fhir(resource)
+    subject = str(resource.get("subject", {}).get("reference", ""))
+    if not subject.startswith("Patient/"):
+        raise ValueError("DocumentReference.subject is not a Patient")
+    attachment = (resource.get("content") or [{}])[0].get("attachment", {})
+    if "data" not in attachment:
+        raise ValueError("DocumentReference has no inline attachment data")
+    return StoredDocument(
+        source=source,
+        reference=f"DocumentReference/{resource['id']}",
+        patient_reference=subject,
+        content=base64.b64decode(attachment["data"]),
+        content_type=str(attachment.get("contentType") or DOCX_MEDIA_TYPE),
     )
 
 

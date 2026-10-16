@@ -20,7 +20,11 @@ from app.api.errors import declare_problem_media_type, register_error_handlers
 from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware, UnhandledErrorMiddleware
 from app.api.routes import API_PREFIX, discover_routers
 from app.iris.db import IrisPool
+from app.iris.vector_store import VectorStore
 from app.logging_config import configure_logging
+from app.retrieval.ask import ask_llm_from_settings
+from app.retrieval.embeddings import embedder_from_settings
+from app.retrieval.search import HybridRetriever
 from app.settings import Settings, get_settings
 
 # IRIS community edition counts web sessions too: keep outbound HTTP connections low.
@@ -28,7 +32,7 @@ HTTP_LIMITS = httpx.Limits(max_connections=4, max_keepalive_connections=4)
 
 OPENAPI_TAGS = [
     {"name": "health", "description": "Backend and IRIS status."},
-    {"name": "cases", "description": "Shared oncology case: state, baton holder, documents."},
+    {"name": "cases", "description": "Shared oncology case: state, baton holder, documents, ask the case."},
 ]
 
 
@@ -48,6 +52,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             pool = IrisPool.from_settings(settings)
             app.state.http = http
             app.state.iris_pool = pool
+            # The embedding model loads lazily on the first question or index call, not at startup.
+            store = VectorStore(pool, dim=settings.embedding_dim)
+            app.state.retriever = HybridRetriever(store, embedder_from_settings(settings))
+            app.state.ask_llm = ask_llm_from_settings(settings)
             try:
                 yield
             finally:

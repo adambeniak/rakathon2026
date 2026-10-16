@@ -12,7 +12,7 @@ _PROBLEM_DESCRIPTIONS = {
     422: "Request validation failed",
     500: "Unexpected server error",
     502: "FHIR storage rejected the operation",
-    503: "IRIS unavailable",
+    503: "IRIS or the AI service unavailable",
 }
 
 

@@ -9,12 +9,14 @@ output of `normalize` invalidates the cache and needs a new live run by a human 
 
 from __future__ import annotations
 
+import io
 import re
 import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from pathlib import Path
+from typing import IO
 
 from docx import Document
 from docx.table import Table
@@ -200,8 +202,8 @@ def _row_text(row_cells: list[object]) -> str:
     return " | ".join(texts)
 
 
-def _raw_blocks(path: Path) -> list[tuple[str, str, str | None]]:
-    doc = Document(str(path))
+def _raw_blocks(source: Path | IO[bytes]) -> list[tuple[str, str, str | None]]:
+    doc = Document(str(source) if isinstance(source, Path) else source)
     out: list[tuple[str, str, str | None]] = []
     for el in doc.element.body.iterchildren():
         tag = el.tag.rsplit("}", 1)[-1]
@@ -265,10 +267,20 @@ def normalize(path: Path, source: SourceDocument | None = None) -> NormalizedDoc
 
     With `source` (P1's document metadata), the received timestamp is attached for the as-of rule.
     """
-    stem = path.stem
+    return _from_raw(path.stem, _raw_blocks(path), source)
+
+
+def normalize_content(doc_id: str, content: bytes, source: SourceDocument | None = None) -> NormalizedDoc:
+    """Same as `normalize` for DOCX bytes (e.g. a DocumentReference attachment); doc_id plays the file stem."""
+    return _from_raw(doc_id, _raw_blocks(io.BytesIO(content)), source)
+
+
+def _from_raw(
+    stem: str, raw_blocks: Sequence[tuple[str, str, str | None]], source: SourceDocument | None
+) -> NormalizedDoc:
     m = _STEM_DATE.search(stem)
     authored = date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
-    doc = build_doc(stem, _raw_blocks(path), authored)
+    doc = build_doc(stem, raw_blocks, authored)
     if source is None:
         return doc
     if source.doc_id != stem:

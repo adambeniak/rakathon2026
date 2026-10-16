@@ -8,9 +8,12 @@ from app.documents.normalize import (
     find_dates,
     find_month_years,
     match_key,
+    normalize,
+    normalize_content,
     normalize_text,
     parse_czech_date,
 )
+from tests.document_fixtures import DOCS_DIR
 
 
 def test_nfc_composes_decomposed_input() -> None:
@@ -117,3 +120,8 @@ def test_doc_from_text() -> None:
     d = doc_from_text("x", "řádek 1\n\nřádek 2", date(2026, 1, 1))
     assert d.text == "řádek 1\nřádek 2"
     assert len(d.blocks) == 2
+
+
+def test_normalize_content_equals_normalize_for_every_report() -> None:
+    for path in sorted(DOCS_DIR.glob("*.docx")):
+        assert normalize_content(path.stem, path.read_bytes()) == normalize(path)

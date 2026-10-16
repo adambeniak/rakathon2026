@@ -4,7 +4,7 @@ Works against a local docker container or the team's Azure Container Instance (n
   1. waits until the superserver (1972) and web server (52773) answer,
   2. creates the FHIRSERVER namespace (HS.Util.Installer.Foundation) if missing,
   3. installs a FHIR R4 endpoint (JsonAdvSQL strategy) if missing,
-  4. creates the vector-search table for document chunks (+ HNSW index when supported),
+  4. creates (or migrates) the vector-search table for document chunks (+ HNSW index when supported),
   5. prints the IRIS version and the FHIR CapabilityStatement status.
 
 Adapted from intersystems-community/FHIR-AI-Hackathon-Kit (docker-iris-fhir/fhir_server_setup_native.py).
@@ -101,7 +101,32 @@ def ensure_namespace_and_fhir() -> None:
         conn.close()
 
 
+# Columns added after the first release of the table: (name, DDL type). `ensure_vector_table` adds any that are missing.
+DOC_CHUNK_EXTRA_COLUMNS = (
+    ("DocId", "VARCHAR(100)"),  # business id of the source document (DocumentReference.identifier), cited by /ask
+    ("Title", "VARCHAR(500)"),
+    ("CharStart", "INTEGER"),  # chunk = normalised document text [CharStart, CharEnd)
+    ("CharEnd", "INTEGER"),
+    ("EmbeddingModel", "VARCHAR(200)"),  # query and stored vectors must come from the same model
+)
+DOC_CHUNK_INDEXES = (
+    ("DocChunkPatient", "(PatientRef)"),
+    ("DocChunkDocRef", "(DocRef)"),
+    ("DocChunkHNSW", "(Embedding) AS HNSW(Distance='Cosine')"),
+    # Full-text leg of hybrid search. No INDEXOPTION: IRIS has no Czech stemmer (stemming crashes on insert);
+    # the backend sends prefix wildcards ("vysaz*") instead.
+    ("DocChunkText", "(Text) AS %iFind.Index.Basic(LANGUAGE='cs', LOWER=1)"),
+    # Titles carry words the text may lack (report 11 never says "histologie" except in its title).
+    ("DocChunkTitle", "(Title) AS %iFind.Index.Basic(LANGUAGE='cs', LOWER=1)"),
+)
+OPTIONAL_INDEXES = ("DocChunkHNSW", "DocChunkText", "DocChunkTitle")  # search still works without them (exact / vector-only)
+
+
 def ensure_vector_table() -> None:
+    """Stafeta.DocChunk: one row per chunk. ReceivedOn is stored in UTC, AuthoredOn is the authored date.
+
+    Idempotent: creates the table, adds missing columns to an older table and creates missing indexes.
+    """
     conn = iris.connect(HOST, PORT, NAMESPACE, USER, PASSWORD)
     cur = conn.cursor()
     try:
@@ -110,24 +135,44 @@ def ensure_vector_table() -> None:
         )
         if cur.fetchone()[0]:
             print("table Stafeta.DocChunk exists")
-            return
-        cur.execute(
-            f"""CREATE TABLE Stafeta.DocChunk (
+        else:
+            extra = "".join(f",\n                    {name} {ddl}" for name, ddl in DOC_CHUNK_EXTRA_COLUMNS)
+            cur.execute(
+                f"""CREATE TABLE Stafeta.DocChunk (
                     DocRef VARCHAR(200) NOT NULL,
                     PatientRef VARCHAR(200),
                     Seq INTEGER NOT NULL,
                     AuthoredOn DATE,
                     ReceivedOn TIMESTAMP,
                     Text VARCHAR(32000),
-                    Embedding VECTOR(DOUBLE, {EMBEDDING_DIM})
+                    Embedding VECTOR(DOUBLE, {EMBEDDING_DIM}){extra}
                 )"""
+            )
+            print("created table Stafeta.DocChunk")
+
+        cur.execute(
+            "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'Stafeta' AND TABLE_NAME = 'DocChunk'"
         )
-        print("created table Stafeta.DocChunk")
-        try:
-            cur.execute("CREATE INDEX DocChunkHNSW ON TABLE Stafeta.DocChunk (Embedding) AS HNSW(Distance='Cosine')")
-            print("created HNSW index")
-        except Exception as exc:  # noqa: BLE001 - older IRIS versions lack HNSW; exact search still works
-            print(f"HNSW index not created ({exc}); falling back to exact VECTOR_COSINE search")
+        existing = {str(row[0]).upper() for row in cur.fetchall()}
+        for name, ddl in DOC_CHUNK_EXTRA_COLUMNS:
+            if name.upper() not in existing:
+                cur.execute(f"ALTER TABLE Stafeta.DocChunk ADD COLUMN {name} {ddl}")
+                print(f"added column DocChunk.{name}")
+
+        cur.execute(
+            "SELECT INDEX_NAME FROM INFORMATION_SCHEMA.INDEXES WHERE TABLE_SCHEMA = 'Stafeta' AND TABLE_NAME = 'DocChunk'"
+        )
+        indexes = {str(row[0]).upper() for row in cur.fetchall()}  # DISTINCT would return SQLUPPER-collated names
+        for name, spec in DOC_CHUNK_INDEXES:
+            if name.upper() in indexes:
+                continue
+            try:
+                cur.execute(f"CREATE INDEX {name} ON TABLE Stafeta.DocChunk {spec}")
+                print(f"created index {name}")
+            except Exception as exc:  # noqa: BLE001 - older IRIS versions lack HNSW/iFind; search degrades
+                if name not in OPTIONAL_INDEXES:
+                    raise
+                print(f"index {name} not created ({exc}); search falls back (exact / vector-only)")
     finally:
         cur.close()
         conn.close()

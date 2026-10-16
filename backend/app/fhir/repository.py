@@ -89,6 +89,10 @@ class FhirRepository:
         """
         await self._audit("E" if subtype == "search-type" else "R", subtype, entities)
 
+    async def audit_derived_write(self, entities: Sequence[str], *, description: str) -> None:
+        """Record a write of data derived from these resources outside FHIR (e.g. vector-index rows in IRIS SQL)."""
+        await self._audit("C", "create", entities, description=description)
+
     # --- writes ---
 
     async def create(self, resource: Resource, *, if_none_exist: str | None = None) -> CreateResult:

@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import AwareDatetime, Field, SecretStr, field_validator, model_validator
@@ -54,7 +55,18 @@ class Settings(BaseSettings):
     apim_api_key: SecretStr = SecretStr("")
     llm_model_extract: str = ""
     llm_model_fast: str = ""
-    embedding_model: str = ""
+    embedding_model: str = Field("", description="APIM embedding deployment; used when EMBEDDING_PROVIDER=apim.")
+
+    # --- Vector search and "ask the case" (app.retrieval, docs/vector-search.md) ---
+    embedding_provider: Literal["local", "apim"] = Field(
+        "local", description="local = fastembed ONNX on the backend CPU; apim = EMBEDDING_MODEL via APIM."
+    )
+    local_embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    embedding_dim: int = Field(384, description="Must equal VECTOR(DOUBLE, n) of Stafeta.DocChunk (bootstrap).")
+    fastembed_cache_path: Path = Field(
+        REPO_ROOT / "backend" / ".cache" / "fastembed", description="Model files; baked into the Docker image."
+    )
+    ask_top_k: int = Field(10, ge=1, le=20, description="Chunks retrieved per question.")
 
     # --- App ---
     jwt_secret: SecretStr = SecretStr(DEFAULT_JWT_SECRET)

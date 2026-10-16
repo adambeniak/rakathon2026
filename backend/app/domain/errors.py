@@ -20,3 +20,11 @@ class ConflictError(DomainError):
 
 class InvalidInputError(DomainError):
     """The request is well-formed but semantically invalid."""
+
+
+class ServiceUnavailableError(DomainError):
+    """A dependency of the request is unavailable (AI answer, IRIS search). Mapped to 503 with `problem`."""
+
+    def __init__(self, problem: str, message: str) -> None:
+        super().__init__(message)
+        self.problem = problem

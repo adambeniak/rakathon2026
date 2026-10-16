@@ -22,6 +22,7 @@ from app.fhir.mappers.directory import organization_to_fhir, practitioner_role_t
 from app.fhir.mappers.document import document_to_fhir
 from app.fhir.mappers.patient import coverage_to_fhir, patient_to_fhir, related_person_to_fhir
 from app.fhir.repository import EnsureResult
+from app.retrieval.indexing import IndexResult
 from app.seed import demo_case
 from app.settings import REPO_ROOT
 
@@ -60,10 +61,15 @@ class SeedRepository(Protocol):
     async def ensure(self, resource: Resource) -> EnsureResult: ...
 
 
+class SeedIndexer(Protocol):
+    async def index(self, resource: Resource, *, force: bool = False) -> IndexResult: ...
+
+
 class SeedReport:
     def __init__(self) -> None:
         self.created: Counter[str] = Counter()
         self.existing: Counter[str] = Counter()
+        self.chunks_indexed = 0
 
     def record(self, result: EnsureResult) -> None:
         (self.created if result.created else self.existing)[result.resource_type] += 1
@@ -77,7 +83,14 @@ class SeedReport:
         return [f"{t:<18} created {self.created[t]:>3}   existing {self.existing[t]:>3}" for t in types]
 
 
-async def seed(repo: SeedRepository, scenario: Scenario, *, data_dir: Path = DEFAULT_DATA_DIR) -> SeedReport:
+async def seed(
+    repo: SeedRepository,
+    scenario: Scenario,
+    *,
+    data_dir: Path = DEFAULT_DATA_DIR,
+    indexer: SeedIndexer | None = None,
+) -> SeedReport:
+    """With `indexer`, every document is also chunked and embedded into Stafeta.DocChunk (skipped if present)."""
     report = SeedReport()
 
     async def ensure(resource: Resource) -> str:
@@ -159,14 +172,17 @@ async def seed(repo: SeedRepository, scenario: Scenario, *, data_dir: Path = DEF
             author=parties[doc.author_role].display,
             file_name=doc.file_name,
         )
-        await ensure(
-            document_to_fhir(
-                source,
-                (data_dir / doc.file_name).read_bytes(),
-                patient_reference=patient_ref,
-                episode_reference=episode_ref,
-                custodian_reference=org_refs[doc.custodian],
-                author_reference=role_refs[doc.author_role],
-            )
+        resource = document_to_fhir(
+            source,
+            (data_dir / doc.file_name).read_bytes(),
+            patient_reference=patient_ref,
+            episode_reference=episode_ref,
+            custodian_reference=org_refs[doc.custodian],
+            author_reference=role_refs[doc.author_role],
         )
+        result = await repo.ensure(resource)
+        report.record(result)
+        if indexer is not None:
+            indexed = await indexer.index({**resource, "id": result.id})
+            report.chunks_indexed += 0 if indexed.skipped else indexed.chunks
     return report

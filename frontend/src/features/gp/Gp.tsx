@@ -92,7 +92,7 @@ export function Gp() {
                     <CountBadge kind="missing" count={c.counts.missing} />
                     <CountBadge kind="conflict" count={c.counts.conflict} />
                     <CountBadge kind="stale" count={c.counts.stale} />
-                    {(c.counts.missing ?? 0) + (c.counts.conflict ?? 0) + (c.counts.stale ?? 0) === 0 && (
+                    {c.counts.missing === 0 && c.counts.conflict === 0 && c.counts.stale === 0 && (
                       <span className="text-sm text-muted">{t.nothingMissing}</span>
                     )}
                   </div>

@@ -138,7 +138,7 @@ def value_texts(raw: RawFact) -> list[str]:
     elif isinstance(v, MedicationValue):
         parts = [v.dose, v.schedule]
     elif isinstance(v, PersonValue):
-        parts = [v.name, v.relation, v.address]
+        parts = [v.name, v.relation, v.phone, v.email, v.address]
     else:
         parts = []
     return [p for p in parts if p and p.strip(" .,;:")]

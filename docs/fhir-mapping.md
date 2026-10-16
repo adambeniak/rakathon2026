@@ -70,8 +70,9 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
   action `E`, reads of identified resources with `R`.
 - **No empty arrays**: mappers omit optional lists instead of writing `[]` (FHIR JSON forbids empty arrays).
 - **Later**: `doc_id` (file stem) is unique per case, not globally — uploads (F2-1) must scope `ensure` by
-  `subject`/case; consider `masterIdentifier` for IHE MHD. RelatedPerson/Coverage identifier values embed the RČ
-  (data minimisation to revisit before a pilot). Our CodeSystems are not loaded into IRIS as resources.
+  `subject`/case; consider `masterIdentifier` for IHE MHD (#6). RelatedPerson/Coverage identifier values embed the RČ
+  (data minimisation, #7). Write + AuditEvent in one transaction Bundle (#9). Our CodeSystems are not loaded into
+  IRIS as resources.
 
 ## External terminologies
 LOINC document types used by the seed: 11488-4 Consult note (01, 05, 12, 13) · 11502-2 Laboratory report (02, 10) ·

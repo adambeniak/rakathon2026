@@ -22,14 +22,16 @@ pilot must add. Owner: P1 (infra) + P4 (auth, audit); reviewed by the `security-
 - The team IRIS runs on a **public Azure Container Instance over plain HTTP** with basic auth (ports 1972/52773).
   Acceptable only because all data is fictitious; ACI storage is wiped on restart.
 - No user authentication yet: the actor is `system` (issue #4); the API must stay on loopback until #4 lands.
-- Write + AuditEvent are two calls (not atomic); failed/denied reads are not audited yet.
-- Identifiers (RČ) appear in FHIR search query strings between backend and IRIS.
+- Write + AuditEvent are two calls, not atomic (#9); failed/denied reads are not audited yet (#8).
+- Identifiers (RČ) appear in FHIR search query strings between backend and IRIS, and inside the RelatedPerson and
+  Coverage identifier values (#7).
+- Uploaded documents must be scoped per patient before uploads exist (#6).
 
 ## Required before a pilot with real data
 1. TLS everywhere; IRIS and backend on private networking (VNet / private endpoints), no public superserver port.
 2. Secrets in Azure Key Vault (managed identity), rotated; no shared `_SYSTEM` account — least-privilege IRIS roles.
 3. Real authentication (OIDC / SMART on FHIR scopes) and per-case authorisation (role × relationship to the case).
-4. Audit retention and immutability policy (who may read audit, how long it is kept), audit of denied access,
-   transactional write + audit (e.g. AuditEvent in the same transaction Bundle).
+4. Audit retention and immutability policy (who may read audit, how long it is kept), audit of denied access (#8),
+   transactional write + audit (AuditEvent in the same transaction Bundle, #9).
 5. Identifier searches via `POST _search` over TLS; CZ Core identifier systems instead of demo URIs.
 6. DPIA, data-processing agreements (APIM EU data zone), MDR / AI Act position (AI drafts only, clinician confirms).

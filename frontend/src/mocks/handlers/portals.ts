@@ -18,7 +18,7 @@ export const handlers = [
     HttpResponse.json(allCases(todayOf(request), store).filter((c) => c.insurer?.startsWith('211'))),
   ),
   http.get('/api/koc', () => HttpResponse.json(KOC_DIRECTORY)),
-  http.post('/api/referrals/parse', async ({ request }) => {
+  http.post('/api/referrals/prefill', async ({ request }) => {
     const body = (await request.json()) as { filename?: string }
     return HttpResponse.json({
       filename: body.filename ?? 'zadost.pdf',

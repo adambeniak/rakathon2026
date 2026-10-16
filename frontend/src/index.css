@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: #faf8f4;
+  --card: #ffffff;
+  --ink: #16232b;
+  --muted: #5b6b73;
+  --hairline: #e3ded5;
+  --accent: #0f5c63;
+  --accent-hover: #0a4a50;
+  --accent-soft: #e4f0f0;
+  --missing: #b42318;
+  --missing-bg: #fdecea;
+  --conflict: #b54708;
+  --conflict-bg: #fef3e2;
+  --stale: #5b6b73;
+  --stale-bg: #eef0f1;
+  --verified: #067647;
+  --verified-bg: #e6f4ec;
+  --ai: #5b3fc4;
+  --ai-bg: #efebfb;
+}
+
+@layer base {
+  html {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--surface);
+    line-height: 1.55;
+  }
+  body {
+    background: var(--surface);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: 'Source Serif 4 Variable', Georgia, serif;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

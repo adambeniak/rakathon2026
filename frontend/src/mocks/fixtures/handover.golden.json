@@ -1,0 +1,701 @@
+{
+  "$comment": "Golden set for the Rakathon 2026 VZP case. Values are taken verbatim from the fictitious source documents. Quotes must appear verbatim (whitespace-normalised) in the cited document. Used by `make eval`. as_of is the MDT start (as_of_timestamp); the MDT conclusion written on 21. 10. is after it.",
+  "case_id": "rakathon-2026-prochazkova",
+  "as_of": "2026-10-21",
+  "mdt_date": "2026-10-21",
+  "included_documents": [
+    "01_Kardiologie_2026-07-20",
+    "02_Laborator_2026-09-01",
+    "03_RTG_plic_2026-09-03",
+    "04_PL_epikriza_2026-09-04",
+    "05_Gastroenterologie_2026-09-15",
+    "06_UZ_bricha_2026-09-29",
+    "07_PL_zadost_KOC2_2026-10-02",
+    "08_CT_KOC1_2026-10-08",
+    "09_Biopsie_vykon_KOC2_2026-10-12",
+    "10_Laborator_KOC2_2026-10-15",
+    "11_Histologie_KOC2_2026-10-19"
+  ],
+  "excluded_documents": [
+    {
+      "doc": "12_Algeziologie_2026-10-26",
+      "reason": "authored after as_of (MDT 2026-10-21)"
+    },
+    {
+      "doc": "13_Psychologie_KOC2_2026-10-27",
+      "reason": "authored after as_of (MDT 2026-10-21)"
+    }
+  ],
+  "fields": {
+    "1_patient": {
+      "status": "complete",
+      "value": {
+        "given": "Alena",
+        "family": "Procházková",
+        "sex": "female",
+        "birth_date": "1963-07-22",
+        "age_years": 63,
+        "birth_number": "635722/1013",
+        "birth_number_checksum_valid": true,
+        "insurer_code": "211",
+        "insurer_name": "Zdravotní pojišťovna ministerstva vnitra ČR",
+        "address": "Za Školou 17, 252 41 Dolní Břežany"
+      },
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "22. 7. 1963 (63 let)"
+        },
+        {
+          "doc": "08_CT_KOC1_2026-10-08",
+          "quote": "Alena Procházková, RČ 635722/1013, ZP 211"
+        },
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "Za Školou 17, 252 41 Dolní Břežany"
+        }
+      ],
+      "notes": "Sex is derived from the birth number (month + 50) and the word 'Pacientka'. Insurer name is a code-list lookup, not in the text."
+    },
+    "2_contacts": {
+      "status": "partial",
+      "value": {
+        "patient_phone": "+420 777 000 541",
+        "patient_email": null,
+        "contact_person": {
+          "name": "Petra Horká",
+          "relation": "dcera",
+          "phone": "+420 777 000 542"
+        }
+      },
+      "missing": [
+        "patient_email"
+      ],
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "+420 777 000 541"
+        },
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "Petra Horká (dcera), tel. +420 777 000 542"
+        }
+      ]
+    },
+    "3_diagnosis": {
+      "status": "partial",
+      "value": {
+        "icd10": "C25.0",
+        "text": "Duktální adenokarcinom hlavy pankreatu, G2–G3, perineurální invaze",
+        "icdo3_morphology": "8500/3",
+        "verified_histologically_on": "2026-10-19",
+        "tnm": null
+      },
+      "missing": [
+        "tnm_clinical_stage"
+      ],
+      "evidence": [
+        {
+          "doc": "11_Histologie_KOC2_2026-10-19",
+          "quote": "Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí. MKN-O 8500/3."
+        },
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "C25.0 – suspektní tumor hlavy pankreatu"
+        }
+      ]
+    },
+    "4_epicrisis": {
+      "status": "generated_with_citations",
+      "must_mention": [
+        "bolesti v epigastriu",
+        "cholestáz",
+        "UZ",
+        "CT",
+        "EUS-FNB",
+        "histolog",
+        "CA 19-9"
+      ],
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "prokázalo ložisko hlavy pankreatu suspektní z malignity"
+        },
+        {
+          "doc": "08_CT_KOC1_2026-10-08",
+          "quote": "Tumor hlavy pankreatu 35 mm s venózním postižením VMS se zúžením lumen a s kontaktem s AMS."
+        }
+      ]
+    },
+    "5_mdt_question": {
+      "status": "needs_clarification",
+      "value": "Převzetí do péče KOC k dokončení diagnostiky (CT, histologická verifikace) a stanovení dalšího postupu v rámci MDT; urgentně.",
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "stanovení dalšího postupu v rámci MDT"
+        },
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "prosím o urgentní řešení"
+        }
+      ]
+    },
+    "6_comorbidities": {
+      "status": "complete",
+      "value": [
+        {
+          "text": "Paroxysmální fibrilace síní, na antikoagulaci",
+          "icd10": "I48.0",
+          "detail": "CHA₂DS₂-VASc 2 b., HAS-BLED 1 b.; EF LK 60 % (20. 7. 2026)"
+        },
+        {
+          "text": "Arteriální hypertenze",
+          "icd10": "I10"
+        },
+        {
+          "text": "Hypercholesterolémie",
+          "icd10": "E78.0"
+        },
+        {
+          "text": "St. p. hysterektomii pro myomy (2010)"
+        },
+        {
+          "text": "2019 přechodně depresivní ladění po úmrtí manžela, neléčena"
+        }
+      ],
+      "evidence": [
+        {
+          "doc": "01_Kardiologie_2026-07-20",
+          "quote": "I48.0 Paroxysmální fibrilace síní, CHA₂DS₂-VASc 2 b., HAS-BLED 1 b., na antikoagulační léčbě"
+        },
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "st. p. hysterektomii pro myomy (2010)"
+        },
+        {
+          "doc": "01_Kardiologie_2026-07-20",
+          "quote": "EF LK 60 %"
+        }
+      ]
+    },
+    "7_medications": {
+      "status": "complete_with_conflict",
+      "value": [
+        {
+          "drug": "apixaban",
+          "dose": "5 mg",
+          "schedule": "1-0-1"
+        },
+        {
+          "drug": "bisoprolol",
+          "dose": "5 mg",
+          "schedule": "1-0-0"
+        },
+        {
+          "drug": "perindopril",
+          "dose": "4 mg",
+          "schedule": "1-0-0"
+        },
+        {
+          "drug": "rosuvastatin",
+          "dose": "10 mg",
+          "schedule": "0-0-1"
+        },
+        {
+          "drug": "paracetamol",
+          "dose": "500 mg",
+          "schedule": "při bolesti max. 4× denně"
+        }
+      ],
+      "conflicts": [
+        "C1"
+      ],
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1, paracetamol 500 mg při bolesti max. 4× denně"
+        }
+      ]
+    },
+    "8_allergies": {
+      "status": "complete",
+      "value": "neguje",
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "AA: neguje"
+        }
+      ]
+    },
+    "9_performance_status": {
+      "status": "missing",
+      "value": null,
+      "context": "Only 'Soběstačná' is documented; ECOG/Karnofsky must not be inferred.",
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "Soběstačná"
+        }
+      ]
+    },
+    "10_weight_height": {
+      "status": "stale",
+      "value": {
+        "height_cm": 165,
+        "height_date": "2026-07-20",
+        "weights": [
+          {
+            "kg": 69,
+            "date": "2026-07-20"
+          },
+          {
+            "kg": 65,
+            "date": "2026-09-15"
+          }
+        ]
+      },
+      "evidence": [
+        {
+          "doc": "01_Kardiologie_2026-07-20",
+          "quote": "Výška 165 cm, hmotnost 69 kg."
+        },
+        {
+          "doc": "05_Gastroenterologie_2026-09-15",
+          "quote": "Hmotnost 65 kg."
+        }
+      ]
+    },
+    "11_symptoms": {
+      "status": "complete",
+      "value": {
+        "onset": "polovina srpna 2026",
+        "items": [
+          "bolesti v epigastriu a pravém podžebří s propagací do zad, horší po jídle a v noci",
+          "intermitentní teploty do 38,6 °C se zimnicí",
+          "tmavá moč, subikterus, občas světlejší stolice",
+          "nechutenství, úbytek hmotnosti 4 kg za měsíc",
+          "výrazná úzkost, špatný spánek"
+        ]
+      },
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří"
+        },
+        {
+          "doc": "04_PL_epikriza_2026-09-04",
+          "quote": "intermitentní teploty do 38,6 °C se zimnicí"
+        },
+        {
+          "doc": "05_Gastroenterologie_2026-09-15",
+          "quote": "úbytek hmotnosti 4 kg za poslední měsíc (z 69 na 65 kg)"
+        }
+      ]
+    },
+    "12_examinations": {
+      "status": "complete",
+      "value": [
+        {
+          "date": "2026-07-20",
+          "place": "Kardiologická ambulance Jesenice",
+          "type": "kardiologická kontrola, EKG, echo",
+          "doc": "01_Kardiologie_2026-07-20"
+        },
+        {
+          "date": "2026-09-01",
+          "place": "Laboratoř LabJih",
+          "type": "KO, biochemie, moč, kultivace",
+          "doc": "02_Laborator_2026-09-01"
+        },
+        {
+          "date": "2026-09-03",
+          "place": "Radiologické centrum Modřany",
+          "type": "RTG hrudníku PA",
+          "doc": "03_RTG_plic_2026-09-03"
+        },
+        {
+          "date": "2026-09-15",
+          "place": "Poliklinika Jižní – gastroenterologie",
+          "type": "vstupní gastroenterologické vyšetření",
+          "doc": "05_Gastroenterologie_2026-09-15"
+        },
+        {
+          "date": "2026-09-29",
+          "place": "Poliklinika Jižní – RDG",
+          "type": "UZ břicha",
+          "doc": "06_UZ_bricha_2026-09-29"
+        },
+        {
+          "date": "2026-10-08",
+          "place": "KOC 1 – Nemocnice Severní, radiologie",
+          "type": "CT hrudníku a břicha, pankreatický protokol",
+          "doc": "08_CT_KOC1_2026-10-08"
+        },
+        {
+          "date": "2026-10-12",
+          "place": "KOC 2 – Nemocnice Lipová, endoskopie",
+          "type": "EUS-FNB",
+          "doc": "09_Biopsie_vykon_KOC2_2026-10-12"
+        },
+        {
+          "date": "2026-10-15",
+          "place": "KOC 2 – Nemocnice Lipová, laboratoř",
+          "type": "KO, biochemie, nádorové markery",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "date": "2026-10-19",
+          "place": "KOC 2 – Nemocnice Lipová, patologie",
+          "type": "histologie",
+          "doc": "11_Histologie_KOC2_2026-10-19"
+        }
+      ],
+      "full_text_required": true
+    },
+    "13_labs": {
+      "status": "complete",
+      "key_values": [
+        {
+          "test": "CA 19-9",
+          "value": 312,
+          "unit": "kU/l",
+          "flag": "H",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "CEA",
+          "value": 4.1,
+          "unit": "µg/l",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "CA 125",
+          "value": 48,
+          "unit": "kU/l",
+          "flag": "H",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "Bilirubin celkový",
+          "value": 38,
+          "unit": "µmol/l",
+          "flag": "H",
+          "date": "2026-09-01",
+          "doc": "02_Laborator_2026-09-01"
+        },
+        {
+          "test": "Bilirubin celkový",
+          "value": 23,
+          "unit": "µmol/l",
+          "flag": "H",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "CRP",
+          "value": 86,
+          "unit": "mg/l",
+          "flag": "H",
+          "date": "2026-09-01",
+          "doc": "02_Laborator_2026-09-01"
+        },
+        {
+          "test": "CRP",
+          "value": 18,
+          "unit": "mg/l",
+          "flag": "H",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "Hemoglobin",
+          "value": 118,
+          "unit": "g/l",
+          "flag": "L",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "Albumin",
+          "value": 36,
+          "unit": "g/l",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        },
+        {
+          "test": "Kreatinin",
+          "value": 74,
+          "unit": "µmol/l",
+          "date": "2026-10-15",
+          "doc": "10_Laborator_KOC2_2026-10-15"
+        }
+      ]
+    },
+    "14_histology": {
+      "status": "complete_with_conflict",
+      "value": {
+        "report_id": "B-2026/15921",
+        "issued": "2026-10-19",
+        "ihc": {
+          "CK7": "+",
+          "CK19": "+",
+          "CK20": "-",
+          "CDX2": "-",
+          "SMAD4": "exprese zachována"
+        },
+        "perineural_invasion": true,
+        "grade": "G2–G3"
+      },
+      "conflicts": [
+        "C2"
+      ],
+      "evidence": [
+        {
+          "doc": "11_Histologie_KOC2_2026-10-19",
+          "quote": "CK7 pozitivní, CK19 pozitivní, CK20 negativní, CDX2 negativní, SMAD4 exprese zachována"
+        },
+        {
+          "doc": "11_Histologie_KOC2_2026-10-19",
+          "quote": "B-2026/15921"
+        }
+      ]
+    },
+    "15_other": {
+      "status": "complete",
+      "value": [
+        "Pacientka je informována o podezření na nádorové onemocnění.",
+        "Souhlasí se sdílením informací s dcerou.",
+        "Výrazná úzkost, PL žádá zvážit psychologickou podporu.",
+        "Antikoagulace apixabanem – před invazivním výkonem vysadit 48 h předem (kardiolog).",
+        "Žije sama, dcera v téže obci; t. č. v pracovní neschopnosti."
+      ],
+      "evidence": [
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "Souhlasí se sdílením informací s dcerou."
+        },
+        {
+          "doc": "07_PL_zadost_KOC2_2026-10-02",
+          "quote": "prosím o zvážení psychologické podpory"
+        },
+        {
+          "doc": "01_Kardiologie_2026-07-20",
+          "quote": "vysadit apixaban 48 hodin předem"
+        }
+      ]
+    }
+  },
+  "expected_findings": [
+    {
+      "id": "C1",
+      "kind": "date_conflict",
+      "severity": "high",
+      "docs": [
+        "09_Biopsie_vykon_KOC2_2026-10-12"
+      ],
+      "quotes": [
+        "Datum výkonu: 12. 10. 2026",
+        "poslední dávka 18. 10. 2026 večer",
+        "apixaban znovu od 21. 10. 2026 ráno"
+      ],
+      "action": "flag_and_create_verification_task"
+    },
+    {
+      "id": "C2",
+      "kind": "date_conflict",
+      "severity": "high",
+      "docs": [
+        "11_Histologie_KOC2_2026-10-19",
+        "09_Biopsie_vykon_KOC2_2026-10-12"
+      ],
+      "quotes": [
+        "odběr 20. 10. 2026",
+        "Datum vydání: 19. 10. 2026"
+      ],
+      "action": "flag_and_create_verification_task"
+    },
+    {
+      "id": "C3",
+      "kind": "sla_breach",
+      "severity": "medium",
+      "docs": [
+        "09_Biopsie_vykon_KOC2_2026-10-12",
+        "11_Histologie_KOC2_2026-10-19"
+      ],
+      "quotes": [
+        "Výsledek histologie do 3 pracovních dnů."
+      ],
+      "action": "escalate_on_2026-10-16"
+    },
+    {
+      "id": "M1",
+      "kind": "missing",
+      "field": "9_performance_status",
+      "severity": "high"
+    },
+    {
+      "id": "M2",
+      "kind": "missing",
+      "field": "3_diagnosis.tnm",
+      "severity": "medium"
+    },
+    {
+      "id": "M3",
+      "kind": "missing",
+      "field": "2_contacts.patient_email + referring_physician_email",
+      "severity": "low"
+    },
+    {
+      "id": "S1",
+      "kind": "stale",
+      "field": "10_weight_height",
+      "severity": "medium"
+    },
+    {
+      "id": "D1",
+      "kind": "missing_document",
+      "severity": "low",
+      "docs": [
+        "04_PL_epikriza_2026-09-04"
+      ],
+      "quotes": [
+        "Kontrola u PL po dobrání ATB 9. 9. 2026 s kontrolním odběrem."
+      ]
+    },
+    {
+      "id": "D2",
+      "kind": "missing_document",
+      "severity": "high",
+      "docs": [
+        "07_PL_zadost_KOC2_2026-10-02"
+      ],
+      "quotes": [
+        "VÝSLEDKY K DISPOZICI NA JEDNOTLIVÝCH PRACOVIŠTÍCH"
+      ],
+      "action": "request_reports_01_to_06"
+    },
+    {
+      "id": "T1",
+      "kind": "temporal_cutoff",
+      "severity": "high",
+      "docs": [
+        "12_Algeziologie_2026-10-26",
+        "13_Psychologie_KOC2_2026-10-27"
+      ],
+      "action": "exclude_from_mdt_handover"
+    },
+    {
+      "id": "X1",
+      "kind": "metadata_mismatch",
+      "severity": "low",
+      "docs": [
+        "08_CT_KOC1_2026-10-08"
+      ],
+      "quotes": [
+        "Indikující lékař: MUDr. Ivana Křížová, gastroenterolog, Poliklinika Jižní"
+      ]
+    },
+    {
+      "id": "X4",
+      "kind": "insurer",
+      "severity": "info",
+      "note": "ZP 211 = ZP MV ČR, not VZP (111); revizní lékař must be from insurer 211."
+    },
+    {
+      "id": "Q1",
+      "kind": "needs_clarification",
+      "field": "5_mdt_question",
+      "severity": "medium"
+    },
+    {
+      "id": "N1",
+      "kind": "not_documented",
+      "severity": "info",
+      "note": "Biliary drainage not documented (also noted by MDT)."
+    }
+  ],
+  "timeline": [
+    {
+      "date": "2026-08-15",
+      "event": "Nástup příznaků (přibližně)",
+      "precision": "month-half"
+    },
+    {
+      "date": "2026-09-01",
+      "event": "První vyšetření u PL"
+    },
+    {
+      "date": "2026-09-29",
+      "event": "UZ: ložisko hlavy pankreatu suspektní z malignity"
+    },
+    {
+      "date": "2026-10-02",
+      "event": "PL aktivuje koordinátora KOC 2"
+    },
+    {
+      "date": "2026-10-08",
+      "event": "CT v KOC 1"
+    },
+    {
+      "date": "2026-10-12",
+      "event": "EUS-FNB v KOC 2"
+    },
+    {
+      "date": "2026-10-19",
+      "event": "Histologie"
+    },
+    {
+      "date": "2026-10-21",
+      "event": "MDT"
+    },
+    {
+      "date": "2026-11-04",
+      "event": "Onkologické konzilium (plán)"
+    }
+  ],
+  "intervals_days": {
+    "T1_first_GP_visit_to_KOC_referral": 31,
+    "suspicion_to_KOC_referral": 3,
+    "T2_KOC_referral_to_MDT": 19,
+    "T3_MDT_to_oncology_consult": 14,
+    "first_GP_visit_to_consult": 64
+  },
+  "as_of_timestamp": "2026-10-21T08:00:00+02:00",
+  "post_mdt_findings": [
+    {
+      "id": "X2",
+      "kind": "lost_information",
+      "severity": "medium",
+      "docs": [
+        "07_PL_zadost_KOC2_2026-10-02",
+        "MDT_zaver"
+      ],
+      "quotes": [
+        "Souhlasí se sdílením informací s dcerou.",
+        "po jejím souhlasu komunikovat také s dcerou"
+      ],
+      "note": "Raised when the MDT conclusion (MDT_zaver, after as_of) is checked against earlier documents — not part of the as-of 21. 10. handover."
+    },
+    {
+      "id": "X3",
+      "kind": "role_mismatch",
+      "severity": "low",
+      "docs": [
+        "MDT_zaver"
+      ],
+      "quotes": [
+        "MUDr. Ondřej Kalous – radiační onkologie",
+        "termín na onkologické konzilium 4.11.2026 10:30, MUDr. Kalous"
+      ],
+      "note": "Raised when the MDT conclusion (MDT_zaver, after as_of) is checked against earlier documents — not part of the as-of 21. 10. handover."
+    }
+  ],
+  "gates": {
+    "finding_recall_as_of": "14/14",
+    "post_mdt_findings": "2/2 when MDT_zaver is checked"
+  }
+}

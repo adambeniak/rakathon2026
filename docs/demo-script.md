@@ -1,7 +1,8 @@
 # Demo script — 5 minutes, 6 steps
 
 Presenter lines are in Czech (spoken); everything else in English. Roles are switched with the header
-role switcher. Demo clock: `STAFETA_DEMO_NOW` (set per step). All data is fictitious (Alena Procházková,
+role switcher. Demo clock: `STAFETA_DEMO_NOW` is the start value; during the demo move it with
+`PUT /api/demo/clock` (`{"now": "2026-10-16T09:00:00+02:00"}`, `null` resets; demo mode only, audited). All data is fictitious (Alena Procházková,
 MDT 21. 10. 2026 08:00). Due dates shown in the app are labelled **demo předpoklad**, not clinical guidance.
 Run with `STAFETA_LLM_CACHE=1`. Before going on stage: `make demo-reset && make seed`.
 
@@ -50,7 +51,7 @@ Step 4 is deliberately shown at 16. 10. (the escalation day) after step 3, then 
   tří pracovních dnů od 12. 10., tedy do čtvrtka 15. 10. — v pátek 16. 10. přijde koordinátorce eskalace.“
 - **Proof:** task list with owner/place/due/dependencies; escalation banner on histology (basis: SLA, 1 pracovní den po termínu);
   order status shows **objednáno → potvrzeno → provedeno → výsledek doručen**.
-- **Fallback:** seeded tasks via `make seed`; set `STAFETA_DEMO_NOW=2026-10-16T09:00:00+02:00` and reload.
+- **Fallback:** seeded tasks via `make seed`; `PUT /api/demo/clock` with `2026-10-16T09:00:00+02:00` (or set `STAFETA_DEMO_NOW` and restart) and reload.
 
 ## 5 · MDT handover as-of 21. 10. (3:30–4:15)
 - **B clicks:** set as-of 21. 10. 08:00 → readiness gate → (ECOG missing → physician **Prominout** with a reason) → **Generovat MDT zápis** → open DOCX/PDF.

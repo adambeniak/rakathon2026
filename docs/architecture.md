@@ -58,4 +58,5 @@ of delivery. Fictitious data only. Decisions: [ADR-0001](adr/0001-iris-fhir-syst
   connections. IRIS runs with 2 GB RAM; embeddings are computed in the backend, never inside IRIS.
 - **Environments**: local `make up` = backend + mailpit against the IRIS in `.env` (team ACI); `make up-local` adds
   a local IRIS container (demo fallback). ACI storage is not persistent → `make iris-bootstrap && make seed`.
-- **Time**: ISO 8601 with offsets, Europe/Prague; `STAFETA_DEMO_NOW` simulates "now" for the demo.
+- **Time**: ISO 8601 with offsets, Europe/Prague; `STAFETA_DEMO_NOW` is the start value of the demo clock (`app.domain.clock`, the only clock);
+  `PUT /api/demo/clock` moves it (demo mode only). `mdt_start` is set at pathway launch and is the default handover `as_of`.

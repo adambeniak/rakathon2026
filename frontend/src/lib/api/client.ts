@@ -13,11 +13,18 @@ export const client = createClient<paths>({
 
 // The demo clock is a query parameter the MSW mocks honour and the real backend ignores (it has its own clock).
 client.use({
-  onRequest({ request }) {
+  async onRequest({ request }) {
     const demo = getDemo()
     const url = new URL(request.url)
     if (!url.searchParams.has('today')) url.searchParams.set('today', demo.today)
-    const forwarded = new Request(url, request)
+    // Rebuild explicitly: `new Request(url, request)` drops the method and body of a POST.
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD'
+    const forwarded = new Request(url, {
+      method: request.method,
+      headers: new Headers(request.headers),
+      body: hasBody ? await request.clone().arrayBuffer() : undefined,
+      signal: request.signal,
+    })
     forwarded.headers.set('X-Demo-Role', demo.role === 'physician' ? 'koc_physician' : demo.role)
     return forwarded
   },

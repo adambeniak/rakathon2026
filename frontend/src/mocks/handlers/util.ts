@@ -8,7 +8,8 @@ export function todayOf(request: Request): string {
 }
 
 export function roleOf(request: Request): Role | null {
-  const r = request.headers.get('x-demo-role')
+  // The generated client sends the backend's role code (`koc_physician`); the legacy client sends `physician`.
+  const r = request.headers.get('x-demo-role') === 'koc_physician' ? 'physician' : request.headers.get('x-demo-role')
   return r === 'gp' || r === 'coordinator' || r === 'physician' || r === 'reviewer' ? r : null
 }
 

@@ -29,8 +29,10 @@ from schema import (
     DateValue,
     Fact,
     MedicationValue,
+    PersonValue,
     QuantityValue,
     RawFact,
+    TextValue,
     make_fact_id,
 )
 
@@ -43,6 +45,13 @@ NEGATION_CUE = re.compile(
     re.IGNORECASE,
 )
 PS_CUE = re.compile(r"ECOG|(?<![A-Za-z])PS(?![A-Za-z])|Karnofsk")
+SUSPICION_CUE = re.compile(
+    r"(?<!\w)(suspekt\w*|susp\.|v\.\s?s\.|vs\.|podezření|suspekce|nelze vyloučit|diferenciálně|DD|k potvrzení"
+    r"|pravděpodobn\w*)(?!\w)|\?",
+    re.IGNORECASE,
+)
+# A "stated" fact of these types must not sit on a quote that only suspects it.
+CERTAINTY_CHECKED_TYPES = frozenset({"diagnosis", "histology", "comorbidity"})
 
 
 @dataclass(frozen=True)
@@ -96,6 +105,22 @@ def value_numbers(raw: RawFact) -> Counter[Decimal]:
             continue
         nums.update(numbers_in(_ISO_DATE.sub(" ", item)))
     return nums
+
+
+def value_texts(raw: RawFact) -> list[str]:
+    """Free-text parts of the value that must be a contiguous copy of the quote (no paraphrase)."""
+    v = raw.value
+    if isinstance(v, TextValue | CodedValue):
+        parts: list[str | None] = [v.text]
+    elif isinstance(v, QuantityValue):
+        parts = [v.text_value]
+    elif isinstance(v, MedicationValue):
+        parts = [v.dose, v.schedule]
+    elif isinstance(v, PersonValue):
+        parts = [v.name, v.relation, v.address]
+    else:
+        parts = []
+    return [p for p in parts if p and p.strip(" .,;:")]
 
 
 def _locate(quote: str, doc: NormalizedDoc) -> tuple[tuple[int, int], bool] | None:
@@ -182,6 +207,9 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
     for term in terms:
         if fold(term) not in fq:
             return Rejected("term_not_in_quote", raw, term)
+    for text in value_texts(raw):
+        if fold(text.strip(" .,;:")) not in fq:
+            return Rejected("text_not_in_quote", raw, text[:60])
 
     missing = value_numbers(raw) - numbers_in(source_quote)
     if missing:
@@ -201,6 +229,8 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         return Rejected("ps_inferred", raw)
     if raw.certainty == "negated" and not NEGATION_CUE.search(source_quote):
         return Rejected("negation_mismatch", raw)
+    if raw.certainty == "stated" and raw.type in CERTAINTY_CHECKED_TYPES and (m := SUSPICION_CUE.search(source_quote)):
+        return Rejected("certainty_mismatch", raw, m.group(0))
 
     fact = Fact(
         fact_id=make_fact_id(doc.doc_id, raw),
@@ -226,19 +256,27 @@ def stated_with_negation_cue(fact: Fact) -> bool:
 # ---------------------------------------------------------------- as-of
 
 
-def doc_included(doc: NormalizedDoc, as_of: datetime) -> bool:
-    """AGENTS rule 4. Date-only documents count as authored at an unknown time on that day, so a document
-    dated on the as_of day is excluded (e.g. the MDT conclusion of 21. 10. vs MDT start 08:00)."""
-    for d in (doc.authored_date, doc.received_date):
-        if d is None:
-            continue
-        if d >= as_of.date():
-            return False
-    return doc.authored_date is not None
+def doc_included(doc: NormalizedDoc, as_of: datetime, *, require_received: bool = False) -> bool:
+    """AGENTS rule 4: authored <= as_of AND received <= as_of.
+
+    Date-only values count as an unknown time on that day, so a document dated on the as_of day is
+    excluded (e.g. the MDT conclusion of 21. 10. vs MDT start 08:00). Raw files carry no received date
+    (seed/FHIR supplies it); the backend must call this with require_received=True so an unknown
+    received date excludes the document.
+    """
+    if doc.authored_date is None:
+        return False
+    if doc.received_date is None and require_received:
+        return False
+    return all(d < as_of.date() for d in (doc.authored_date, doc.received_date) if d is not None)
 
 
-def filter_as_of(facts: Iterable[Fact], docs: dict[str, NormalizedDoc], as_of: datetime) -> list[Fact]:
-    return [f for f in facts if f.doc_id in docs and doc_included(docs[f.doc_id], as_of)]
+def filter_as_of(
+    facts: Iterable[Fact], docs: dict[str, NormalizedDoc], as_of: datetime, *, require_received: bool = False
+) -> list[Fact]:
+    return [
+        f for f in facts if f.doc_id in docs and doc_included(docs[f.doc_id], as_of, require_received=require_received)
+    ]
 
 
 # ---------------------------------------------------------------- orchestration

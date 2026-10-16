@@ -317,5 +317,5 @@ def coverage_items(golden: dict[str, Any]) -> list[tuple[str, str, set[str]]]:
     for s in g["11_symptoms"]["value"]["items"]:
         out.append(("11_symptoms", s, {"symptom"}))
     for s in g["15_other"]["value"]:
-        out.append(("15_other", s, {"consent_or_wish", "recommendation_or_plan", "referral_request", "symptom"}))
+        out.append(("15_other", s, {"consent_or_wish", "documented_plan", "referral_request", "symptom"}))
     return out

@@ -24,7 +24,7 @@ FactType = Literal[
     "histology",
     "procedure",
     "consent_or_wish",
-    "recommendation_or_plan",
+    "documented_plan",
     "referral_request",
     "admin_date",
 ]
@@ -142,7 +142,7 @@ ALLOWED_KINDS: dict[str, frozenset[str]] = {
     "histology": frozenset({"text", "coded", "quantity"}),
     "procedure": frozenset({"text"}),
     "consent_or_wish": frozenset({"text"}),
-    "recommendation_or_plan": frozenset({"text", "date", "medication"}),
+    "documented_plan": frozenset({"text", "date", "medication"}),
     "referral_request": frozenset({"text", "coded"}),
     "admin_date": frozenset({"date"}),
 }
@@ -164,7 +164,7 @@ ALLOWED_FIELDS: dict[str, frozenset[int]] = {
     "histology": frozenset({14, 3, 12}),
     "procedure": frozenset({12, 15}),
     "consent_or_wish": frozenset({15}),
-    "recommendation_or_plan": frozenset({15, 5, 12, 7}),
+    "documented_plan": frozenset({15, 5, 12, 7}),
     "referral_request": frozenset({5, 15, 3}),
     "admin_date": _ALL_FIELDS,
 }

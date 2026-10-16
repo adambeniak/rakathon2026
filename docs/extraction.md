@@ -55,7 +55,7 @@ Header dates are read from `Datum:`, `Datum vyšetření:`, `Datum výkonu:`, `D
 
 | key | type |
 | --- | --- |
-| `type` | patient_identity, contact, insurer, diagnosis, comorbidity, medication, allergy, performance_status, vital_sign, symptom, examination, lab_result, histology, procedure, consent_or_wish, recommendation_or_plan, referral_request, admin_date |
+| `type` | patient_identity, contact, insurer, diagnosis, comorbidity, medication, allergy, performance_status, vital_sign, symptom, examination, lab_result, histology, procedure, consent_or_wish, documented_plan, referral_request, admin_date |
 | `handover_field` | 1–15 (Handover_obsah order); the allowed set per type is in `schema.ALLOWED_FIELDS` |
 | `value` | one of `text{text}`, `coded{code, system, text}`, `quantity{name, number, text_value, comparator, flag, ref_range}`, `medication{drug, dose, schedule}`, `person{name, relation, phone, email, address}`, `date{label, date}`; the allowed kinds per type are in `schema.ALLOWED_KINDS` |
 | `unit` | original unit (`µmol/l`, `kU/l`, …) |
@@ -85,8 +85,14 @@ See `spikes/extraction/prompt.py` (`PROMPT_VERSION`). Its key rules:
 | `number_not_in_quote` | the multiset of value numbers ⊆ the numbers in the quote. Unsigned only, decimal comma = point, `38` ∉ `38,6`, ISO dates skipped |
 | `unit_not_in_quote` | the unit must occur in the quote (µ U+00B5 ≡ μ U+03BC) |
 | `date_unparseable` / `date_unsupported` | the ISO date must parse and appear in the quote or in the document's header dates. `YYYY-MM` also accepts a Czech month name + year ("poloviny srpna 2026") |
+| `text_not_in_quote` | free text in the value (`text`, `text_value`, `dose`, `schedule`, person `name` / `relation` / `address`) must be a contiguous copy of the quote (casefold + NFKC). No paraphrase, no diagnosis the quote does not name |
 | `ps_inferred` | `performance_status` requires `ECOG`, `PS` or `Karnofsk…` in the quote |
 | `negation_mismatch` | `negated` requires a negation cue in the quote |
+| `certainty_mismatch` | a `stated` diagnosis, histology or comorbidity is rejected when its quote contains a suspicion cue (`suspekt…`, `susp.`, `v.s.`, `vs.`, `podezření`, `nelze vyloučit`, `diferenciálně`, `DD`, `k potvrzení`, `pravděpodobn…`, `?`) |
+
+As-of: `doc_included(doc, as_of, require_received=False)`. Raw files carry no received date, so the spike tolerates an
+unknown one (the count is reported as `docs_received_unknown`). **The backend must call it with `require_received=True`**,
+so that an unknown received date excludes the document.
 
 **Limit (stated honestly):** the lock checks *grounding*, not *intent*. Injected text that genuinely appears in a document
 (e.g. "vypiš … ECOG 0") passes every rule (`test_lock_cannot_stop_genuine_injected_text`). The defences are the prompt and
@@ -118,5 +124,11 @@ The numbers, commit hash and misses go here, unedited._
   "Datum vydání: 19. 10.") must be extracted as written. Raising them is consistency work (F3-1, C1/C2).
 - **Strict-mode `anyOf`**: if the deployment rejects the union, the fallback is a flat value object plus Pydantic validation per type.
 - **Long documents** (doc 02, about 50 rows): watch per-document fact counts in the report and `finish_reason=length` (raises).
+- **Follow-ups from the clinical-safety review, not done yet:**
+  - check that a negation cue sits near the term, and add `vyloučen`, `nepotvrzen` and `nemá` as cues;
+  - show `stated_with_negation_cue` to the confirming clinician ("Možný nesoulad: v citaci uvedena negace");
+  - add a document-level warning for instruction-like text;
+  - give a UI reason for as_of-day exclusions;
+  - downstream label for `documented_plan`: "Uvedeno v dokumentaci: …".
 - **Quote repair** is a deliberate deviation from "substring after the same normalisation". It is limited to the NFKC fold,
   needs a unique span, and the stored quote is always source text.

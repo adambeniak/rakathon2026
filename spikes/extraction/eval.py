@@ -183,6 +183,7 @@ async def run(as_of: datetime, model: str) -> dict[str, Any]:
             "hallucinations": len(halluc),
             "as_of_leakage": len(leakage),
             "excluded_doc_facts_filtered": excluded_extracted,
+            "docs_received_unknown": sum(1 for d in docs.values() if d.received_date is None),
             "key_value_recall": round(recall, 4),
             "key_values": f"{len(hits)}/{len(positive)}",
             "text_coverage_mean": round(sum(c["coverage"] for c in cov) / len(cov), 3) if cov else None,

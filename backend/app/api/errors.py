@@ -13,10 +13,23 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.schemas.common import ProblemDetails, ValidationIssue
-from app.domain.errors import ConflictError, DomainError, InvalidInputError, NotFoundError, ServiceUnavailableError
+from app.domain.errors import (
+    ConflictError,
+    DomainError,
+    ExtractionUnavailableError,
+    ForbiddenError,
+    InvalidInputError,
+    NotFoundError,
+    PayloadTooLargeError,
+    ServiceUnavailableError,
+    UnauthenticatedError,
+    UnsupportedMediaError,
+)
+from app.domain.events import TransitionError
 from app.fhir.errors import (
     AuditWriteError,
     FhirAuthError,
+    FhirConflictError,
     FhirError,
     FhirNotFoundError,
     FhirUnavailableError,
@@ -37,6 +50,7 @@ def problem_response(
     instance: str | None = None,
     request_id: str | None = None,
     errors: list[ValidationIssue] | None = None,
+    code: str | None = None,
     headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     body = ProblemDetails(
@@ -47,6 +61,7 @@ def problem_response(
         instance=instance,
         request_id=request_id,
         errors=errors,
+        code=code,
     )
     return JSONResponse(
         body.model_dump(exclude_none=True), status_code=status, media_type=PROBLEM_JSON, headers=headers
@@ -75,12 +90,22 @@ def _request_id(request: Request) -> str | None:
 def _domain_status(exc: DomainError) -> tuple[int, str]:
     if isinstance(exc, NotFoundError):
         return 404, "not-found"
+    if isinstance(exc, UnauthenticatedError):
+        return 401, "unauthenticated"
+    if isinstance(exc, ForbiddenError):
+        return 403, "forbidden"
+    if isinstance(exc, ExtractionUnavailableError):
+        return 503, "extraction-unavailable"
+    if isinstance(exc, ServiceUnavailableError):
+        return 503, exc.problem
+    if isinstance(exc, PayloadTooLargeError):
+        return 413, "payload-too-large"
+    if isinstance(exc, UnsupportedMediaError):
+        return 415, "unsupported-media"
     if isinstance(exc, ConflictError):
         return 409, "conflict"
     if isinstance(exc, InvalidInputError):
         return 422, "invalid-input"
-    if isinstance(exc, ServiceUnavailableError):
-        return 503, exc.problem
     return 400, "domain-error"
 
 
@@ -90,6 +115,8 @@ def _fhir_status(exc: FhirError) -> tuple[int, str, str]:
         return 503, "storage-unavailable", "Úložiště FHIR (IRIS) není dostupné."
     if isinstance(exc, AuditWriteError):
         return 502, "audit-failed", "Záznam auditu se nepodařilo uložit."
+    if isinstance(exc, FhirConflictError):
+        return 409, "conflict", "Záznam byl mezitím změněn, načtěte jej znovu."
     if isinstance(exc, FhirAuthError):
         return 502, "storage-auth", "Backend se nemůže přihlásit k úložišti FHIR."
     if isinstance(exc, FhirNotFoundError):
@@ -104,7 +131,12 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
         status, problem = _domain_status(exc)
         return problem_response(
-            status, problem=problem, detail=str(exc), instance=request.url.path, request_id=_request_id(request)
+            status,
+            problem=problem,
+            detail=exc.detail if isinstance(exc, TransitionError) else str(exc),
+            instance=request.url.path,
+            request_id=_request_id(request),
+            code=exc.code if isinstance(exc, TransitionError) else None,
         )
 
     @app.exception_handler(FhirError)

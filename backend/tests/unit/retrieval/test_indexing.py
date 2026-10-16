@@ -9,6 +9,7 @@ from app.fhir.mappers.document import document_to_fhir
 from app.retrieval.indexing import DocumentIndexer
 from app.seed import demo_case
 from app.seed.loader import DEFAULT_DATA_DIR, Scenario, seed
+from tests.unit.documents.test_ingest import _minimal_pdf
 from tests.unit.retrieval.conftest import FakeAuditor, FakeEmbedder, FakeStore
 from tests.unit.seed.test_seed import InMemoryRepository
 
@@ -72,19 +73,24 @@ async def test_second_index_is_skipped_unless_forced(
     assert len(auditor.derived) == 2  # nothing audited for the skipped run
 
 
-async def test_plain_text_is_indexed_and_other_types_are_skipped(
+async def test_plain_text_and_pdf_are_indexed_other_types_skipped(
     store: FakeStore, embedder: FakeEmbedder, auditor: FakeAuditor
 ) -> None:
     indexer = DocumentIndexer(store, embedder, auditor)
     text = await indexer.index(
         biopsy_resource("text/plain; charset=utf-8", "Apixaban vysazen.\nVýkon bez komplikací.".encode())
     )
-    pdf = await indexer.index({**biopsy_resource("application/pdf", b"%PDF"), "id": "249"})
+    pdf = await indexer.index({**biopsy_resource("application/pdf", _minimal_pdf("Apixaban vysazen")), "id": "250"})
+    broken = await indexer.index({**biopsy_resource("application/pdf", b"%PDF"), "id": "249"})
+    image = await indexer.index({**biopsy_resource("image/png", b"\x89PNG"), "id": "251"})
 
     assert text.chunks == 1
     assert store.rows["DocumentReference/248"][0].text == "Apixaban vysazen.\nVýkon bez komplikací."
-    assert pdf.skipped == "unsupported content type application/pdf"
-    assert "DocumentReference/249" not in store.rows
+    assert pdf.chunks == 1
+    assert store.rows["DocumentReference/250"][0].text == "Apixaban vysazen"
+    assert broken.skipped == "unreadable (UnsupportedMediaError)"
+    assert image.skipped == "unsupported content type image/png"
+    assert {"DocumentReference/249", "DocumentReference/251"}.isdisjoint(store.rows)
 
 
 def test_dimension_mismatch_is_refused(embedder: FakeEmbedder, auditor: FakeAuditor) -> None:
@@ -110,3 +116,45 @@ def test_attachment_round_trip_matches_disk() -> None:
     resource = biopsy_resource()
     data = base64.b64decode(resource["content"][0]["attachment"]["data"])
     assert data == (DEFAULT_DATA_DIR / BIOPSY.file_name).read_bytes()
+
+
+class FakeCaseRepository(FakeAuditor):
+    def __init__(self, resources: list[Resource]) -> None:
+        super().__init__()
+        self.resources = resources
+        self.searches: list[dict[str, str]] = []
+
+    async def search(self, resource_type: str, params: dict[str, str]) -> list[Resource]:
+        self.searches.append(params)
+        return self.resources
+
+
+class FakeLocator:
+    async def case_patient(self, case_id: str) -> tuple[str, str]:
+        if case_id != "c1":
+            raise LookupError(case_id)
+        return "Task/1", "Patient/7"
+
+
+async def test_uploaded_case_documents_are_indexed_once(store: FakeStore, embedder: FakeEmbedder) -> None:
+    from app.retrieval.indexing import index_case_documents
+
+    repo = FakeCaseRepository([biopsy_resource(), {"resourceType": "DocumentReference", "id": "9", "identifier": []}])
+    indexer = DocumentIndexer(store, embedder, repo)
+
+    first = await index_case_documents("c1", FakeLocator(), repo, indexer)
+    second = await index_case_documents("c1", FakeLocator(), repo, indexer)
+
+    assert first == len(store.rows["DocumentReference/248"]) > 0
+    assert second == 0
+    assert repo.searches[0] == {"subject": "Patient/7", "_count": "100"}
+    assert repo.reads[0] == (["DocumentReference/248"], "search-type")  # only source documents are read
+    assert len(repo.derived) == 1
+
+
+async def test_background_indexing_never_raises(store: FakeStore, embedder: FakeEmbedder) -> None:
+    from app.retrieval.indexing import index_case_in_background
+
+    repo = FakeCaseRepository([])
+    await index_case_in_background("unknown", FakeLocator(), repo, DocumentIndexer(store, embedder, repo))
+    assert store.rows == {}

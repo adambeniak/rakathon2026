@@ -32,7 +32,10 @@ class Settings(BaseSettings):
 
     stafeta_env: str = Field("local", description="local | ci | azure")
     stafeta_demo_mode: bool = Field(
-        True, description="Tag every written FHIR resource with meta.tag stafeta-demo so `--reset` can wipe it."
+        False,
+        description="STAFETA_DEMO_MODE=1: honour the X-Demo-Role mock login (default coordinator) and tag every "
+        "written FHIR resource with meta.tag stafeta-demo so `--reset` can wipe it. "
+        "Off = every request is 401 (fail closed).",
     )
     stafeta_demo_now: AwareDatetime | None = Field(
         None, description="Simulated 'now' for the demo, e.g. 2026-10-21T08:00:00+02:00."
@@ -69,6 +72,9 @@ class Settings(BaseSettings):
     ask_top_k: int = Field(10, ge=1, le=20, description="Chunks retrieved per question.")
 
     # --- App ---
+    upload_max_bytes: int = Field(
+        10 * 1024 * 1024, ge=1024, description="Largest accepted uploaded file; checked before the body is parsed."
+    )
     jwt_secret: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
     smtp_host: str = "localhost"
     smtp_port: int = 1025

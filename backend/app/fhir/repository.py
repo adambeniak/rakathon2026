@@ -89,6 +89,11 @@ class FhirRepository:
         """
         await self._audit("E" if subtype == "search-type" else "R", subtype, entities)
 
+    async def audit_extract(self) -> None:
+        """A document was sent to the extraction service (processor). Nothing is persisted, so no entity is named and no
+        patient reference exists; the actor and the time are the record."""
+        await self._audit("E", "extract", [], description="document sent for extraction")
+
     async def audit_derived_write(self, entities: Sequence[str], *, description: str) -> None:
         """Record a write of data derived from these resources outside FHIR (e.g. vector-index rows in IRIS SQL)."""
         await self._audit("C", "create", entities, description=description)

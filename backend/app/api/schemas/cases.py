@@ -7,7 +7,7 @@ from datetime import date
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 
-from app.domain.case import CaseState
+from app.domain.case import CaseState, QueueBucket
 from app.domain.common import Role
 from app.domain.patient import Sex
 
@@ -49,6 +49,32 @@ class BatonHolder(BaseModel):
     role: Role
 
 
+class EvidenceRef(BaseModel):
+    doc_id: str
+    quote: str = Field(description="Verbatim quote from the source document.")
+
+
+class SuspectedDiagnosis(BaseModel):
+    code: str | None = Field(None, description="MKN-10 code as written in the referral, e.g. 'C25.0'.")
+    text: str
+    evidence: list[EvidenceRef] = Field(
+        description="Where the referral states it; empty when the GP changed the diagnosis after the prefill."
+    )
+
+
+class ReferringGp(BaseModel):
+    name: str
+    practice: str | None = None
+
+
+class CaseCounts(BaseModel):
+    """Handover counters. Each is null (UI shows '—') until the handover service computes it; null is not 0."""
+
+    missing: int | None = None
+    conflict: int | None = None
+    stale: int | None = None
+
+
 class CaseSummary(BaseModel):
     model_config = ConfigDict(json_schema_extra={"examples": [_SUMMARY_EXAMPLE]})
 
@@ -58,6 +84,18 @@ class CaseSummary(BaseModel):
     baton_holder: BatonHolder | None = Field(None, description="'Na tahu' — who must act next on the case.")
     next_deadline: AwareDatetime | None = None
     opened_at: AwareDatetime | None = Field(None, description="When the referral reached the KOC.")
+    postponed: bool = Field(False, description="Postponed (waiting for an external step): queue column Odložený.")
+    bucket: QueueBucket = Field(
+        QueueBucket.AKTIVNI, description="Coordinator queue column: novy | aktivni | odlozeny | archiv."
+    )
+    suspected_diagnosis: SuspectedDiagnosis | None = Field(
+        None, description="From the referral (suspected, as written); null when the case has no referral letter."
+    )
+    koc: str | None = Field(None, description="Name of the managing KOC (Organization).")
+    referring_gp: ReferringGp | None = None
+    counts: CaseCounts | None = Field(
+        None, description="Null until the handover service (P2) computes the counters; never a false zero."
+    )
     document_count: int = Field(ge=0, description="All documents of the case (not filtered by as-of).")
     missing_count: int | None = Field(
         None, description="Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'."

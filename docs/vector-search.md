@@ -195,3 +195,19 @@ runs from the repo.
 | `make eval-ask-record` | live re-record after changing prompt, chunking or retrieval |
 | `make vector-bench` (`SCALE=10000`) | latency table above |
 | `uv run --env-file ../.env pytest -m iris tests/integration/test_vector_search.py` | live SQL tests |
+
+## Known issues (not fixed, recorded 2026-10-16)
+
+| # | Issue | Impact | Proposed fix / owner |
+| --- | --- | --- | --- |
+| 1 | "V dokumentaci k … není uvedeno." is rendered when the model finds nothing in the **top 10 retrieved chunks**. A retrieval miss therefore reads as a claim of absence. Mitigated by hybrid search and section abbreviations (`aa*`), not eliminated. | Clinical: a documented fact can be reported as missing. | Before claiming absence, ask again with **all** as-of chunks of the patient (~80 chunks ≈ 8k tokens), then re-record the eval. P1 + clinical safety. |
+| 2 | Advice prefix "Aplikace nedoporučuje léčbu" can read as *advising against* treatment. Kept verbatim from the brief. | Wording. | Brief owner decides; alternative "Aplikace neposkytuje doporučení k léčbě; v dokumentaci je uvedeno:" (one constant + `make eval-ask-record`). |
+| 3 | The image contains no LLM cache: with `STAFETA_LLM_CACHE=1` the deployed `/ask` answers 503. | Demo breaks if deployed in cache mode. | Deploy with `STAFETA_LLM_CACHE=0`. P1 / infra. |
+| 4 | Indexing of uploads (referral letter, received report) runs as a background task after the response. It is not verified live: that would write a test document into the shared demo case. | A question asked within ~1–3 s of an upload may not see the new document. If indexing fails, only `case_indexing_failed` is logged; `make index` repairs it. | Live check on a throwaway case; optional "indexing pending" flag in the UI. P1 / P3. |
+| 5 | The advice detector is deliberately broad: "Co doporučil kardiolog?" or "Kolik mg…?" also get the refusal prefix. | Prefix on a factual answer (safe direction). | Accept, or tune `ADVICE_CUE` with clinical review. |
+| 6 | Embeddings can differ slightly between CPUs; a change at the top-10 boundary changes the LLM cache key. | Only in cache mode: a recorded question may answer 503. | Live mode for the demo (see 3). |
+| 7 | Backend image grew ~1 GB (onnxruntime + model); the model download in the Dockerfile is not pinned to a revision/hash. | Image size, supply chain. | Pin the HF revision or checksum `/opt/fastembed`; check Container Apps memory ≥ 1 GB. Infra. |
+| 8 | When iFind fails, search degrades to vector-only with only a warning in the log (`text_search_failed`). | Silent quality drop. | Expose a counter in `/api/health`. P1. |
+| 9 | HNSW brings no speed-up at demo size (10k rows: 79 vs 81 ms). | None (documented). | — |
+| 10 | Local `.env` has `STAFETA_DEMO_MODE=0`, so every API route answers 401 (fail-closed auth from #18). No reviewer is seeded, so `X-Demo-Role: reviewer` gets 401 instead of 403. | Local runs only. | Set `STAFETA_DEMO_MODE=1` locally; seed a reviewer if the demo needs one. P4. |
+| 11 | `frontend/src/lib/api/schema.d.ts` is not regenerated or committed; `make check` cannot run the frontend step without `pnpm` on PATH. | Typed client for `/ask` missing. | P3 wires the generated client (`corepack pnpm gen:api`). |

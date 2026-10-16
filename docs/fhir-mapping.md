@@ -15,15 +15,17 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | Case (`domain.case.Case`) | `EpisodeOfCare` + coordinating `Task` | EoC: identifier case id, status, type `oncology-diagnostics`, patient, managingOrganization (KOC), careManager (coordinator), period.start. Task: code `coordinate-case`, businessStatus `case-state`, focus → EoC, for → Patient, requester GP, owner = baton holder (reference + identifier + display), performerType = workflow role, restriction.period.end = next deadline, authoredOn = referral received | F1 `mappers/case.py` |
 | Source document (`domain.document.SourceDocument`) | `DocumentReference` | identifier `source-document|<file stem>`, status current, docStatus final, type LOINC, subject, **date = received**, author → `PractitionerRole`, custodian → `Organization`, description = Czech title, context.encounter → case `EpisodeOfCare`, content.attachment: contentType, **base64 data**, size, hash (SHA-1), title = file name, **creation = authored** | F1 `mappers/document.py` |
 | Audit | `AuditEvent` | type `rest`, subtype restful-interaction (create/read/search-type/update/delete/transaction), action C/R/U/D/E, recorded (UTC), agent (workflow role, who = identifier `user|<id>` + display, requestor), source.observer display "Štafeta backend", entity.what = references | F1 `audit.py` |
-| Referral (žádost PL) | `ServiceRequest` | intent order, priority urgent, requester GP, performer KOC, reasonCode C25.0 (suspected), supportingInfo → DocumentReference | F2-1 |
+| Referral (žádost PL) | `ServiceRequest` | identifier `service-request|<case id>`, intent order, priority urgent, requester GP, performer KOC, reasonCode ICD-10 (code + text as written, suspected), supportingInfo → letter DocumentReference, note = GP's note; the case Task points to it with `basedOn` | F2-1 `mappers/referral.py` |
 | Step (`domain.task.Task`) | `Task` partOf case Task | owner, `restriction.period.end` = due, `businessStatus` (`task-business-status`), location, dependencies | F2-4 |
 | Pathway template | `PlanDefinition` → `CarePlan` | "Karcinom pankreatu – diagnostika", relatedAction before/after | F1-4 / F2-4 |
 | Lab result | `Observation` (LOINC) in `DiagnosticReport` | effectiveDateTime = collection time | F2/F3-5 |
 | Diagnosis | `Condition` (mCODE PrimaryCancerCondition idea) | ICD-10 C25.0, verificationStatus provisional → confirmed, morphology 8500/3 | F2-2 |
 | Handover / MDT record | `Composition` (preliminary → final) | sections = 15 handover fields / MDT_zapis; attester = confirming physician | F2-2 / F3-3 |
 | AI evidence / confirmation | `Provenance` | target = derived resource, entity.what = source DocumentReference, quote in extension, agent = model (Device) + confirming Practitioner | F2-2 |
-| Consent / wishes | `Consent` | sharing with the daughter | F2-1 |
-| Messages | `CommunicationRequest` / `Communication` | request missing reports; MDT result to GP; `received` = delivery proof | F2-1 / F3-4 |
+| Consent / wishes | `Consent` | identifier `consent|<case id>`, scope patient-privacy, patient, organization KOC, sourceReference letter, provision permit/disclose to the KOC; statements of the letter verbatim in `consent-statement` extensions (not interpreted) | F2-1 |
+| Messages | `CommunicationRequest` / `Communication` | request missing reports (fixed template + label as written in the letter; status `active` → `completed` when the report arrives); MDT result to GP; `received` = delivery proof | F2-1 / F3-4 |
+| Report request step | `Task` code `request-report` | partOf case Task, basedOn CommunicationRequest, owner coordinator, `restriction.period.end` = due (+2 working days), `restriction.recipient` = workplace, businessStatus `objednano` → `vysledek_dorucen`, `output` = delivered DocumentReference, extension `request-exam-date` | F2-1 `mappers/document_request.py` |
+| GP confirmation of the AI prefill | `Provenance` | target = resources created by the referral transaction, agent verifier = GP PractitionerRole, entity source = letter DocumentReference, extensions `prefill-comparison` (`compared`/`not-compared`), `prefill-edited-fields`, `prefill-added-fields` (field names only) | F2-1 |
 
 ## Identifier systems (`identifier.system`)
 | System | Used for | Value |
@@ -37,7 +39,11 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `https://stafeta.example/fhir/sid/case` | EpisodeOfCare | case id, e.g. `rakathon-2026-prochazkova` |
 | `https://stafeta.example/fhir/sid/case-task` | coordinating Task | case id |
 | `https://stafeta.example/fhir/sid/source-document` | DocumentReference | file stem (= `doc_id` in evidence) |
-| `https://stafeta.example/fhir/sid/user` | AuditEvent agent | actor id (`system`, `seed`, later the user's role id) |
+| `https://stafeta.example/fhir/sid/user` | AuditEvent agent | actor id (`system`, `seed`; people use `practitioner-role`) |
+| `https://stafeta.example/fhir/sid/service-request` | ServiceRequest | case id |
+| `https://stafeta.example/fhir/sid/consent` | Consent | case id |
+| `https://stafeta.example/fhir/sid/communication-request` | CommunicationRequest | request task id |
+| `https://stafeta.example/fhir/sid/request-task` | report-request Task | `<case id>-req-<n>` |
 | `https://ncez.mzcr.cz/fhir/sid/icp` | Organization IČP (CZ Core) | e.g. `72045318` |
 | `https://ncez.mzcr.cz/fhir/sid/kp` | Insurer code (CZ Core), Organization + `Coverage.payor.identifier` | `211` |
 
@@ -45,7 +51,9 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | Name | Codes |
 | --- | --- |
 | `case-state` | odeslano, triage, ceka_na_podklady, kompletni, pripraveno_mdt, zaver_mdt, zpetna_vazba_odeslana, uzavreno (see `contracts/case-states.md`) |
-| `task-code` | coordinate-case (F2-4 adds step codes) |
+| `task-code` | coordinate-case, request-report (F2-4 adds step codes) |
+| `audit-type` | domain-event (business-level AuditEvent of a workflow event, payload = ids/states/roles in `entity.detail`) |
+| `audit-event-code` | machine event names: submit, accept, request_documents, docs_received, request_report, report_received, … |
 | `task-business-status` | objednano, potvrzeno, provedeno, vysledek_dorucen |
 | `workflow-role` | gp, coordinator, koc_physician, koc_staff, external_workplace, patient, reviewer, system |
 | `organization-kind` | gp_practice, koc, laboratory, outpatient, imaging, insurer |
@@ -101,3 +109,18 @@ coverage type v3-ActCode, organisation type `http://terminology.hl7.org/CodeSyst
 Received times are demo assumptions (`backend/app/seed/demo_case.py`); 01–11 before the MDT start, 12–13 after.
 Scenario `demo-start` (`make demo-reset`): Organization, Practitioner, PractitionerRole, Patient only.
 Deliberately not seeded because the documents do not state them: patient e-mail, GP e-mail, ECOG, TNM.
+
+## Referral intake and report requests (F2-1)
+- Extensions (`https://stafeta.example/fhir/StructureDefinition/…`) on the coordinating Task: `baton-role` (code),
+  `resume-baton-role` (code), `resume-on` (string), `mdt-start` (dateTime), `conclusion-confirmed`, `delivery-receipt`
+  (boolean). Postponed = `Task.status on-hold`; `Task.statusReason.text` = reason of the last transition.
+  Other extensions: `consent-statement` (Consent), `prefill-comparison|prefill-edited-fields|prefill-added-fields`
+  (Provenance), `request-exam-date` (report-request Task), `reason-evidence` (ServiceRequest: doc id + verbatim quote of the diagnosis, stored only while the GP did not change it).
+- External URIs added: ICD-10 `http://hl7.org/fhir/sid/icd-10` (ServiceRequest.reasonCode), `consentscope`, `consentaction`,
+  `provenance-participant-type`, `v3-DataOperation`, `v3-ParticipationType`.
+- The referral is ONE transaction Bundle (urn:uuid references; entry order is not required by R4 but kept dependency-first for readability). An existing Patient/RelatedPerson/Coverage is found by identifier first and referenced, never overwritten.
+  DocumentReferences are plain POSTs (the `source-document` identifier is unique per case, not globally); duplicates are
+  detected by identifier + subject. Case Task updates carry `If-Match` (version read). **Not yet verified on IRIS**: `ifMatch` on
+  transaction entries and forward-free `urn:uuid` resolution (integration tests `@pytest.mark.iris` exercise them).
+- Directory: KOCs are `Organization` with `organization-kind|koc`; the coordinator is the first `PractitionerRole` with
+  `workflow-role|coordinator` of that organisation.

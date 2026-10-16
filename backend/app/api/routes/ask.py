@@ -59,9 +59,10 @@ def to_response(result: AskResult) -> AskResponse:
     description=(
         "Hybrid retrieval in IRIS (VECTOR_COSINE on HNSW + iFind full text, as-of filtered) and an LLM answer in "
         "Czech from the retrieved chunks only. Every sentence is evidence-locked to a verbatim quote; questions "
-        "asking for treatment, dose or prognosis get only cited documentation. Fictitious data only."
+        "asking for treatment, dose or prognosis get only cited documentation. Only participants of the case "
+        "(referring GP, staff of the managing KOC) may ask. Fictitious data only."
     ),
-    responses=problem_responses(404, 422, 500, 503),
+    responses=problem_responses(401, 403, 404, 422, 500, 503),
 )
 async def ask_case(
     body: AskRequest,

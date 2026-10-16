@@ -85,3 +85,29 @@ def test_ask_is_in_the_contract(app: FastAPI) -> None:
     operation = app.openapi()["paths"]["/api/cases/{case_id}/ask"]["post"]
     assert operation["operationId"] == "cases-ask_case"
     assert "503" in operation["responses"]
+
+
+class StaticDirectory:
+    def __init__(self, directory: object) -> None:
+        self.directory = directory
+
+    async def get(self) -> object:
+        return self.directory
+
+
+async def test_only_case_participants_may_ask() -> None:
+    from app.api.deps import ParticipantCaseLocator
+    from app.domain.case import CaseState
+    from app.domain.common import PartyRef, Role
+    from app.domain.errors import ForbiddenError
+    from tests.unit.workflow.test_request_workflow import COORDINATOR, DIRECTORY, GP, FakeReader, loaded
+
+    case = loaded(CaseState.TRIAGE)
+    directory = StaticDirectory(DIRECTORY)
+    reviewer = PartyRef(id="reviewer", display="Revizní lékař", role=Role.REVIEWER)
+
+    for actor in (COORDINATOR.party(), GP.party()):  # type: ignore[union-attr]
+        locator = ParticipantCaseLocator(FakeReader(case), actor, directory)  # type: ignore[arg-type]
+        assert await locator.case_patient("c") == (f"Task/{case.task['id']}", case.task["for"]["reference"])
+    with pytest.raises(ForbiddenError):
+        await ParticipantCaseLocator(FakeReader(case), reviewer, directory).case_patient("c")  # type: ignore[arg-type]

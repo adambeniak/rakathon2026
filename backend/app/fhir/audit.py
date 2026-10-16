@@ -7,9 +7,12 @@ from datetime import datetime
 from typing import Literal
 
 from app.domain.common import PartyRef, Role
+from app.domain.events import DomainEvent
 from app.fhir.client import Resource
 from app.fhir.systems import (
     AUDIT_EVENT_TYPE,
+    CS_AUDIT_EVENT_CODE,
+    CS_AUDIT_TYPE,
     CS_WORKFLOW_ROLE,
     RESTFUL_INTERACTION,
     SECURITY_SOURCE_TYPE,
@@ -19,7 +22,7 @@ from app.fhir.systems import (
 
 AuditAction = Literal["C", "R", "U", "D", "E"]
 # http://hl7.org/fhir/restful-interaction codes used by the backend.
-AuditSubtype = Literal["create", "read", "search-type", "update", "delete", "transaction"]
+AuditSubtype = Literal["create", "read", "search-type", "update", "delete", "transaction", "extract"]
 
 OBSERVER_DISPLAY = "Štafeta backend"
 
@@ -39,7 +42,7 @@ def build_audit_event(
     event: Resource = {
         "resourceType": "AuditEvent",
         "type": {"system": AUDIT_EVENT_TYPE, "code": "rest", "display": "RESTful Operation"},
-        "subtype": [{"system": RESTFUL_INTERACTION, "code": subtype}],
+        "subtype": [{"system": CS_AUDIT_EVENT_CODE if subtype == "extract" else RESTFUL_INTERACTION, "code": subtype}],
         "action": action,
         "recorded": recorded.isoformat(timespec="milliseconds"),
         "outcome": "0",
@@ -65,3 +68,28 @@ def build_audit_event(
 def _actor_system(actor: PartyRef) -> str:
     """People are identified like in `Task.owner` (PractitionerRole business id); technical actors as users."""
     return SID_USER if actor.role is Role.SYSTEM else SID_PRACTITIONER_ROLE
+
+
+_DOMAIN_ACTIONS: dict[str, AuditAction] = {"create": "C", "read": "R", "update": "U", "delete": "D"}
+
+
+def build_domain_audit_event(event: DomainEvent, *, actor: PartyRef, entities: Sequence[str]) -> Resource:
+    """Business-level AuditEvent for a `DomainEvent` of kind audit (state transitions, request lifecycle).
+
+    The payload carries ids, states and roles only (domain contract); it is stored as `entity.detail`.
+    """
+    result = build_audit_event(
+        action=_DOMAIN_ACTIONS.get(event.action, "U"),
+        subtype="update",
+        actor=actor,
+        entities=entities,
+        recorded=event.at,
+    )
+    result["type"] = {"system": CS_AUDIT_TYPE, "code": "domain-event", "display": "Workflow event"}
+    result["subtype"] = [{"system": CS_AUDIT_EVENT_CODE, "code": str(event.payload.get("event", event.action))}]
+    details = [
+        {"type": key, "valueString": str(value)} for key, value in sorted(event.payload.items()) if value is not None
+    ]
+    if details and result.get("entity"):
+        result["entity"][0]["detail"] = details
+    return result

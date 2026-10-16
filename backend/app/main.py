@@ -17,14 +17,21 @@ from fastapi.routing import APIRoute
 
 from app import __version__
 from app.api.errors import declare_problem_media_type, register_error_handlers
-from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware, UnhandledErrorMiddleware
+from app.api.middleware import (
+    REQUEST_ID_HEADER,
+    BodyLimitMiddleware,
+    RequestContextMiddleware,
+    UnhandledErrorMiddleware,
+)
 from app.api.routes import API_PREFIX, discover_routers
+from app.api.routes.referrals import MAX_ATTACHMENTS
 from app.iris.db import IrisPool
 from app.iris.vector_store import VectorStore
 from app.logging_config import configure_logging
 from app.retrieval.ask import ask_llm_from_settings
 from app.retrieval.embeddings import embedder_from_settings
 from app.retrieval.search import HybridRetriever
+from app.security.actor import DEMO_ROLE_HEADER
 from app.settings import Settings, get_settings
 
 # IRIS community edition counts web sessions too: keep outbound HTTP connections low.
@@ -33,6 +40,8 @@ HTTP_LIMITS = httpx.Limits(max_connections=4, max_keepalive_connections=4)
 OPENAPI_TAGS = [
     {"name": "health", "description": "Backend and IRIS status."},
     {"name": "cases", "description": "Shared oncology case: state, baton holder, documents, ask the case."},
+    {"name": "directory", "description": "Workplaces (KOC) and their coordinators."},
+    {"name": "referrals", "description": "GP referral: prefill from the letter, confirm, create the case."},
 ]
 
 
@@ -54,7 +63,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             app.state.iris_pool = pool
             # The embedding model loads lazily on the first question or index call, not at startup.
             store = VectorStore(pool, dim=settings.embedding_dim)
-            app.state.retriever = HybridRetriever(store, embedder_from_settings(settings))
+            embedder = embedder_from_settings(settings)
+            app.state.vector_store = store
+            app.state.embedder = embedder
+            app.state.retriever = HybridRetriever(store, embedder)
             app.state.ask_llm = ask_llm_from_settings(settings)
             try:
                 yield
@@ -74,10 +86,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # The last added middleware is the outermost: RequestContext → CORS → UnhandledError → routes.
     app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(
+        BodyLimitMiddleware, max_file_bytes=settings.upload_max_bytes, max_files_referral=MAX_ATTACHMENTS + 1
+    )
+    app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", REQUEST_ID_HEADER],
+        allow_headers=["Authorization", "Content-Type", DEMO_ROLE_HEADER, REQUEST_ID_HEADER],
         expose_headers=[REQUEST_ID_HEADER],
     )
     app.add_middleware(RequestContextMiddleware)

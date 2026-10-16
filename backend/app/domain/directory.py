@@ -50,3 +50,8 @@ class PractitionerRole(DomainModel):
     organization_id: str
     role: Role
     specialty: str = Field(description="As written in the documents, e.g. 'gastroenterolog, endoskopista'.")
+
+
+def koc_short_name(organization: Organization) -> str:
+    """'KOC 2 – Komplexní onkologické centrum …' -> 'KOC 2' (used for role-level baton displays)."""
+    return organization.name.split(" – ", 1)[0].strip()

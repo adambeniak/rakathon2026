@@ -9,12 +9,12 @@ output of `normalize` invalidates the cache and needs a new live run by a human 
 
 from __future__ import annotations
 
-import io
 import re
 import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
 from typing import IO
 
@@ -203,7 +203,7 @@ def _row_text(row_cells: list[object]) -> str:
 
 
 def _raw_blocks(source: Path | IO[bytes]) -> list[tuple[str, str, str | None]]:
-    doc = Document(str(source) if isinstance(source, Path) else source)
+    doc = Document(source if not isinstance(source, Path) else str(source))
     out: list[tuple[str, str, str | None]] = []
     for el in doc.element.body.iterchildren():
         tag = el.tag.rsplit("}", 1)[-1]
@@ -262,25 +262,30 @@ def build_doc(
     return NormalizedDoc(doc_id, full, tuple(blocks), authored_date, header_dates, None, tuple(warnings))
 
 
+def stem_date(stem: str) -> date | None:
+    """Authored date from a file stem ending in YYYY-MM-DD, e.g. '07_PL_zadost_KOC2_2026-10-02'."""
+    m = _STEM_DATE.search(stem)
+    if m is None:
+        return None
+    try:
+        return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:  # e.g. '2026-13-45': no date, the caller asks for authored_at (422)
+        return None
+
+
+def normalize_docx_bytes(doc_id: str, content: bytes, authored_date: date | None) -> NormalizedDoc:
+    """Same result as `normalize(path)` for the same bytes (the LLM cache key depends on it)."""
+    return build_doc(doc_id, _raw_blocks(BytesIO(content)), authored_date)
+
+
 def normalize(path: Path, source: SourceDocument | None = None) -> NormalizedDoc:
     """Read a DOCX report into a NormalizedDoc. doc_id = file stem; authored date from the file name.
 
     With `source` (P1's document metadata), the received timestamp is attached for the as-of rule.
     """
-    return _from_raw(path.stem, _raw_blocks(path), source)
-
-
-def normalize_content(doc_id: str, content: bytes, source: SourceDocument | None = None) -> NormalizedDoc:
-    """Same as `normalize` for DOCX bytes (e.g. a DocumentReference attachment); doc_id plays the file stem."""
-    return _from_raw(doc_id, _raw_blocks(io.BytesIO(content)), source)
-
-
-def _from_raw(
-    stem: str, raw_blocks: Sequence[tuple[str, str, str | None]], source: SourceDocument | None
-) -> NormalizedDoc:
-    m = _STEM_DATE.search(stem)
-    authored = date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
-    doc = build_doc(stem, raw_blocks, authored)
+    stem = path.stem
+    authored = stem_date(stem)
+    doc = build_doc(stem, _raw_blocks(path), authored)
     if source is None:
         return doc
     if source.doc_id != stem:

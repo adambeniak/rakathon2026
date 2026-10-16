@@ -25,7 +25,7 @@ export function CaseAction({ c }: { c: CaseDetail }) {
   if (c.state === 'triage' && coordinator) {
     return (
       <Button asChild variant="primary">
-        <a href="#triage">{t.actions.requestDocs}</a>
+        <Link to={`/cases/${c.id}#triage`}>{t.actions.requestDocs}</Link>
       </Button>
     )
   }

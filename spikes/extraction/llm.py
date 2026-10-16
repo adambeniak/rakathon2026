@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 log = logging.getLogger("stafeta.llm")
 
@@ -111,7 +112,7 @@ class LLMClient:
                     raise
                 delay = e.retry_after if e.retry_after is not None else 2.0 * 2**attempt
                 delay += random.uniform(0, 0.5)
-                log.warning("llm retry", extra={"doc_id": doc_id, "attempt": attempt + 1, "delay": round(delay, 1)})
+                log.warning("llm retry %s/%s for %s in %.1fs: %s", attempt + 1, MAX_RETRIES, doc_id, delay, e)
                 attempt += 1
                 await self._sleep(delay)
 
@@ -158,7 +159,12 @@ def apim_transport(client: LLMClient) -> Transport:
         except openai.InternalServerError as e:
             raise RetryableError(f"{e.status_code}") from e
         except (openai.APITimeoutError, openai.APIConnectionError) as e:
-            raise RetryableError(type(e).__name__) from e
+            if "Name or service not known" in repr(e.__cause__) or "nodename nor servname" in repr(e.__cause__):
+                # DNS failure: retrying cannot help; name the host (never the key) and stop.
+                raise RuntimeError(
+                    f"cannot resolve APIM host {urlsplit(base_url).hostname!r}; check APIM_BASE_URL"
+                ) from e
+            raise RetryableError(f"{type(e).__name__}: {e.__cause__!r}"[:200]) from e
         choice = resp.choices[0]
         if choice.finish_reason == "length":
             raise RuntimeError("LLM output truncated (finish_reason=length)")

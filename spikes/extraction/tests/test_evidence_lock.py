@@ -291,7 +291,44 @@ def test_month_year_onset(doc) -> None:  # type: ignore[no-untyped-def]
     )
 
 
-@pytest.mark.parametrize("bad", ["2026-13", "2026-02-30", "21. 10. 2026", "yesterday"])
+def test_czech_date_literal_in_date_value_converted(doc) -> None:  # type: ignore[no-untyped-def]
+    # run 1: the model wrote "22. 7. 1963" into value.date; converted deterministically, still quote-checked
+    q = "Datum narození: 22. 7. 1963 (63 let)"
+    f = raw(type="patient_identity", handover_field=1, value={"kind": "date", "label": "Datum narození",
+            "date": "22. 7. 1963"}, quote=q)  # fmt: skip
+    a = accepted(evidence_lock(f, doc("07_")))
+    assert a.fact.value.date == "1963-07-22"  # type: ignore[union-attr]
+    g = raw(type="patient_identity", handover_field=1, value={"kind": "date", "label": "Datum narození",
+            "date": "23. 7. 1963"}, quote=q)  # fmt: skip
+    rejected(evidence_lock(g, doc("07_")), "date_unsupported")
+
+
+def test_number_repeated_across_fields_ok(doc) -> None:  # type: ignore[no-untyped-def]
+    # run 1: {code: "211", text: "ZP 211"} was rejected because 211 was counted twice
+    f = raw(type="insurer", handover_field=1, value={"kind": "coded", "code": "211", "system": "other",
+            "text": "ZP 211"}, quote="ZP 211")  # fmt: skip
+    accepted(evidence_lock(f, doc("02_")))
+    g = raw(type="insurer", handover_field=1, value={"kind": "coded", "code": "211", "system": "other",
+            "text": "ZP 211 111"}, quote="ZP 211")  # fmt: skip
+    r = evidence_lock(g, doc("02_"))
+    assert isinstance(r, Rejected)
+
+
+@pytest.mark.parametrize(
+    "quote,doc_prefix",
+    [("LK nedilatovaná", "01_"), ("Cévní kresba nezmnožená.", "03_"), ("Per rektum neprovedeno.", "05_"),
+     ("Teploty od září neměla.", "07_")],
+)  # fmt: skip
+def test_negated_finding_stems(doc, quote: str, doc_prefix: str) -> None:  # type: ignore[no-untyped-def]
+    accepted(evidence_lock(text_fact("examination", 12, quote, quote.rstrip("."), "negated"), doc(doc_prefix)))
+
+
+def test_generic_ne_prefix_is_not_negation(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "V hlavě pankreatu hypoechogenní, nehomogenní, neostře ohraničené ložisko 34 × 30 mm."
+    rejected(evidence_lock(text_fact("examination", 12, q, q.rstrip("."), "negated"), doc("06_")), "negation_mismatch")
+
+
+@pytest.mark.parametrize("bad", ["2026-13", "2026-02-30", "21. 10.", "yesterday"])
 def test_unparseable_dates(doc, bad: str) -> None:  # type: ignore[no-untyped-def]
     f = text_fact("allergy", 8, "AA: neguje", "neguje", "negated", clinical_date=bad)
     rejected(evidence_lock(f, doc("07_")), "date_unparseable")

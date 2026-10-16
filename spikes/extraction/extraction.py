@@ -19,7 +19,7 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
-from documents import NormalizedDoc, find_dates, find_month_years, match_key, normalize_text
+from documents import NormalizedDoc, find_dates, find_month_years, match_key, normalize_text, parse_czech_date
 from prompt import SYSTEM_PROMPT, build_user_message
 from schema import (
     ALLOWED_FIELDS,
@@ -40,8 +40,12 @@ log = logging.getLogger("stafeta.extraction")
 
 MAX_QUOTE_LEN = 600
 
+# Explicit negation words and negated-finding stems only; a generic "ne-" prefix is NOT a cue
+# ("nehomogenní", "neostře ohraničené" describe positive findings).
 NEGATION_CUE = re.compile(
-    r"(?<!\w)(neguj\w*|bez|není|nebyl\w*|negativn\w*|nezvětšen\w*|neprokázán\w*|neg\.|nepřítomn\w*|ani)(?!\w)",
+    r"(?<!\w)(neguj\w*|bez|není|nebyl\w*|negativn\w*|neg\.|nepřítomn\w*|ani|nemá\w*|neměl\w*"
+    r"|nezvětšen\w*|neprokázán\w*|nepotvrzen\w*|vyloučen\w*|nedilatovan\w*|nerozšířen\w*|nezmnožen\w*"
+    r"|neproveden\w*|nehmatn\w*|afebriln\w*)(?!\w)",
     re.IGNORECASE,
 )
 PS_CUE = re.compile(r"ECOG|(?<![A-Za-z])PS(?![A-Za-z])|Karnofsk")
@@ -92,19 +96,32 @@ def numbers_in(text: str) -> Counter[Decimal]:
     return out
 
 
-def value_numbers(raw: RawFact) -> Counter[Decimal]:
-    """Numbers carried by the value (ISO dates skipped; dates are checked separately)."""
+def value_numbers(raw: RawFact) -> list[Counter[Decimal]]:
+    """Numbers carried by the value, one multiset per field (ISO dates skipped; dates are checked
+    separately). Per field, because `{code: "211", text: "ZP 211"}` legitimately repeats a number
+    across fields while the quote holds it once."""
     v = raw.value
-    nums: Counter[Decimal] = Counter()
+    out: list[Counter[Decimal]] = []
     if isinstance(v, DateValue):
-        return nums
+        return out
     if isinstance(v, QuantityValue) and v.number is not None:
-        nums[Decimal(repr(v.number)).normalize()] += 1
+        out.append(Counter({Decimal(repr(v.number)).normalize(): 1}))
     for key, item in v.model_dump().items():
         if key in {"kind", "system", "flag", "comparator", "number"} or not isinstance(item, str):
             continue
-        nums.update(numbers_in(_ISO_DATE.sub(" ", item)))
-    return nums
+        out.append(numbers_in(_ISO_DATE.sub(" ", item)))
+    return out
+
+
+def to_iso(value: str, year_hint: int | None) -> str | None:
+    """ISO as given, or a full Czech date literal ("20. 7. 2026") converted deterministically."""
+    if _iso_parts(value) is not None:
+        return value.strip()
+    m = re.fullmatch(r"\s*(\d{1,2})\.\s*(\d{1,2})\.\s*(\d{4})\s*", value)
+    if not m:
+        return None
+    d = parse_czech_date(value, year_hint)
+    return d.isoformat() if d else None
 
 
 def value_texts(raw: RawFact) -> list[str]:
@@ -211,19 +228,31 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         if fold(text.strip(" .,;:")) not in fq:
             return Rejected("text_not_in_quote", raw, text[:60])
 
-    missing = value_numbers(raw) - numbers_in(source_quote)
-    if missing:
-        return Rejected("number_not_in_quote", raw, ", ".join(str(n) for n in missing))
+    quote_numbers = numbers_in(source_quote)
+    for field_numbers in value_numbers(raw):
+        missing = field_numbers - quote_numbers
+        if missing:
+            return Rejected("number_not_in_quote", raw, ", ".join(str(n) for n in missing))
 
     if raw.unit and fold(raw.unit) not in fq:
         return Rejected("unit_not_in_quote", raw, raw.unit)
 
-    for iso in (raw.clinical_date, v.date if isinstance(v, DateValue) else None):
-        if iso is None:
+    year_hint = doc.authored_date.year if doc.authored_date else None
+    dates: dict[str, str | None] = {}
+    for key, given in (
+        ("clinical_date", raw.clinical_date),
+        ("value.date", v.date if isinstance(v, DateValue) else None),
+    ):
+        if given is None:
             continue
+        iso = to_iso(given, year_hint)
+        if iso is None:
+            return Rejected("date_unparseable", raw, given)
         reason = _date_supported(iso, source_quote, doc)
         if reason:
             return Rejected(reason, raw, iso)
+        dates[key] = iso
+    value = v.model_copy(update={"date": dates["value.date"]}) if "value.date" in dates else v
 
     if raw.type == "performance_status" and not PS_CUE.search(source_quote):
         return Rejected("ps_inferred", raw)
@@ -237,9 +266,9 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         doc_id=doc.doc_id,
         type=raw.type,
         handover_field=raw.handover_field,
-        value=raw.value,
+        value=value,
         unit=raw.unit,
-        clinical_date=raw.clinical_date,
+        clinical_date=dates.get("clinical_date"),
         certainty=raw.certainty,
         quote=source_quote,
         span=span,

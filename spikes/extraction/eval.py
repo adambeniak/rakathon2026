@@ -76,11 +76,13 @@ def _value_tokens_ok(fact: Fact) -> list[str]:
     if isinstance(v, QuantityValue) and v.number is not None:
         n = v.number
         texts.append(str(int(n)) if float(n).is_integer() else repr(n))
+    # Compare numerically: the source writes "4,20", the model returns 4.2 (run 1 flagged these as
+    # false positives when this audit compared strings).
+    quote_values = {float(q) for q in re.findall(r"\d+(?:\.\d+)?", quote)}
     for t in texts:
         t = re.sub(r"\b\d{4}-\d{2}(-\d{2})?\b", " ", unicodedata.normalize("NFKC", t)).replace(",", ".")
         for tok in re.findall(r"\d+(?:\.\d+)?", t):
-            variants = {tok, tok.rstrip("0").rstrip(".") if "." in tok else tok}
-            if not any(re.search(rf"(?<![\d.]){re.escape(x)}(?![\d])", quote) for x in variants):
+            if not any(abs(float(tok) - q) < 1e-9 for q in quote_values):
                 problems.append(tok)
     return problems
 

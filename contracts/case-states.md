@@ -48,6 +48,8 @@ Every transition not listed is forbidden → `409 problem+json` (`https://stafet
 
 ## Open questions for P4
 1. Rejection of a referral ("nepřevzato", wrong KOC or not oncological): a separate terminal state, or `uzavreno` + reason?
+   FHIR suggestion (fhir-architect): coordinating Task `status = rejected` + `statusReason`; the postponed flag maps to
+   Task `on-hold` + EpisodeOfCare `onhold`.
 2. Who may waive the readiness gate (any KOC physician or only the MDT chair), and must the waiver be visible in the MDT record?
 3. Does `documents_complete` fire automatically (system) as soon as the last request is fulfilled, or only after the coordinator confirms?
 4. Postponed flag: does it pause SLA/overdue escalation for external steps?

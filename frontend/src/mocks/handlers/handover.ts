@@ -1,7 +1,7 @@
 import { http, HttpResponse } from 'msw'
 import { ALENA_ID } from '../fixtures/cases'
 import { AS_OF_DEFAULT, DOCUMENTS } from '../fixtures/documents'
-import { buildSections, CONFIRMABLE } from '../fixtures/handover'
+import { buildReviewedSections, buildSections, CONFIRMABLE } from '../fixtures/handover'
 import { store } from '../fixtures/store'
 import { DEMO_USERS } from '../fixtures/people'
 import { problem, roleOf } from './util'
@@ -13,16 +13,7 @@ export const handlers = [
     const asOf = new URL(request.url).searchParams.get('as_of') ?? AS_OF_DEFAULT
     return HttpResponse.json({
       asOf,
-      sections: buildSections(store.confirmed, asOf).map((s) => {
-        const edit = store.edits[s.key]
-        if (!edit) return s
-        return {
-          ...s,
-          rows: s.rows.map((r, i) =>
-            edit.rows[i] === undefined ? r : { ...r, value: edit.rows[i], note: `Upraveno lékařem (${edit.by}, ${edit.at}) – důvod: ${edit.reason}. Citace se vztahuje k původní hodnotě.` },
-          ),
-        }
-      }),
+      sections: buildReviewedSections(store.confirmed, store.edits, asOf),
       excluded_documents: DOCUMENTS.filter((d) => new Date(d.received).getTime() > new Date(asOf).getTime()),
     })
   }),
@@ -43,7 +34,11 @@ export const handlers = [
     if (!body.reason?.trim()) return problem(422, 'Uveďte důvod změny')
     const key = String(params.key)
     if (!buildSections(store.confirmed).some((x) => x.key === key)) return problem(404, 'Sekce nebyla nalezena')
-    store.edits[key] = { rows: { ...store.edits[key]?.rows, ...body.rows }, reason: body.reason.trim(), by: DEMO_USERS[role].name, at: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }) }
+    const by = DEMO_USERS[role].name
+    const at = new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' })
+    const reason = body.reason.trim()
+    const rowEdits = (store.edits[key] ??= {})
+    for (const [i, value] of Object.entries(body.rows ?? {})) rowEdits[Number(i)] = { value, reason, by, at }
     delete store.confirmed[key] // an edited value must be confirmed again
     return HttpResponse.json({ ok: true })
   }),

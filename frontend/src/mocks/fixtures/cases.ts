@@ -27,6 +27,13 @@ export interface MockCase {
 
 export const ALENA_ID = 'rakathon-2026-prochazkova'
 
+export interface RowEdit {
+  value: string
+  reason: string
+  by: string
+  at: string
+}
+
 export interface MockStore {
   claimed: string[]
   acknowledged: string[]
@@ -38,8 +45,8 @@ export interface MockStore {
   requested: string[]
   setStarted: boolean
   taskPhase: Record<string, TaskPhase>
-  /** Section edits by key: new row values + the reason the clinician gave. */
-  edits: Record<string, { rows: Record<number, string>; reason: string; by: string; at: string }>
+  /** Clinician edits by section key and row index; every correction keeps its own reason, author and time. */
+  edits: Record<string, Record<number, RowEdit>>
 }
 
 export function newStore(): MockStore {

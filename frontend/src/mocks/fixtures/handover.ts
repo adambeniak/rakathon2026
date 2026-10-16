@@ -1,7 +1,9 @@
 // MOCK copy – replaced by API in F2/F3
 import type { HandoverSection, HandoverStatus } from '@/lib/domain'
 import { formatDate } from '@/lib/date'
+import { handover as t } from '@/i18n/cs/handover'
 import { AS_OF_DEFAULT, includedAt } from './documents'
+import type { RowEdit } from './cases'
 import { golden } from './golden'
 
 type Row = HandoverSection['rows'][number]
@@ -209,3 +211,27 @@ export function buildSections(confirmed: Record<string, string>, asOf: string = 
 }
 
 export const CONFIRMABLE = (s: HandoverSection): boolean => s.status !== 'missing'
+
+/** Overlays the clinician's corrections on the assembled sections; each row shows the note of its own edit. */
+export function applyEdits(sections: HandoverSection[], edits: Record<string, Record<number, RowEdit>>): HandoverSection[] {
+  return sections.map((s) => {
+    const rowEdits = edits[s.key]
+    if (!rowEdits) return s
+    return {
+      ...s,
+      rows: s.rows.map((r, i) => {
+        const e = rowEdits[i]
+        return e ? { ...r, value: e.value, note: t.editedNote(e.by, e.at, e.reason) } : r
+      }),
+    }
+  })
+}
+
+/** The one builder for handover and MDT: assembled sections with confirmations and edits applied. */
+export function buildReviewedSections(
+  confirmed: Record<string, string>,
+  edits: Record<string, Record<number, RowEdit>>,
+  asOf: string = AS_OF_DEFAULT,
+): HandoverSection[] {
+  return applyEdits(buildSections(confirmed, asOf), edits)
+}

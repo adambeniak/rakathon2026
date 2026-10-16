@@ -55,7 +55,8 @@ export function SectionCard({
     }
   }
 
-  const pills = pillForHandover(s.status, s.confirmed)
+  // "Chybí" only when a field is actually listed as missing; a partial section otherwise shows just "Neúplné".
+  const pills = pillForHandover(s.status, s.confirmed).filter((p) => p !== 'missing' || s.status === 'missing' || s.missing.length > 0)
   const canConfirm = roleAllowed && s.status !== 'missing' && !s.confirmed
 
   async function copy() {

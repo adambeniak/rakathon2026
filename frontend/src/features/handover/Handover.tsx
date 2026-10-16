@@ -46,11 +46,12 @@ export function Handover() {
           {!isPhysician && <p className="text-sm text-conflict">{t.physicianOnly}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" disabled={!isPhysician || confirmAll.isPending || done === confirmable.length}
+          <Button variant={allConfirmed ? 'secondary' : 'primary'} disabled={!isPhysician || confirmAll.isPending || allConfirmed}
             title={isPhysician ? undefined : t.physicianOnly} onClick={() => confirmAll.mutate()}>
             {t.confirmAll}
           </Button>
-          <Button asChild variant="primary">
+          {/* Primary only once every section is confirmed, so the primary action never invites skipping confirmation. */}
+          <Button asChild variant={allConfirmed ? 'primary' : 'secondary'}>
             <Link to={`/cases/${id}/mdt`}>{t.prepareMdt}</Link>
           </Button>
         </div>
@@ -62,8 +63,14 @@ export function Handover() {
         className="sticky top-0 z-30 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-hairline bg-card/95 px-4 py-2 shadow-sm backdrop-blur"
       >
         <span className="font-medium">{t.confirmedCount(done)}</span>
-        <span className="font-medium text-missing">{t.missingCount(counts.missing)}</span>
-        <span className="font-medium text-conflict">{t.conflictCount(counts.conflict)}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <StatusPill kind="missing" />
+          <span className="font-mono text-sm font-semibold">{counts.missing ?? '—'}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <StatusPill kind="conflict" />
+          <span className="font-mono text-sm font-semibold">{counts.conflict ?? '—'}</span>
+        </span>
         <span className="ml-auto">
           {allConfirmed ? (
             <span role="status" className="text-sm font-medium text-verified">

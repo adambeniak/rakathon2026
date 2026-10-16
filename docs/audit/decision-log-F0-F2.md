@@ -65,6 +65,66 @@ You are the ONLY session working on the repo during this phase (the team is paus
 - P1/P2 items are NOT fixed now: create issues with owner prefix (`[P2] …`) and phase (`F3`/`F4`).
 - Timebox: Phase A 45 min, Phase B P0 fixes max ~2 h. If P0 fixes exceed that, stop and report what remains.
 
+### Phase C — make the flow stick (first fix PR, `fix/agent-conventions`, ~15 min)
+So that F3/F4 agents report and behave the same way:
+1. Add the section from **Appendix A** to `AGENTS.md` (keep the file under ~200 lines; condense elsewhere if needed).
+2. Add `.github/pull_request_template.md` from **Appendix B**.
+3. In `CLAUDE.md` → "Session end": "Fill the PR template sections; every 'Not done' item becomes a GitHub issue
+   (`gh issue create`, title `[P#] … (F3|F4)`); append 5 lines to docs/HANDOFF.md. Never keep notes elsewhere."
+4. Move this log to `docs/audit/decision-log-F0-F2.md` and reference it from AGENTS.md.
+Do not put lists of bugs into AGENTS.md or CLAUDE.md — they are loaded into every session and go stale.
+
+---
+
+## Appendix A — text for AGENTS.md
+
+```markdown
+## Reporting (one place, same format — every agent)
+- Known problems live ONLY in GitHub issues: title `[P1|P2|P3|P4] <what> (F3|F4)`, body = where (file:line),
+  why it matters, suggested fix. Never in ad-hoc markdown files, code comments without an issue, or chat only.
+- Every PR uses .github/pull_request_template.md; sections "Deviations", "Not done", "Risks", "Needs a human"
+  are mandatory (write "none"). Each "Not done" item is created as an issue before the PR is opened.
+- Code TODOs only as `TODO(#<issue>)`. Skipped tests only with `reason="#<issue>"`.
+- End of session: 5 lines in docs/HANDOFF.md (branch, done, next, risks, issue numbers).
+- Approved decisions that must not be reverted: docs/audit/decision-log-F0-F2.md (section 3).
+
+## Cross-cutting rules (learned in F0–F2)
+- Demo mode = `STAFETA_DEMO_MODE=1` only. Who acts = `backend/app/security.current_actor` only (X-Demo-Role in
+  demo mode → seeded Practitioner; otherwise 401). Never add another auth switch or actor helper.
+- Contract changes additive only; run `make contract`; generated files (openapi.json, schema.d.ts, lockfiles)
+  are never hand-merged — take main, regenerate. After a backend merge the frontend runs `pnpm gen:api`.
+- ADR files are named `docs/adr/XXXX-<slug>.md` until merge; the merge captain assigns the number.
+- Shared IRIS (ACI): never run `-m iris` tests or `seed --reset` against it; only the merge captain resets,
+  then reindexes vectors. All writes idempotent; test data tagged `stafeta-test`.
+- Frontend never decides as-of; it renders `excluded_documents` / flags from the API. Unknown counts are `null`.
+- After a rebase the human pushes with `--force-with-lease`; agents never force-push.
+```
+
+## Appendix B — `.github/pull_request_template.md`
+
+```markdown
+## What
+<!-- 2–4 lines; Closes #… -->
+
+## How verified
+<!-- commands + result (make check, make eval numbers, screenshots for UI) -->
+
+## Contract changes
+<!-- none | additive: endpoints/fields + note for P3 -->
+
+## Deviations from the prompt / decisions
+<!-- none | list with reason -->
+
+## Not done (each → issue #)
+<!-- none | - [ ] … (#123) -->
+
+## Risks
+<!-- none | … -->
+
+## Needs a human
+<!-- none | e.g. run STAFETA_LLM_CACHE=0 make eval, reseed ACI, clinical decision -->
+```
+
 Owners: **P1** architect/IRIS/FHIR/infra/vector search · **P2** extraction, handover, consistency ·
 **P3** frontend · **P4** domain/workflow, API (`api`, `security`, `outputs`, `notify`), E2E, demo script, pitch.
 

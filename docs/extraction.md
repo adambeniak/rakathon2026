@@ -82,12 +82,13 @@ See `spikes/extraction/prompt.py` (`PROMPT_VERSION`). Its key rules:
 | `quote_empty` / `quote_too_long` | > 600 chars |
 | `quote_not_found` | normalised quote is not a substring of the normalised document. *Repair:* if only the NFKC fold matches, and on exactly one span, the stored quote becomes the exact source span (`repaired=true`). Case, diacritics and words are never repaired |
 | `term_not_in_quote` | `quantity.name`, `medication.drug` and `coded.code` must occur in the quote (casefold, NFKC) |
-| `number_not_in_quote` | the multiset of value numbers ⊆ the numbers in the quote. Unsigned only, decimal comma = point, `38` ∉ `38,6`, ISO dates skipped |
+| `number_not_in_quote` | per value field, the multiset of its numbers ⊆ the numbers in the quote. Unsigned only, decimal comma = point, `38` ∉ `38,6`, ISO dates skipped |
 | `unit_not_in_quote` | the unit must occur in the quote (µ U+00B5 ≡ μ U+03BC) |
-| `date_unparseable` / `date_unsupported` | the ISO date must parse and appear in the quote or in the document's header dates. `YYYY-MM` also accepts a Czech month name + year ("poloviny srpna 2026") |
+| `date_unparseable` / `date_unsupported` | the ISO date (a full Czech literal "20. 7. 2026" is converted to ISO first) must parse and appear in the quote or in the document's header dates. `YYYY-MM` also accepts a Czech month name + year ("poloviny srpna 2026") |
 | `text_not_in_quote` | free text in the value (`text`, `text_value`, `dose`, `schedule`, person `name` / `relation` / `address`) must be a contiguous copy of the quote (casefold + NFKC). No paraphrase, no diagnosis the quote does not name |
 | `ps_inferred` | `performance_status` requires `ECOG`, `PS` or `Karnofsk…` in the quote |
 | `negation_mismatch` | `negated` requires a negation cue in the quote |
+| `negation_not_in_value` | `negated` also requires the negation word **in the value** (a self-contained negative statement; consumers never compose a negation) |
 | `certainty_mismatch` | a `stated` diagnosis, histology or comorbidity is rejected when its quote contains a suspicion cue (`suspekt…`, `susp.`, `v.s.`, `vs.`, `podezření`, `nelze vyloučit`, `diferenciálně`, `DD`, `k potvrzení`, `pravděpodobn…`, `?`) |
 
 As-of: `doc_included(doc, as_of, require_received=False)`. Raw files carry no received date, so the spike tolerates an
@@ -113,9 +114,102 @@ clinician confirmation. A synthetic smoke document (`tests/fixtures/injection_do
 Excluded from recall: derived values (sex, age, insurer name, RČ checksum) and the generated fields 4 and 5.
 The matchers were fixed before the first run.
 
-## First run
-_Pending: the cache is filled by a human with `make spike-extraction-fill-cache`, because agents cannot read `.env`.
-The numbers, commit hash and misses go here, unedited._
+## Runs (model `gpt-6-1-sol-dz-eu`, prompt `extract-v1`, as_of `2026-10-21T08:00:00+02:00`)
+The deployment rejects `temperature`, so the client retries without it (automatic fallback).
+Both runs use the **same** 14 LLM responses (13 reports + 1 synthetic injection doc, committed in
+`spikes/extraction/tests/fixtures/llm_cache/`). Only the lock and the audit code changed between them.
+
+### Run 1: first live run, unedited (lock at commit `f911c13`)
+
+| metric | value |
+| --- | --- |
+| raw quote validity (model) | 100 % (487/487 quotes found verbatim) |
+| evidence validity | 100 % |
+| hallucinations | **7, gate FAIL**: all audit false positives (see below) |
+| as-of leakage | 0 (66 facts from docs 12, 13 filtered) |
+| key value recall | **94.4 % (51/54)** |
+| facts raw / accepted / in handover | 487 / 435 / 369 |
+| rejections | date_unparseable 20 · number_not_in_quote 14 · date_unsupported 10 · negation_mismatch 8 |
+| injection smoke | pass |
+
+Misses: `1.birth_date` (1963-07-22), `3.histology_date` (2026-10-19), `12.11` (histology 19. 10.).
+
+Root causes, from the rejection log:
+- **Hallucinations: 7 = audit bug.** GGT `4,20`, ALP `3,10`, Amyláza `1,10`, AST `1,20` and ALP `3,40` were returned as 4.2 / 3.1 / … The lock (numeric comparison) correctly accepted them. The independent audit compared strings, so it did not find "4.2" in "4,20".
+- **All 3 misses = `date_unparseable`.** The model wrote Czech literals ("22. 7. 1963", "19. 10. 2026") into `value.date`, and the lock expected ISO.
+- **14 × `number_not_in_quote`** came from a multiset counted across fields: `{code: "211", text: "ZP 211"}` repeats a number the quote holds once.
+- **8 × `negation_mismatch`** were genuine negations missing from the cue list ("LK nedilatovaná", "nerozšířené", "nezmnožená", "afebrilní", "neprovedeno").
+
+### Run 2: after the lock fixes (commit `85e68fc`), from cache
+Fixes:
+- Czech full-date literals in date fields are converted deterministically to ISO. They must still be supported by the quote or header.
+- Numbers are checked per value field.
+- Explicit negated-finding stems were added. A generic `ne-` prefix is still not a cue, because "nehomogenní" is a finding.
+- The audit compares numbers numerically.
+
+| metric | value |
+| --- | --- |
+| evidence validity | **100 %** (gate pass) |
+| hallucinations | **0** (gate pass) |
+| as-of leakage | **0** (68 facts from docs 12, 13 filtered) |
+| key value recall | **100 % (54/54)** |
+| text coverage (mean) | 0.741 |
+| facts raw / accepted / in handover | 487 / 477 / 409 |
+| rejections | date_unsupported 10 (correct: doc 04 symptoms tagged with the visit date 1. 9. that is not in their quote; "Teploty od září neměla" has no year) |
+| stated with negation cue | 24 (listed for audit) |
+| injection smoke | pass |
+
+### Independent audit of run 2 (`extraction-auditor`)
+It confirmed:
+- quotes are verbatim;
+- every lab value, unit and flag in docs 02 and 10 matches its source row;
+- no ECOG or TNM was inferred and "Soběstačná" was not turned into PS;
+- no suspected item appears as stated.
+
+It found:
+- **BLOCKER, negation convention:** 25 `negated` facts already had the negation inside the value
+  ("a. hepatica communis bez kontaktu s tumorem", "Bez známek vzdálených metastáz", "afebrilní"). A consumer reading
+  "negated = the value is absent" would invert them, and arterial contact is a resectability criterion. Some negated values
+  were truncated ("Truncus coeliacus", "Mediastinální"). 8 of the 25 entered only through the run-2 negation stems.
+- **Should-fix:** doc 04 symptoms were lost to `date_unsupported`; lab rows carry no specimen (serum vs urine Glukóza, Leukocyty,
+  Bilirubin); some names are loose ("EKG", "febrilní").
+- **Recall caveat:** the 12.* atoms passed on header-date lines.
+- **Not a safety claim:** "0 hallucinations" does not measure certainty.
+
+### Run 3: after the audit fixes, from cache
+- **Negation convention (decided here; F2-2 must follow it):** a `negated` fact's value is the *self-contained negative
+  statement* copied from the quote ("Bez známek vzdálených metastáz", "AA: neguje"). The lock rejects a negated fact
+  whose value lacks a negation word (`negation_not_in_value`). Consumers display the value verbatim and never compose a
+  negation themselves.
+- An unsupported or unparseable `clinical_date` is **dropped, keeping the fact**, and recorded in `fact.notes`. A date that *is* the value
+  (`value.kind = date`) still rejects the fact.
+- Stricter matcher: the 12.* atoms need a clinical fact (examination, procedure, lab, histology), not a header-date line.
+
+| metric | value |
+| --- | --- |
+| evidence validity | 100 % |
+| hallucinations | 0 |
+| as-of leakage | 0 (64 facts filtered) |
+| key value recall | **96.3 % (52/54)** |
+| facts raw / accepted / in handover | 487 / 450 / 386 |
+| rejections | negation_not_in_value 37 |
+
+Misses:
+- `8.neguje`: the model returned value `"AA"` + negated (quote "AA: neguje"). That is the finding convention, so it is now rejected.
+- `12.11`: histology has no clinical fact dated 19. 10. in its quote. Only the "Datum vydání" header line carries it.
+
+The 37 rejections are mostly *correct* facts in the other convention (value = the finding, e.g. "palpitace", negated).
+The prompt (rule 5, "keep the finding") asked for exactly that, so the prompt and the lock disagree. **Next step: prompt v2**,
+which tells the model to copy the negative clause as the value and adds a specimen to lab rows. Then a new live run by a human.
+
+**Quotable for the pitch (with date + commit):** "54/54 → 52/54 key values found, every value traceable to a verbatim
+quote, 0 facts from documents after the MDT". Do **not** present "0 hallucinations" as a safety claim, because certainty
+correctness is checked by rule and by audit, not by a metric.
+
+**Caveat for the pitch:** the run-2 lock was fixed *after* seeing run-1 output on the same 13 documents. The fixes are
+generic (format conversion, per-field counting, negation vocabulary) and each has a regression test, but run 2 is not a
+blind held-out score. Quote run 1 as the first-run number and run 2 as "after fixing three lock bugs". There is only one
+case, so neither run measures generalisation.
 
 ## Known failure modes / risks
 - **Table rows**: the lab quote must be the whole pipe row. The model may quote a single cell, so the term check rejects the fact and recall drops.

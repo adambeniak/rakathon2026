@@ -112,6 +112,7 @@ class Fact(_Strict):
     quote: str
     span: tuple[int, int]
     repaired: bool = False
+    notes: tuple[str, ...] = ()  # e.g. "clinical_date_dropped:unsupported:2026-09-01"
 
 
 def make_fact_id(doc_id: str, raw: RawFact) -> str:

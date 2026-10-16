@@ -263,7 +263,7 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
     # 12 examinations: a dated clinical fact from each document
     for ex in g["12_examinations"]["value"]:
         doc, when = ex["doc"], ex["date"]
-        clinical = {"examination", "procedure", "lab_result", "histology", "admin_date"}
+        clinical = {"examination", "procedure", "lab_result", "histology"}  # header-date lines do not count
         add(f"12.{doc[:2]}", "12_examinations", f"{ex['type']} {when}", _any_date(when, clinical, None, doc))
 
     # 13 labs

@@ -98,8 +98,26 @@ def test_negated_without_cue_rejected(doc) -> None:  # type: ignore[no-untyped-d
 def test_denied_symptom_as_stated_is_flagged(doc) -> None:  # type: ignore[no-untyped-def]
     a = accepted(evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus"), doc("05_")))
     assert stated_with_negation_cue(a.fact)
-    b = accepted(evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus", "negated"), doc("05_")))
+    b = accepted(evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "Pruritus neguje", "negated"), doc("05_")))
     assert not stated_with_negation_cue(b.fact)
+
+
+def test_negated_value_must_carry_the_negation(doc) -> None:  # type: ignore[no-untyped-def]
+    # audit run 2: "Truncus coeliacus" (negated) would read as a present/absent vessel, not "no tumour contact"
+    q = "Truncus coeliacus a a. hepatica communis bez kontaktu s tumorem."
+    rejected(
+        evidence_lock(text_fact("examination", 12, q, "Truncus coeliacus", "negated"), doc("08_")),
+        "negation_not_in_value",
+    )
+    rejected(
+        evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus", "negated"), doc("05_")),
+        "negation_not_in_value",
+    )
+    accepted(
+        evidence_lock(
+            text_fact("examination", 12, q, "a. hepatica communis bez kontaktu s tumorem", "negated"), doc("08_")
+        )
+    )
 
 
 # ---------------------------------------------------------------- numbers, units, terms
@@ -269,26 +287,25 @@ def test_date_in_quote_kept_as_written(doc) -> None:  # type: ignore[no-untyped-
     f = text_fact("procedure", 12, q, "apixaban vysazen 48 h před výkonem", clinical_date="2026-10-18")
     accepted(evidence_lock(f, doc("09_")))
     g = text_fact("procedure", 12, q, "apixaban vysazen 48 h před výkonem", clinical_date="2026-10-10")
-    rejected(evidence_lock(g, doc("09_")), "date_unsupported")
+    a = accepted(evidence_lock(g, doc("09_")))  # unsupported attached date is dropped, fact kept
+    assert a.fact.clinical_date is None and a.fact.notes == ("clinical_date_dropped:unsupported:2026-10-10",)
 
 
 def test_table_row_date_from_header(doc) -> None:  # type: ignore[no-untyped-def]
     accepted(
         evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-15"), doc("10_"))
     )
-    rejected(
-        evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-16"), doc("10_")),
-        "date_unsupported",
+    a = accepted(
+        evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-16"), doc("10_"))
     )
+    assert a.fact.clinical_date is None and a.fact.notes
 
 
 def test_month_year_onset(doc) -> None:  # type: ignore[no-untyped-def]
     q = "Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří"
     accepted(evidence_lock(text_fact("symptom", 11, q, "bolesti břicha", clinical_date="2026-08"), doc("07_")))
-    rejected(
-        evidence_lock(text_fact("symptom", 11, q, "bolesti břicha", clinical_date="2026-07"), doc("07_")),
-        "date_unsupported",
-    )
+    a = accepted(evidence_lock(text_fact("symptom", 11, q, "bolesti břicha", clinical_date="2026-07"), doc("07_")))
+    assert a.fact.clinical_date is None
 
 
 def test_czech_date_literal_in_date_value_converted(doc) -> None:  # type: ignore[no-untyped-def]
@@ -331,7 +348,11 @@ def test_generic_ne_prefix_is_not_negation(doc) -> None:  # type: ignore[no-unty
 @pytest.mark.parametrize("bad", ["2026-13", "2026-02-30", "21. 10.", "yesterday"])
 def test_unparseable_dates(doc, bad: str) -> None:  # type: ignore[no-untyped-def]
     f = text_fact("allergy", 8, "AA: neguje", "neguje", "negated", clinical_date=bad)
-    rejected(evidence_lock(f, doc("07_")), "date_unparseable")
+    a = accepted(evidence_lock(f, doc("07_")))  # attached date: dropped with a note
+    assert a.fact.clinical_date is None and a.fact.notes[0].startswith("clinical_date_dropped:unparseable")
+    g = raw(type="admin_date", handover_field=12, value={"kind": "date", "label": "Datum", "date": bad},
+            quote="AA: neguje")  # fmt: skip
+    rejected(evidence_lock(g, doc("07_")), "date_unparseable")  # the date IS the value: reject
 
 
 def test_year_only(doc) -> None:  # type: ignore[no-untyped-def]

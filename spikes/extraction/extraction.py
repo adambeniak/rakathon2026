@@ -113,6 +113,12 @@ def value_numbers(raw: RawFact) -> list[Counter[Decimal]]:
     return out
 
 
+def value_strings(raw: RawFact) -> list[str]:
+    """All human-readable strings of the value (for the negation-in-value rule)."""
+    skip = {"kind", "system", "flag", "comparator"}
+    return [s for k, s in raw.value.model_dump().items() if k not in skip and isinstance(s, str)]
+
+
 def to_iso(value: str, year_hint: int | None) -> str | None:
     """ISO as given, or a full Czech date literal ("20. 7. 2026") converted deterministically."""
     if _iso_parts(value) is not None:
@@ -238,26 +244,36 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         return Rejected("unit_not_in_quote", raw, raw.unit)
 
     year_hint = doc.authored_date.year if doc.authored_date else None
-    dates: dict[str, str | None] = {}
-    for key, given in (
-        ("clinical_date", raw.clinical_date),
-        ("value.date", v.date if isinstance(v, DateValue) else None),
-    ):
-        if given is None:
-            continue
-        iso = to_iso(given, year_hint)
+    notes: list[str] = []
+    value = v
+    if isinstance(v, DateValue):  # the date IS the value: unsupported -> reject the fact
+        iso = to_iso(v.date, year_hint)
         if iso is None:
-            return Rejected("date_unparseable", raw, given)
+            return Rejected("date_unparseable", raw, v.date)
         reason = _date_supported(iso, source_quote, doc)
         if reason:
             return Rejected(reason, raw, iso)
-        dates[key] = iso
-    value = v.model_copy(update={"date": dates["value.date"]}) if "value.date" in dates else v
+        value = v.model_copy(update={"date": iso})
+    clinical_date: str | None = None
+    if raw.clinical_date is not None:  # an attached date: unsupported -> drop the date, keep the fact
+        iso = to_iso(raw.clinical_date, year_hint)
+        if iso is None:
+            notes.append(f"clinical_date_dropped:unparseable:{raw.clinical_date[:20]}")
+        elif _date_supported(iso, source_quote, doc):
+            notes.append(f"clinical_date_dropped:unsupported:{iso}")
+        else:
+            clinical_date = iso
 
     if raw.type == "performance_status" and not PS_CUE.search(source_quote):
         return Rejected("ps_inferred", raw)
-    if raw.certainty == "negated" and not NEGATION_CUE.search(source_quote):
-        return Rejected("negation_mismatch", raw)
+    if raw.certainty == "negated":
+        if not NEGATION_CUE.search(source_quote):
+            return Rejected("negation_mismatch", raw)
+        # Convention: a negated fact's value is the self-contained negative statement ("Bez známek
+        # vzdálených metastáz", "AA: neguje"); consumers never compose a negation themselves. A value
+        # without the negation word ("Truncus coeliacus") would read as a present finding.
+        if not NEGATION_CUE.search(" ".join(value_strings(raw))):
+            return Rejected("negation_not_in_value", raw)
     if raw.certainty == "stated" and raw.type in CERTAINTY_CHECKED_TYPES and (m := SUSPICION_CUE.search(source_quote)):
         return Rejected("certainty_mismatch", raw, m.group(0))
 
@@ -268,11 +284,12 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         handover_field=raw.handover_field,
         value=value,
         unit=raw.unit,
-        clinical_date=dates.get("clinical_date"),
+        clinical_date=clinical_date,
         certainty=raw.certainty,
         quote=source_quote,
         span=span,
         repaired=repaired,
+        notes=tuple(notes),
     )
     return Accepted(fact)
 

@@ -180,6 +180,7 @@ async def run(as_of: datetime, model: str) -> dict[str, Any]:
             "raw_quote_validity": round(raw_exact / raw_total, 4) if raw_total else None,
             "accepted_facts": len(accepted_all),
             "repaired_quotes": sum(1 for f in accepted_all if f.repaired),
+            "clinical_dates_dropped": sum(1 for f in final if f.notes),
             "facts_in_handover": len(final),
             "evidence_validity": round(1 - len(invalid) / len(final), 4) if final else None,
             "hallucinations": len(halluc),

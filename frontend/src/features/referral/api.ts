@@ -5,8 +5,8 @@ import type { Koc, ParsedReferral } from './types'
 
 export const useKocDirectory = () => useQuery({ queryKey: ['koc'], queryFn: () => api.get<Koc[]>('/api/koc') })
 
-export const useParseReferral = () =>
-  useMutation({ mutationFn: (filename: string) => api.post<ParsedReferral>('/api/referrals/parse', { filename }) })
+export const usePrefillReferral = () =>
+  useMutation({ mutationFn: (filename: string) => api.post<ParsedReferral>('/api/referrals/prefill', { filename }) })
 
 export function useSubmitReferral() {
   const qc = useQueryClient()

@@ -9,7 +9,7 @@ import { referral as t } from '@/i18n/cs/referral'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/cn'
 import type { ReferralEvidence } from './types'
-import { useKocDirectory, useParseReferral, useSubmitReferral } from './api'
+import { useKocDirectory, usePrefillReferral, useSubmitReferral } from './api'
 
 function Chip({ e }: { e: ReferralEvidence }) {
   return <EvidenceChip docId={e.docId} quote={e.quote} doc={e.doc} />
@@ -22,7 +22,7 @@ export function Referral() {
   const [consent, setConsent] = useState(false)
   const [note, setNote] = useState('')
   const kocs = useKocDirectory()
-  const parse = useParseReferral()
+  const parse = usePrefillReferral()
   const submit = useSubmitReferral()
   const parsed = parse.data
 

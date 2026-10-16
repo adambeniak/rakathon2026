@@ -246,6 +246,9 @@ case, so neither run measures generalisation.
 recall **98.2 % (53/54)**: `8.neguje` is now found. Facts raw / accepted / in handover: 487 / 479 / 411. Evidence
 validity 100 %, hallucinations 0, leakage 0 (68 facts filtered), injection smoke pass.
 
+### Date-quote lock (#25, commit `253cabd`), from cache
+A `value.kind = date` fact is accepted only when its own quote supports the date (document header dates no longer count; `clinical_date` still may use them). Numbers unchanged: key value recall **98.2 % (53/54)**, facts raw / accepted / in handover 487 / 479 / 411, evidence validity 100 %, hallucinations 0, leakage 0, field status 13/15, injection smoke pass. No fact newly rejected.
+
 ## Handover assembly (F2-2, `app/extraction/handover/`, ADR-0004)
 `assemble_handover(case_id, as_of, facts, documents, *, patient, findings, epicrisis, rules)` is a pure function. It
 splits the documents by the as-of rule (`excluded_documents` with a Czech reason), drops facts from excluded documents,

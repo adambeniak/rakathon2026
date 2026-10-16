@@ -20,6 +20,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
+from urllib.parse import quote
 
 from pydantic import JsonValue
 
@@ -103,6 +104,11 @@ def handover_business_id(case_id: str, as_of: datetime) -> str:
     return f"{case_id}@{as_of.astimezone(UTC):%Y%m%dT%H%MZ}"
 
 
+SECTION_TITLES: dict[str, str] = {
+    info.alias or name: info.description or name for name, info in HandoverFields.model_fields.items()
+}
+
+
 def section_keys() -> list[str]:
     return [info.alias or name for name, info in HandoverFields.model_fields.items()]
 
@@ -112,6 +118,11 @@ def _fields(handover: Handover) -> list[tuple[str, str, HandoverFieldBase]]:
         (info.alias or name, info.description or name, getattr(handover.fields, name))
         for name, info in HandoverFields.model_fields.items()
     ]
+
+
+def _identifier_query(system: str, value: str) -> str:
+    """`identifier=system|value` with the token URL-encoded: entry ids contain '#', which would start a fragment."""
+    return "identifier=" + quote(f"{system}|{value}", safe="")
 
 
 def _urn(identifier: str) -> str:
@@ -154,6 +165,8 @@ def _review_extension(review: SectionReview) -> Resource:
     if review.at is not None:
         parts.append({"url": "at", "valueDateTime": review.at.isoformat(timespec="seconds")})
     parts.append({"url": "edited", "valueBoolean": review.edited})
+    if review.value_hash:
+        parts.append({"url": "value-hash", "valueString": review.value_hash})
     return {"url": EXT_HANDOVER_REVIEW, "extension": parts}
 
 
@@ -257,22 +270,30 @@ def _derived(key: str, field: HandoverFieldBase, prefix: str, ctx: FhirContext) 
 
 
 def _observation(key: str, identifier: str, item: HandoverItem, flag: str | None, ctx: FhirContext) -> Resource:
-    category = "vital-signs" if key == "10_weight_height" else "laboratory"
+    numeric = isinstance(item.value, float | int) and not isinstance(item.value, bool)
+    loinc = VITAL_LOINC.get(item.label or "") if numeric else None
+    # R4 vital-signs profile: a coded numeric value with effective[x]; anything else is a plain exam observation.
+    if key == "10_weight_height":
+        category = "vital-signs" if loinc is not None and item.clinical_date else "exam"
+        if category == "exam":
+            loinc = None
+    else:
+        category = "laboratory"
     observation = (
         _base("Observation", identifier, ctx)
         | {
             "status": "final",
             "category": [{"coding": [{"system": OBSERVATION_CATEGORY, "code": category}]}],
-            "code": {"text": item.label or ""},
+            # R4 strings must not be empty: an unlabelled value is named by its section.
+            "code": {"text": item.label or SECTION_TITLES[key]},
         }
         | _effective(item)
     )
-    loinc = VITAL_LOINC.get(item.label or "")
     if loinc is not None:
         code, display, unit = loinc
         observation["code"] = {"coding": [{"system": LOINC, "code": code, "display": display}], "text": item.label}
         observation["valueQuantity"] = {"value": item.value, "unit": unit, "system": UCUM, "code": unit}
-    elif isinstance(item.value, float | int):
+    elif numeric:
         observation["valueQuantity"] = {"value": item.value, **({"unit": item.unit} if item.unit else {})}
     else:
         observation["valueString"] = str(item.value)
@@ -319,7 +340,7 @@ def handover_bundle(handover: Handover, ctx: FhirContext) -> Resource:
                     "request": {
                         "method": "POST",
                         "url": resource["resourceType"],
-                        "ifNoneExist": f"identifier={SID_HANDOVER_ENTRY}|{identifier}",
+                        "ifNoneExist": _identifier_query(SID_HANDOVER_ENTRY, identifier),
                     },
                 }
             )
@@ -349,7 +370,7 @@ def handover_bundle(handover: Handover, ctx: FhirContext) -> Resource:
             "request": {
                 "method": "POST",
                 "url": "Composition",
-                "ifNoneExist": f"identifier={SID_HANDOVER}|{business_id}",
+                "ifNoneExist": _identifier_query(SID_HANDOVER, business_id),
             },
         },
         {
@@ -441,6 +462,7 @@ def _review_from_extension(ext: Resource) -> SectionReview:
         by=by,
         at=at,
         edited=bool(parts.get("edited", {}).get("valueBoolean", False)),
+        value_hash=parts.get("value-hash", {}).get("valueString"),
     )
 
 

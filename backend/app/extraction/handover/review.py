@@ -16,6 +16,7 @@ from app.domain.handover import (
     HandoverFields,
     HandoverItem,
     HandoverStatus,
+    ReviewState,
     SectionReview,
 )
 
@@ -89,7 +90,13 @@ def overlay_review(
     for name, info in HandoverFields.model_fields.items():
         key = info.alias or name
         field: HandoverFieldBase = getattr(handover.fields, name)
-        change: dict[str, Any] = {"review": sections.get(key, SectionReview())}
+        review = sections.get(key, SectionReview())
+        change: dict[str, Any] = {"review": review}
+        if review.state != ReviewState.DRAFT and review.value_hash and review.value_hash != field.value_hash:
+            # The documents changed the section after it was confirmed: the confirmation no longer covers it.
+            change["review"] = SectionReview()
+            reopened = "Obsah oddílu se po potvrzení změnil (nové dokumenty); je třeba jej potvrdit znovu."
+            change["note"] = f"{field.note} {reopened}" if field.note else reopened
         if key in edited_values:
             # The physician's value replaces the assembled one. Its items no longer carry document evidence (the
             # section-level evidence still lists what was consulted); a previously missing section is now filled.

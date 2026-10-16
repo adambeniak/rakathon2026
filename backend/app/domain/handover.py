@@ -165,6 +165,9 @@ class SectionReview(DomainModel):
     by: PartyRef | None = None
     at: AwareDatetime | None = None
     edited: bool = Field(False, description="True if the physician changed the assembled value.")
+    value_hash: str | None = Field(
+        None, description="`value_hash` of the section the physician confirmed; a later change reopens the review."
+    )
 
 
 class ItemEvidence(Evidence):
@@ -197,6 +200,11 @@ class HandoverFieldBase(DomainModel):
     conflicts: list[str] = Field(default_factory=list, description="Ids of findings that contradict the value.")
     note: str | None = None
     review: SectionReview | None = Field(None, description="None until the handover is persisted for review.")
+    value_hash: str | None = Field(
+        None,
+        description="SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), "
+        "so a physician never confirms content other than what they saw.",
+    )
 
 
 class PatientField(HandoverFieldBase):

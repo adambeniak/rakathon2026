@@ -1,17 +1,40 @@
 # Handover (F2-2): open and broken items
 
 State as of 2026-10-16, after PR #14 (`ai/handover-assembly`, incl. review fixes 6c90a08) and PR #19
-(`ai/handover-persistence`). **Broken** = wrong or unusable behaviour today. **Open** = known gap or follow-up.
+(`ai/handover-persistence`, incl. the fixes from the `fhir-architect` and `security-privacy-reviewer` reviews). **Broken** = wrong or unusable behaviour today. **Open** = known gap or follow-up.
 Owners are roles from AGENTS.md.
 
 ## Broken (fix before the demo)
 | # | What | Where | Owner |
 | --- | --- | --- | --- |
 | B1 | Confirming a section always returns **403** outside tests. `current_actor()` returns `system`, and only `koc_physician` may confirm. | `app/security/actor.py` (#4), `routes/handover.py` | P4 |
-| B2 | A concurrent confirmation returns **502 storage-error** instead of 409. An `If-Match` mismatch (412) becomes `FhirConflictError`, which `_fhir_status` does not map. | `app/api/errors.py` | P1/P4 |
-| B3 | A confirmation can apply to content that has since changed. GET re-assembles from the current documents and overlays the stored review by section, so a section confirmed earlier stays "confirmed" even if its assembled value changed. The previous-value hash is stored but never compared. | `review.py` `overlay_review`, `handover_store.py` | P2 |
 | B4 | The frontend calls `/handover/sections/{key}/confirm` and `/handover/confirm-all` with its own mock shape. The API has `/sections/{n}/confirm` (n = 1..15), returns `Handover`, and has no confirm-all. | `frontend/src/features/handover/api.ts` | P3 |
 | B5 | The demo epicrisis is the code-built **fallback** (a list of facts), not a summary. The `epicrisis-v1` LLM answer is not in the cache. | `tests/fixtures/llm_cache` | human: `STAFETA_LLM_CACHE=0 make eval` |
+
+## Fixed in PR #19 (review round)
+| # | What was wrong | Fix |
+| --- | --- | --- |
+| F1 (was B2) | A concurrent confirmation returned 502. | `FhirConflictError` (409/412) → API 409 `conflict`. |
+| F2 | `persist` returned the Composition as sent (`urn:uuid:` references, no `versionId`), so the confirm PUT wrote unresolvable references without `If-Match`. | The stored Composition is re-read after the transaction; a confirm without a stored version is refused. |
+| F3 | `ifNoneExist` was not URL-encoded; entry identifiers contain `#` (fragment) → truncated match, duplicates. | Token URL-encoded. |
+| F4 | Invalid R4: empty `code.text` for unlabelled items; `valueQuantity` with a string; vital-signs without `effective[x]`. | Section title as text; `valueString` for non-numbers; undated or non-numeric vitals are category `exam`. |
+| F5 (was B3) | A physician could confirm content other than what they saw (each confirm re-assembles), and an old confirmation stayed valid after the content changed. | Every field has `value_hash`; confirm requires `expected_value_hash` (else 409); the confirmed hash is stored, and a changed section is reopened as draft with a note. |
+| F6 | The AuditEvent was written after the data (not atomic); the case-context reads (Task, DocumentReference) were not audited. | AuditEvent in the same transaction; context reads audited. |
+
+## Out of scope of PR #19 (from the reviews, not required for the demo)
+| # | What | Owner |
+| --- | --- | --- |
+| R1 | `MedicationStatement.status: active` asserts current use the source does not state; `dateAsserted` = write time. Use `unknown`, add `derivedFrom` (also on Observation, `evidence.detail` on Condition). | P1/P2 |
+| R2 | Provenance entries have no identifier: two simultaneous first persists can write duplicate Provenance (= O12). | P1 |
+| R3 | Attester = the physician of the last section only; edits after `final` keep `final` (should become `amended` with a new `date`). Consider one attester per reviewer or an explicit sign-off step. | P4 |
+| R4 | Data minimisation: `handover-edited-value` stores the raw JSON next to the narrative; references carry `display` names; the previous-value hash is unsalted. | P1/P4 |
+| R5 | No request body size / JSON depth limit: deep `edited_value` nesting can raise RecursionError (500). Add a middleware limit and a depth check. | P4 |
+| R6 | `as_of` is client-chosen: each distinct value creates a new Composition (resource growth). Normalise or restrict to known MDT times. | P4 |
+| R7 | The 422 handler drops `input`, but some pydantic `msg` texts can contain the value; use a fixed message per `type`. | P4 |
+| R8 | Confirm/POST re-run the assembly (LLM from cache): cost and rate limiting (= O15). | P2 |
+| R9 | Case membership: any KOC physician could confirm any case once #4 provides real users. | P4 |
+| R10 | FHIR polish: `Provenance.recorded` timezone assertion, `zip(strict=True)` in the mapper, standard `workflow-episodeOfCare` extension instead of ours, `type` on identifier-only references, v3-DataOperation codings on `activity`; mapping doc: list list-empty-reason, provenance-participant-type, v3-ObservationInterpretation, UCUM, mCODE extension, the `Composition?identifier=` search, the missing `clinicalStatus` deviation, and move the `tag` row to CodeSystems. | P1 |
+| R11 | `$validate` against IRIS has not been run (needs `.env`): run it on the persisted Composition and one of each derived resource. | human |
 
 ## Open: evaluation and data quality
 | # | What | Owner |
@@ -27,7 +50,6 @@ Owners are roles from AGENTS.md.
 ## Open: persistence, FHIR, security
 | # | What | Owner |
 | --- | --- | --- |
-| O8 | The `fhir-architect` and `security-privacy-reviewer` reviews of PR #19 have not run. | P1 / P4 |
 | O9 | `tests/integration/test_iris_handover.py` has never run against IRIS (needs `.env`). | human |
 | O10 | Our CodeSystems and extensions (`handover-*`, `evidence-quote`, `previous-value-sha256`, …) are not loaded into IRIS, so validator warnings are possible. | P1 |
 | O11 | A physician's edit is stored on the Composition section only. The derived Condition/MedicationStatement/Observation keep the AI value. | P2 / P1 |

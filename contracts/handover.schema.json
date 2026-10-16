@@ -115,6 +115,19 @@
           ],
           "default": null,
           "title": "Value"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -314,6 +327,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -467,6 +493,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -594,6 +633,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -769,6 +821,19 @@
           ],
           "default": null,
           "title": "Value"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -1196,6 +1261,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -1410,6 +1488,19 @@
           "default": null,
           "description": "Key values incl. tumour markers (golden: key_values).",
           "title": "Value"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -1541,6 +1632,19 @@
           ],
           "default": null,
           "title": "Value"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -1682,6 +1786,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -1896,6 +2013,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -1965,6 +2095,19 @@
         "state": {
           "$ref": "#/$defs/ReviewState",
           "default": "draft"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "`value_hash` of the section the physician confirmed; a later change reopens the review.",
+          "title": "Value Hash"
         }
       },
       "title": "SectionReview",
@@ -2097,6 +2240,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -2186,6 +2342,19 @@
           ],
           "default": null,
           "title": "Value"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -2278,6 +2447,19 @@
           ],
           "default": null,
           "title": "Value"
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [
@@ -2405,6 +2587,19 @@
             }
           ],
           "default": null
+        },
+        "value_hash": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+          "title": "Value Hash"
         }
       },
       "required": [

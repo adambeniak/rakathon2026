@@ -61,7 +61,16 @@ class ConfirmSection(BaseModel):
 
     model_config = ConfigDict(
         extra="forbid",
-        json_schema_extra={"examples": [{}, {"accept_missing": True}, {"edited_value": "AA: neguje"}]},
+        json_schema_extra={
+            "examples": [
+                {"expected_value_hash": "<value_hash of the section as shown>"},
+                {"expected_value_hash": "<value_hash>", "accept_missing": True},
+            ]
+        },
+    )
+    expected_value_hash: str = Field(
+        pattern=r"^[0-9a-f]{64}$",
+        description="`value_hash` of the section as the physician saw it; 409 if the content changed since.",
     )
 
     edited_value: JsonValue | None = Field(
@@ -205,6 +214,9 @@ async def confirm_section(
     cut_off = parse_as_of(as_of, settings)
     handover = await _assemble(reader, settings, llm, case_id, cut_off)
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
+    assembled = field_of(handover, key)
+    if body.expected_value_hash != assembled.value_hash:
+        raise ConflictError(f"section {key} changed since it was shown; reload the handover before confirming")
     current = field_of(_with_review(handover, composition), key)
     missing = current.status == HandoverStatus.MISSING
     if body.accept_missing and body.edited_value is not None:
@@ -219,6 +231,7 @@ async def confirm_section(
         by=actor,
         at=settings.now(),
         edited=edited is not None,
+        value_hash=assembled.value_hash,
     )
     updated = await store.confirm_section(
         composition, key, review, edited_value=edited, previous_hash=value_hash(current)

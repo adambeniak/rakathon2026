@@ -10,6 +10,7 @@ import httpx
 import pytest
 import respx
 
+from app.domain.errors import ConflictError
 from app.domain.handover import ReviewState, SectionReview
 from app.fhir.client import FhirClient
 from app.fhir.handover_store import HandoverStore
@@ -78,11 +79,15 @@ async def test_persist_new_writes_one_audited_transaction(store: HandoverStore) 
             },
         )
     )
+    stored = {"resourceType": "Composition", "id": "77", "meta": {"versionId": "1"}, "identifier": {"value": "x"}}
+    reread = respx.get(f"{FHIR_BASE}/Composition/77").mock(return_value=httpx.Response(200, json=stored))
     audit = _audit_mock()
 
     result = await store.persist(handover(), device_display="AI", recorded=NOW)
 
-    assert result["id"] == "77"
+    # the stored copy is returned (resolved references, versionId for If-Match), not the bundle as sent
+    assert reread.called
+    assert result["meta"]["versionId"] == "1"
     sent = json.loads(transaction.calls[0].request.content)
     assert sent["entry"][0]["resource"]["resourceType"] == "Composition"
     assert all(
@@ -90,9 +95,15 @@ async def test_persist_new_writes_one_audited_transaction(store: HandoverStore) 
         in e["resource"]["meta"]["tag"]
         for e in sent["entry"]
     )
-    event = json.loads(audit.calls[-1].request.content)
+    # the AuditEvent is part of the same transaction: data and audit commit or fail together
+    event = sent["entry"][-1]["resource"]
+    assert event["resourceType"] == "AuditEvent"
     assert event["subtype"][0]["code"] == "transaction"
-    assert event["entity"] == [{"what": {"reference": "Composition/77"}}]
+    assert {"what": {"reference": sent["entry"][0]["fullUrl"]}} in event["entity"]
+    # the reads of the case context and of the stored Composition are audited separately
+    actions = [json.loads(c.request.content)["action"] for c in audit.calls]
+    assert actions.count("E") == 1  # Task + DocumentReference search
+    assert actions.count("R") == 1  # re-read of the Composition
     # the source document reference was resolved for the Provenance
     assert "DocumentReference/10" in json.dumps(sent)
 
@@ -101,7 +112,7 @@ async def test_persist_new_writes_one_audited_transaction(store: HandoverStore) 
 async def test_confirm_section_puts_composition_and_posts_provenance(store: HandoverStore) -> None:
     from tests.unit.fhir.test_handover_mapper import CTX, handover_bundle
 
-    composition = {**handover_bundle(handover(), CTX)["entry"][0]["resource"], "id": "77"}
+    composition = {**handover_bundle(handover(), CTX)["entry"][0]["resource"], "id": "77", "meta": {"versionId": "3"}}
     transaction = respx.post(FHIR_BASE).mock(
         return_value=httpx.Response(
             200,
@@ -121,7 +132,18 @@ async def test_confirm_section_puts_composition_and_posts_provenance(store: Hand
     updated = await store.confirm_section(composition, "8_allergies", review, edited_value=None, previous_hash="h")
 
     sent = json.loads(transaction.calls[0].request.content)
-    assert [e["request"]["method"] for e in sent["entry"]] == ["PUT", "POST"]
+    assert [e["request"]["method"] for e in sent["entry"]] == ["PUT", "POST", "POST"]
     assert sent["entry"][0]["request"]["url"] == "Composition/77"
+    assert sent["entry"][0]["request"]["ifMatch"] == 'W/"3"'
+    assert sent["entry"][2]["resource"]["resourceType"] == "AuditEvent"
     assert sent["entry"][1]["resource"]["agent"][0]["who"]["identifier"]["value"] == PHYSICIAN.id
     assert updated["status"] == "preliminary"
+
+
+async def test_confirm_without_stored_version_is_refused(store: HandoverStore) -> None:
+    from tests.unit.fhir.test_handover_mapper import CTX, handover_bundle
+
+    unsaved = {**handover_bundle(handover(), CTX)["entry"][0]["resource"], "id": "77"}  # no meta.versionId
+    review = SectionReview(state=ReviewState.CONFIRMED, by=PHYSICIAN, at=NOW)
+    with pytest.raises(ConflictError):
+        await store.confirm_section(unsaved, "8_allergies", review, edited_value=None, previous_hash="h")

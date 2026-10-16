@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from typing import Any
+from urllib.parse import quote
 
 from app.domain.common import PartyRef, Role
-from app.domain.handover import Handover, ReviewState, SectionReview
+from app.domain.handover import Handover, HandoverItem, ReviewState, SectionReview
 from app.extraction.handover.assemble import assemble_handover
 from app.fhir.mappers.handover import (
     FhirContext,
@@ -90,7 +91,9 @@ def test_bundle_composition_sections_and_conditional_create() -> None:
     bundle = handover_bundle(handover(), CTX)
     assert bundle["type"] == "transaction"
     first = bundle["entry"][0]
-    assert first["request"]["ifNoneExist"] == f"identifier={SID_HANDOVER}|case-1@20261021T0600Z"
+    assert first["request"]["ifNoneExist"] == "identifier=" + quote(f"{SID_HANDOVER}|case-1@20261021T0600Z", safe="")
+    # entry identifiers contain '#': unencoded it would start a URL fragment and match a truncated value
+    assert all("#" not in e["request"].get("ifNoneExist", "") for e in bundle["entry"])
     composition = _composition(bundle)
     assert composition["status"] == "preliminary"
     sections = composition["section"]
@@ -173,3 +176,29 @@ def test_confirmation_provenance_records_who_and_previous_value() -> None:
     assert {"url": "https://stafeta.example/fhir/StructureDefinition/previous-value-sha256", "valueString": "abc"} in (
         provenance["extension"]
     )
+
+
+def _observation_for(item: HandoverItem, key: str = "10_weight_height") -> dict[str, Any]:
+    from app.fhir.mappers.handover import _observation
+
+    return _observation(key, "case-1@x#k.0", item, None, CTX)
+
+
+def test_vital_sign_needs_numeric_value_and_date_else_exam() -> None:
+    dated = _observation_for(HandoverItem(label="Hmotnost", value=65.0, unit="kg", clinical_date=date(2026, 9, 15)))
+    assert dated["category"][0]["coding"][0]["code"] == "vital-signs"
+    assert dated["valueQuantity"]["value"] == 65.0
+    assert "effectiveDateTime" in dated
+
+    undated = _observation_for(HandoverItem(label="Hmotnost", value=65.0, unit="kg"))
+    assert undated["category"][0]["coding"][0]["code"] == "exam"
+    assert "coding" not in undated["code"]  # no vital-signs LOINC without effective[x]
+
+    text = _observation_for(HandoverItem(label="Hmotnost", value="65 kg", clinical_date=date(2026, 9, 15)))
+    assert text["valueString"] == "65 kg"
+    assert "valueQuantity" not in text
+
+
+def test_unlabelled_item_is_named_by_its_section() -> None:
+    observation = _observation_for(HandoverItem(value=1.0), key="13_labs")
+    assert observation["code"]["text"] == "Laboratoř vč. onkomarkerů"

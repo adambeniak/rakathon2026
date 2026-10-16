@@ -35,6 +35,9 @@
     `CitedSentence.aliases` (the markers in the text, parallel to `fact_ids` and to the sentence item's evidence),
     so every `[F3]` can be traced to its document and quote.
   - `Handover.status: preliminary|final`, `Handover.composition_id`, `Handover.rules`.
+  - `HandoverFieldBase.value_hash` (SHA-256 of the assembled value) and `SectionReview.value_hash`: a confirmation
+    must send back the hash of what the physician saw (`expected_value_hash`, 409 otherwise); a stored confirmation
+    whose hash no longer matches the re-assembled section is reopened as draft (PR #19 review).
 - **Epicrisis:**
   - One LLM call over the selected facts, aliased F1…Fn, with its own prompt version (`epicrisis-v1`) and therefore its
     own cache key.

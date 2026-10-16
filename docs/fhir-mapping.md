@@ -78,7 +78,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `handover-episode` | Composition | valueReference → EpisodeOfCare (Composition.encounter allows Encounter only) |
 | `handover-as-of` | Composition | valueDateTime, the cut-off |
 | `handover-field-status` | Composition.section | valueCoding `handover-field-status` |
-| `handover-review` | Composition.section | complex: state (code), by (Reference, PractitionerRole business id), role (code), at (dateTime), edited (boolean) |
+| `handover-review` | Composition.section | complex: state (code), by (Reference, PractitionerRole business id), role (code), at (dateTime), edited (boolean), value-hash (string: SHA-256 of the section value the physician confirmed; a later change reopens the review) |
 | `handover-edited-value` | Composition.section | valueString, the physician's value as JSON (validated against `contracts/handover.schema.json`) |
 | `evidence-quote` | Provenance.entity | complex: quote (string), charStart, charEnd (integer) |
 | `handover-section` | Provenance (confirmation) | valueCode, the section key |
@@ -97,6 +97,11 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
   EpisodeOfCare `onhold`; rejected referral → Task `rejected`.
 - **References with identifier + display** (`Task.owner`, `EpisodeOfCare.careManager`) carry the PractitionerRole
   business id so readers need no extra lookup.
+- **Handover writes audit atomically**: persist and confirm put the AuditEvent into the same transaction Bundle
+  (`FhirRepository.transaction(audit_in_bundle=True)`); its entities are the entries' `fullUrl`s, resolved by the
+  server. A confirmation PUT always carries `If-Match` (the stored `meta.versionId`); 412 → API 409 `conflict`.
+  `ifNoneExist` tokens are URL-encoded (entry identifiers contain `#`). Vital-signs Observations need a numeric
+  value and a date; otherwise category `exam` without LOINC.
 - **AuditEvent**: `source.observer` is display-only ("Štafeta backend"); `agent.type` uses our `workflow-role`
   (extensible binding → validator warning, accepted); people are identified with the PractitionerRole business id
   (same system as `Task.owner`), technical actors (`system`, `seed`) with `sid/user`. Searches are audited with

@@ -9,7 +9,7 @@ from datetime import datetime
 
 from pydantic import JsonValue
 
-from app.domain.errors import NotFoundError
+from app.domain.errors import ConflictError, NotFoundError
 from app.domain.handover import Handover, SectionReview
 from app.fhir.client import Resource, reference_from_location
 from app.fhir.errors import FhirError
@@ -25,9 +25,12 @@ from app.fhir.systems import SID_CASE_TASK, SID_HANDOVER, SID_SOURCE_DOCUMENT
 
 
 def _if_match(composition: Resource) -> dict[str, str]:
-    """Optimistic locking: a concurrent confirmation of the same Composition fails (412) instead of being lost."""
+    """Optimistic locking: a concurrent confirmation of the same Composition fails (412 -> 409) instead of being
+    lost. A Composition without a version was not read from the server and must never be written back."""
     version = composition.get("meta", {}).get("versionId")
-    return {"ifMatch": f'W/"{version}"'} if version else {}
+    if not version:
+        raise ConflictError("handover must be re-read before it is confirmed (no stored version)")
+    return {"ifMatch": f'W/"{version}"'}
 
 
 class HandoverStore:
@@ -52,13 +55,16 @@ class HandoverStore:
             return existing
         ctx = await self._context(handover.case_id, device_display, recorded)
         bundle = handover_bundle(handover, ctx)
-        response = await self._repo.transaction(bundle)
+        response = await self._repo.transaction(bundle, audit_in_bundle=True)
         location = (response.get("entry") or [{}])[0].get("response", {}).get("location")
         if not location:
             raise FhirError("transaction returned no location for the Composition")
         _, fhir_id = reference_from_location(str(location))
-        composition: Resource = {**bundle["entry"][0]["resource"], "id": fhir_id}
-        return composition
+        # The stored copy, not the one sent: references resolved (no urn:uuid) and meta.versionId for If-Match.
+        # A concurrent persist that lost the conditional create gets the winner's Composition here.
+        stored = await self._repo.read("Composition", fhir_id)
+        await self._repo.audit_read([f"Composition/{fhir_id}"])
+        return stored
 
     async def confirm_section(
         self,
@@ -84,7 +90,7 @@ class HandoverStore:
                 {"resource": provenance, "request": {"method": "POST", "url": "Provenance"}},
             ],
         }
-        await self._repo.transaction(bundle)
+        await self._repo.transaction(bundle, audit_in_bundle=True)
         return updated
 
     async def _context(self, case_id: str, device_display: str, recorded: datetime) -> FhirContext:
@@ -94,6 +100,9 @@ class HandoverStore:
         patient = str(task.get("for", {}).get("reference", ""))
         episode = str(task.get("focus", {}).get("reference", ""))
         resources = await self._repo.search("DocumentReference", {"encounter": episode, "_count": "100"})
+        await self._repo.audit_read(
+            [f"Task/{task['id']}", *(f"DocumentReference/{r['id']}" for r in resources)], subtype="search-type"
+        )
         documents = {
             str(i["value"]): f"DocumentReference/{r['id']}"
             for r in resources

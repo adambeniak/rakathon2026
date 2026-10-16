@@ -477,3 +477,23 @@ def test_lab_with_empty_name_does_not_crash_and_export_keeps_precision() -> None
     ]
     md = to_markdown(assemble(facts))
     assert "1234567,5 u" in md
+
+
+def test_confirmation_is_reopened_when_the_content_changes() -> None:
+    from app.domain.handover import ReviewState, SectionReview
+    from app.extraction.handover.review import overlay_review
+
+    before = assemble([fact(REFERRAL, "allergy", 8, text("AA: neguje"), quote="AA: neguje")])
+    confirmed = SectionReview(state=ReviewState.CONFIRMED, value_hash=before.fields.allergies.value_hash)
+    same = overlay_review(before, composition_id="c", status="preliminary", sections={"8_allergies": confirmed},
+                          edited_values={})  # fmt: skip
+    assert same.fields.allergies.review == confirmed
+
+    after = assemble([fact(REFERRAL, "allergy", 8, text("AA: PNC"), quote="AA: PNC")])
+    assert after.fields.allergies.value_hash != before.fields.allergies.value_hash
+    reopened = overlay_review(after, composition_id="c", status="preliminary", sections={"8_allergies": confirmed},
+                              edited_values={})  # fmt: skip
+    assert reopened.fields.allergies.review is not None
+    assert reopened.fields.allergies.review.state == ReviewState.DRAFT
+    assert reopened.fields.allergies.note is not None
+    assert "potvrdit znovu" in reopened.fields.allergies.note

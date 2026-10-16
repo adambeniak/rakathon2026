@@ -45,6 +45,9 @@ class Settings(BaseSettings):
     )
     stafeta_watchdog_interval_s: float = Field(60.0, gt=0, description="Seconds between watchdog runs.")
     stafeta_llm_cache: bool = Field(True, description="1 = use cached LLM responses only (demo/CI).")
+    llm_cache_dir: Path | None = Field(
+        None, description="LLM response cache directory; unset = backend/tests/fixtures/llm_cache (set in the image)."
+    )
     handover_stale_vitals_days: int = Field(
         30, ge=1, description="DEMO RULE: weight older than this at as_of is reported as stale in the handover."
     )

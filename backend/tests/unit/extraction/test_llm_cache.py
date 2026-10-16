@@ -146,3 +146,36 @@ def test_persist_false_answers_live_without_writing_the_cache(tmp_path: Path) ->
                     persist=False)  # fmt: skip
     assert _run(api.complete_json(system="s", user="question", schema=SCHEMA, doc_id="ask")) == '{"facts": []}'
     assert list(tmp_path.iterdir()) == []
+
+
+def _settings(**kw: Any) -> Any:
+    from app.settings import Settings
+
+    return Settings(_env_file=None, **kw)
+
+
+def test_llm_cache_dir_setting_is_honoured(tmp_path: Path) -> None:
+    from app.extraction.llm import DEFAULT_CACHE_DIR
+
+    assert LLMClient.from_settings(_settings()).cache_dir == DEFAULT_CACHE_DIR
+    assert LLMClient.from_settings(_settings(llm_cache_dir=tmp_path)).cache_dir == tmp_path
+    other = tmp_path / "explicit"
+    assert LLMClient.from_settings(_settings(llm_cache_dir=tmp_path), cache_dir=other).cache_dir == other
+
+
+def test_llm_cache_dir_env_var(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LLM_CACHE_DIR", str(tmp_path))
+    assert _settings().llm_cache_dir == tmp_path
+    monkeypatch.setenv("LLM_CACHE_DIR", "")
+    assert _settings().llm_cache_dir is None
+
+
+def test_read_only_cache_serves_live_answer_without_failing(tmp_path: Path) -> None:
+    async def transport(*_: Any) -> tuple[str, dict[str, Any]]:
+        return '{"facts": []}', {}
+
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("x")  # mkdir/write under a file raises OSError, like a read-only mount
+    c = LLMClient(model="m", prompt_version="v", transport=transport, cache_dir=blocker / "cache", cache_only=False)
+    assert _run(c.complete_json(system="s", user="u", schema=SCHEMA, doc_id="d")) == '{"facts": []}'
+    assert _run(c.complete_json(system="s", user="u2", schema=SCHEMA, doc_id="d")) == '{"facts": []}'

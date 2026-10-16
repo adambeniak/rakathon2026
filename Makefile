@@ -41,6 +41,20 @@ contract:      ## export OpenAPI + handover JSON Schema (via temp files, so a fa
 	cd backend && uv run python -m app.export_schemas > /tmp/stafeta-handover.json && mv /tmp/stafeta-handover.json ../contracts/handover.schema.json
 	@if [ -f frontend/package.json ]; then cd frontend && pnpm gen:api; else echo "frontend/ not created yet - TS client skipped"; fi
 
+# --- extraction spike (spikes/extraction; moves to backend/ in PR ai/extraction-core) ---
+SPIKE_EXTRACTION_UV := uv run -q --no-project --python 3.12 --with-requirements spikes/extraction/requirements.txt
+.PHONY: spike-extraction-test spike-extraction-eval spike-extraction-fill-cache
+
+spike-extraction-test:   ## offline unit tests + ruff + mypy --strict
+	cd spikes/extraction && $(SPIKE_EXTRACTION_UV:spikes/extraction/%=%) --with ruff==0.12.8 --with mypy==1.17.1 \
+	  sh -c 'ruff check . && ruff format --check . && mypy --strict --ignore-missing-imports --explicit-package-bases *.py && pytest -q -p no:cacheprovider'
+
+spike-extraction-eval:   ## eval vs golden from the committed LLM cache (no network)
+	STAFETA_LLM_CACHE=1 $(SPIKE_EXTRACTION_UV) python spikes/extraction/eval.py
+
+spike-extraction-fill-cache: ## live APIM calls for cache misses (human runs this; needs .env)
+	STAFETA_LLM_CACHE=0 $(SPIKE_EXTRACTION_UV) --env-file .env python spikes/extraction/eval.py
+
 aci-up:
 	bash scripts/aci_up.sh
 aci-status:

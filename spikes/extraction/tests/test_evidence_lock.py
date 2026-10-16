@@ -1,0 +1,320 @@
+"""Evidence lock against the real (fictitious) reports. Facts here are synthetic LLM outputs."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any
+
+import pytest
+
+from documents import doc_from_text
+from extraction import (
+    Accepted,
+    Rejected,
+    doc_included,
+    evidence_lock,
+    filter_as_of,
+    numbers_in,
+    stated_with_negation_cue,
+)
+from schema import RawFact
+
+AS_OF = datetime.fromisoformat("2026-10-21T08:00:00+02:00")
+
+
+def raw(**kw: Any) -> RawFact:
+    base: dict[str, Any] = {
+        "unit": None,
+        "clinical_date": None,
+        "certainty": "stated",
+    }
+    base.update(kw)
+    return RawFact.model_validate(base)
+
+
+def lab(name: str, number: float, unit: str, quote: str, flag: str | None = None, **kw: Any) -> RawFact:
+    return raw(
+        type="lab_result",
+        handover_field=13,
+        value={
+            "kind": "quantity",
+            "name": name,
+            "number": number,
+            "text_value": None,
+            "comparator": None,
+            "flag": flag,
+            "ref_range": None,
+        },
+        unit=unit,
+        quote=quote,
+        **kw,
+    )
+
+
+def med(drug: str, dose: str, schedule: str, quote: str) -> RawFact:
+    return raw(
+        type="medication",
+        handover_field=7,
+        value={"kind": "medication", "drug": drug, "dose": dose, "schedule": schedule},
+        quote=quote,
+    )
+
+
+def text_fact(t: str, field: int, quote: str, text: str, certainty: str = "stated", **kw: Any) -> RawFact:
+    return raw(
+        type=t,
+        handover_field=field,
+        value={"kind": "text", "text": text},
+        quote=quote,
+        certainty=certainty,
+        **kw,
+    )
+
+
+def accepted(result: Accepted | Rejected) -> Accepted:
+    assert isinstance(result, Accepted), result
+    return result
+
+
+def rejected(result: Accepted | Rejected, reason: str) -> None:
+    assert isinstance(result, Rejected), result
+    assert result.reason == reason, result
+
+
+# ---------------------------------------------------------------- negation
+
+
+def test_allergy_neguje_negated_accepted(doc) -> None:  # type: ignore[no-untyped-def]
+    a = accepted(evidence_lock(text_fact("allergy", 8, "AA: neguje", "neguje", "negated"), doc("07_")))
+    assert a.fact.quote == "AA: neguje"
+    assert a.fact.certainty == "negated"
+
+
+def test_negated_without_cue_rejected(doc) -> None:  # type: ignore[no-untyped-def]
+    f = text_fact("symptom", 11, "Nechutenství, pokračující úbytek hmotnosti", "nechutenství", "negated")
+    rejected(evidence_lock(f, doc("07_")), "negation_mismatch")
+
+
+def test_denied_symptom_as_stated_is_flagged(doc) -> None:  # type: ignore[no-untyped-def]
+    a = accepted(evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus"), doc("05_")))
+    assert stated_with_negation_cue(a.fact)
+    b = accepted(evidence_lock(text_fact("symptom", 11, "Pruritus neguje.", "pruritus", "negated"), doc("05_")))
+    assert not stated_with_negation_cue(b.fact)
+
+
+# ---------------------------------------------------------------- numbers, units, terms
+
+
+def test_decimal_comma_matches_value_point(doc) -> None:  # type: ignore[no-untyped-def]
+    accepted(evidence_lock(lab("CEA", 4.1, "µg/l", "CEA | 4,1 | µg/l | < 5,0", clinical_date="2026-10-15"), doc("10_")))
+
+
+def test_integer_does_not_match_inside_decimal(doc) -> None:  # type: ignore[no-untyped-def]
+    f = raw(
+        type="symptom",
+        handover_field=11,
+        value={"kind": "quantity", "name": "teploty", "number": 38, "text_value": None,
+               "comparator": None, "flag": None, "ref_range": None},
+        unit="°C",
+        quote="intermitentní teploty do 38,6 °C se zimnicí",
+    )  # fmt: skip
+    rejected(evidence_lock(f, doc("04_")), "number_not_in_quote")
+
+
+def test_number_outside_quote_rejected(doc) -> None:  # type: ignore[no-untyped-def]
+    # CA 19-9 value 312 but the quote is the CEA row -> term check fires first
+    rejected(evidence_lock(lab("CA 19-9", 312, "kU/l", "CEA | 4,1 | µg/l | < 5,0"), doc("10_")), "term_not_in_quote")
+    # right analyte name, wrong number
+    rejected(
+        evidence_lock(lab("CA 19-9", 321, "kU/l", "CA 19-9 | 312 H | kU/l | < 37", "H"), doc("10_")),
+        "number_not_in_quote",
+    )
+
+
+def test_wrong_unit_rejected(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "Bilirubin celkový | 38 H | µmol/l | 2–17"
+    rejected(evidence_lock(lab("Bilirubin celkový", 38, "mmol/l", q, "H"), doc("02_")), "unit_not_in_quote")
+    accepted(evidence_lock(lab("Bilirubin celkový", 38, "µmol/l", q, "H"), doc("02_")))
+
+
+def test_micro_sign_variants_fold(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "Bilirubin celkový | 38 H | µmol/l | 2–17"  # source uses U+00B5
+    accepted(evidence_lock(lab("Bilirubin celkový", 38, "μmol/l", q, "H"), doc("02_")))
+
+
+def test_en_dash_range_quote(doc) -> None:  # type: ignore[no-untyped-def]
+    f = raw(
+        type="lab_result",
+        handover_field=13,
+        value={"kind": "quantity", "name": "ALT", "number": 1.92, "text_value": None,
+               "comparator": None, "flag": "H", "ref_range": "0,10–0,60"},
+        unit="µkat/l",
+        quote="ALT | 1,92 H | µkat/l | 0,10—0,60",  # model wrote an em dash
+    )  # fmt: skip
+    a = accepted(evidence_lock(f, doc("02_")))
+    assert a.fact.quote == "ALT | 1,92 H | µkat/l | 0,10–0,60"
+
+
+def test_numbers_tokeniser() -> None:
+    assert numbers_in("apixaban 5 mg 1-0-1") == numbers_in("5 1 0 1")
+    assert sorted(numbers_in("0,10–0,60")) == sorted(numbers_in("0.1 0.6"))
+    assert numbers_in("38,6 °C")[numbers_in("38").most_common(1)[0][0]] == 0
+    assert numbers_in("CA 19-9") == numbers_in("19 9")
+    assert numbers_in("CHA₂DS₂") == numbers_in("2 2")
+
+
+# ---------------------------------------------------------------- medications, ids
+
+
+def test_two_drugs_from_one_line_distinct_ids(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "FA: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0, perindopril 4 mg 1-0-0, rosuvastatin 10 mg 0-0-1"
+    a = accepted(evidence_lock(med("apixaban", "5 mg", "1-0-1", q), doc("07_")))
+    b = accepted(evidence_lock(med("bisoprolol", "5 mg", "1-0-0", q), doc("07_")))
+    assert a.fact.fact_id != b.fact.fact_id
+
+
+def test_drug_not_in_quote_rejected(doc) -> None:  # type: ignore[no-untyped-def]
+    rejected(evidence_lock(med("warfarin", "5 mg", "1-0-1", "apixaban 5 mg 1-0-1"), doc("07_")), "term_not_in_quote")
+
+
+# ---------------------------------------------------------------- quotes
+
+
+def test_multiline_quote_accepted(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "Telefon: +420 777 000 541 Kontaktní osoba: Petra Horká (dcera), tel. +420 777 000 542"
+    f = raw(
+        type="contact",
+        handover_field=2,
+        value={"kind": "person", "name": "Petra Horká", "relation": "dcera", "phone": "+420 777 000 542",
+               "email": None, "address": None},
+        quote=q,
+    )  # fmt: skip
+    a = accepted(evidence_lock(f, doc("07_")))
+    assert "\n" in a.fact.quote  # stored as the exact source span (two paragraphs)
+    d = doc("07_")
+    assert d.text[a.fact.span[0] : a.fact.span[1]] == a.fact.quote
+
+
+def test_subscript_quote_repaired_to_source(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "I48.0 Paroxysmální fibrilace síní, CHA2DS2-VASc 2 b., HAS-BLED 1 b., na antikoagulační léčbě"
+    f = raw(
+        type="comorbidity",
+        handover_field=6,
+        value={"kind": "coded", "code": "I48.0", "system": "MKN-10", "text": "Paroxysmální fibrilace síní"},
+        quote=q,
+    )
+    a = accepted(evidence_lock(f, doc("01_")))
+    assert a.fact.repaired
+    assert "CHA₂DS₂-VASc" in a.fact.quote
+    assert a.fact.quote in doc("01_").text
+
+
+def test_diacritic_difference_not_repaired(doc) -> None:  # type: ignore[no-untyped-def]
+    f = text_fact("consent_or_wish", 15, "Souhlasi se sdílením informací s dcerou.", "souhlas")
+    rejected(evidence_lock(f, doc("07_")), "quote_not_found")
+
+
+def test_case_difference_not_repaired(doc) -> None:  # type: ignore[no-untyped-def]
+    f = text_fact("consent_or_wish", 15, "souhlasí se sdílením informací s dcerou.", "souhlas")
+    rejected(evidence_lock(f, doc("07_")), "quote_not_found")
+
+
+def test_quote_from_other_document_rejected(doc) -> None:  # type: ignore[no-untyped-def]
+    rejected(evidence_lock(text_fact("allergy", 8, "AA: neguje", "neguje", "negated"), doc("08_")), "quote_not_found")
+
+
+def test_empty_and_long_quotes(doc) -> None:  # type: ignore[no-untyped-def]
+    rejected(evidence_lock(text_fact("symptom", 11, "  ", "x"), doc("07_")), "quote_empty")
+    rejected(evidence_lock(text_fact("symptom", 11, "x" * 700, "x"), doc("07_")), "quote_too_long")
+
+
+# ---------------------------------------------------------------- performance status, schema
+
+
+def test_sobestacna_is_not_ecog(doc) -> None:  # type: ignore[no-untyped-def]
+    f = raw(
+        type="performance_status",
+        handover_field=9,
+        value={"kind": "quantity", "name": "ECOG", "number": 1, "text_value": None,
+               "comparator": None, "flag": None, "ref_range": None},
+        quote="Soběstačná",
+    )  # fmt: skip
+    r = evidence_lock(f, doc("07_"))
+    assert isinstance(r, Rejected) and r.reason in {"term_not_in_quote", "number_not_in_quote", "ps_inferred"}
+    g = text_fact("performance_status", 9, "Soběstačná", "Soběstačná")
+    rejected(evidence_lock(g, doc("07_")), "ps_inferred")
+
+
+def test_type_kind_and_field_rules(doc) -> None:  # type: ignore[no-untyped-def]
+    rejected(evidence_lock(text_fact("lab_result", 13, "AA: neguje", "x"), doc("07_")), "schema_mismatch")
+    rejected(evidence_lock(text_fact("allergy", 3, "AA: neguje", "neguje", "negated"), doc("07_")), "schema_mismatch")
+    # allowed sets, not 1:1: an examination may sit in field 6 (EF LK on echo)
+    f = raw(
+        type="examination",
+        handover_field=6,
+        value={"kind": "quantity", "name": "EF LK", "number": 60, "text_value": None,
+               "comparator": None, "flag": None, "ref_range": None},
+        unit="%",
+        quote="EF LK 60 %",
+    )  # fmt: skip
+    accepted(evidence_lock(f, doc("01_")))
+
+
+# ---------------------------------------------------------------- dates
+
+
+def test_date_in_quote_kept_as_written(doc) -> None:  # type: ignore[no-untyped-def]
+    # doc 09 says the last dose was 18. 10. although the procedure was 12. 10. -> keep, do not correct
+    q = "Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer)."
+    f = text_fact("procedure", 12, q, "apixaban vysazen 48 h před výkonem", clinical_date="2026-10-18")
+    accepted(evidence_lock(f, doc("09_")))
+    g = text_fact("procedure", 12, q, "apixaban vysazen 48 h před výkonem", clinical_date="2026-10-10")
+    rejected(evidence_lock(g, doc("09_")), "date_unsupported")
+
+
+def test_table_row_date_from_header(doc) -> None:  # type: ignore[no-untyped-def]
+    accepted(
+        evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-15"), doc("10_"))
+    )
+    rejected(
+        evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-16"), doc("10_")),
+        "date_unsupported",
+    )
+
+
+def test_month_year_onset(doc) -> None:  # type: ignore[no-untyped-def]
+    q = "Od poloviny srpna 2026 bolesti břicha v epigastriu a pravém podžebří"
+    accepted(evidence_lock(text_fact("symptom", 11, q, "bolesti břicha", clinical_date="2026-08"), doc("07_")))
+    rejected(
+        evidence_lock(text_fact("symptom", 11, q, "bolesti břicha", clinical_date="2026-07"), doc("07_")),
+        "date_unsupported",
+    )
+
+
+@pytest.mark.parametrize("bad", ["2026-13", "2026-02-30", "21. 10. 2026", "yesterday"])
+def test_unparseable_dates(doc, bad: str) -> None:  # type: ignore[no-untyped-def]
+    f = text_fact("allergy", 8, "AA: neguje", "neguje", "negated", clinical_date=bad)
+    rejected(evidence_lock(f, doc("07_")), "date_unparseable")
+
+
+def test_year_only(doc) -> None:  # type: ignore[no-untyped-def]
+    f = text_fact("comorbidity", 6, "st. p. hysterektomii pro myomy (2010)", "hysterektomie", clinical_date="2010")
+    accepted(evidence_lock(f, doc("07_")))
+
+
+# ---------------------------------------------------------------- as-of
+
+
+def test_as_of_filter(doc, docs) -> None:  # type: ignore[no-untyped-def]
+    assert doc_included(doc("11_"), AS_OF)
+    assert not doc_included(doc("12_"), AS_OF)
+    assert not doc_included(doc("13_"), AS_OF)
+    same_day = doc_from_text("MDT_zaver", "Závěr MDT", date(2026, 10, 21))
+    assert not doc_included(same_day, AS_OF)  # date-only on the as_of day -> excluded
+    undated = doc_from_text("x", "text", None)
+    assert not doc_included(undated, AS_OF)
+
+    f12 = accepted(evidence_lock(text_fact("symptom", 11, "Hmotnost 63 kg.", "hmotnost"), doc("12_"))).fact
+    f07 = accepted(evidence_lock(text_fact("allergy", 8, "AA: neguje", "neguje", "negated"), doc("07_"))).fact
+    kept = filter_as_of([f12, f07], docs, AS_OF)
+    assert kept == [f07]

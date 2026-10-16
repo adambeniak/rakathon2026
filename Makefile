@@ -52,8 +52,9 @@ spike-extraction-test:   ## offline unit tests + ruff + mypy --strict
 spike-extraction-eval:   ## eval vs golden from the committed LLM cache (no network)
 	STAFETA_LLM_CACHE=1 $(SPIKE_EXTRACTION_UV) python spikes/extraction/eval.py
 
-spike-extraction-fill-cache: ## live APIM calls for cache misses (human runs this; needs .env)
-	STAFETA_LLM_CACHE=0 $(SPIKE_EXTRACTION_UV) --env-file .env python spikes/extraction/eval.py
+ENV_FILE ?= .env
+spike-extraction-fill-cache: ## live APIM calls for cache misses (human runs this; ENV_FILE=path/to/.env from a worktree)
+	STAFETA_LLM_CACHE=0 $(SPIKE_EXTRACTION_UV) --env-file $(ENV_FILE) python spikes/extraction/eval.py
 
 aci-up:
 	bash scripts/aci_up.sh

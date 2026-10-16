@@ -68,7 +68,7 @@ def _review(field: HandoverFieldBase) -> str:
 
 
 def _item(item: HandoverItem) -> str:
-    value = f"{item.value:g}".replace(".", ",") if isinstance(item.value, float) else item.value
+    value = _number(item.value) if isinstance(item.value, float) else item.value
     parts = [f"{item.label}: " if item.label else "", str(value), f" {item.unit}" if item.unit else ""]
     if item.clinical_date:
         parts.append(f" ({cz_date(item.clinical_date)})")
@@ -76,6 +76,11 @@ def _item(item: HandoverItem) -> str:
     if docs:
         parts.append(f" [{', '.join(docs)}]")
     return "- " + "".join(parts)
+
+
+def _number(value: float) -> str:
+    """Full precision, Czech decimal comma (never rounded or in exponent notation)."""
+    return str(int(value)) if value.is_integer() else repr(value).replace(".", ",")
 
 
 def _epicrisis(handover: Handover) -> list[str]:

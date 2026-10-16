@@ -216,7 +216,9 @@ def _field(
     value = Epicrisis(text=" ".join(s.text for s in sentences), sentences=sentences, mode=mode)
     # One item per sentence; its evidence follows `fact_ids` order, so aliases[i] <-> evidence[i] (one quote/fact).
     items = [
-        HandoverItem(value=s.text, evidence=item_evidence(docs, [by_id[i] for i in s.fact_ids if i in by_id]))
+        HandoverItem(
+            value=s.text, evidence=item_evidence(docs, [by_id[i] for i in s.fact_ids if i in by_id], dedupe=False)
+        )
         for s in sentences
     ]
     return EpicrisisField(

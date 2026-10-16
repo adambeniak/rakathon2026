@@ -132,3 +132,19 @@ def test_fallback_shows_certainty_and_date_precision() -> None:
     texts = [s.text for s in field.value.sentences]
     assert texts[0] == "8/2026: bolesti v epigastriu [F1]"  # month precision, never an invented day
     assert "15. 9. 2026: suspektní: tumor pankreatu [F3]" in texts
+
+
+def test_legend_evidence_stays_parallel_when_facts_share_a_quote() -> None:
+    line = "apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0"
+    shared = [
+        fact(REFERRAL, "diagnosis", 3, text("apixaban 5 mg 1-0-1"), quote=line),
+        fact(REFERRAL, "diagnosis", 3, text("bisoprolol 5 mg 1-0-0"), quote=line),
+    ]
+    shared[1] = shared[1].model_copy(update={"evidence": shared[0].evidence})  # identical span
+    client = FakeClient(answer(("V dokumentaci uvedeno: apixaban 5 mg 1-0-1, bisoprolol 5 mg 1-0-0 [F1, F2].",
+                                ["F1", "F2"])))  # fmt: skip
+    field = asyncio.run(generate_epicrisis(shared, DOCS, client, case_id="case-1"))
+    assert field.value is not None
+    assert field.value.mode == "llm"
+    assert field.value.sentences[0].aliases == ["F1", "F2"]
+    assert len(field.items[0].evidence) == 2  # one entry per alias, even with the same quote

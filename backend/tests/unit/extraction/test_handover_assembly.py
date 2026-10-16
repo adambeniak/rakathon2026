@@ -429,3 +429,51 @@ def test_every_value_has_an_item_with_dated_evidence() -> None:
     assert lab.evidence[0].received_at == EARLY_LAB.received_at
     assert h.fields.allergies.items[0].evidence[0].quote == "AA: neguje"
     assert h.fields.performance_status.items == []  # missing: no value, no item
+
+
+# ---------------------------------------------------------------- review regressions (PR #14)
+
+
+def test_as_of_day_is_the_prague_day_whatever_the_offset() -> None:
+    # 2026-10-20T23:30Z is 21. 10. 01:30 in Prague: a report authored on 20. 10. is known at that moment
+    doc = source("08_CT_2026-10-20", received=datetime(2026, 10, 20, 12, 0, tzinfo=PRAGUE))
+    utc_as_of = datetime.fromisoformat("2026-10-20T23:30:00+00:00")
+    included, excluded = split_documents({doc.doc_id: doc}, utc_as_of)
+    assert doc.doc_id in included
+    assert excluded == []
+
+
+def test_named_third_party_email_is_not_the_patients() -> None:
+    facts = [
+        fact(REFERRAL, "contact", 2, person(phone="+420 777 000 541")),
+        fact(REFERRAL, "contact", 2, person(name="MUDr. Tomáš Řezníček", email="ordinace@example.cz")),
+    ]
+    field = assemble(facts).fields.contacts
+    assert field.value is not None
+    assert field.value.patient_email is None
+    assert "patient_email" in field.missing
+
+
+def test_conflict_on_stale_field_is_recorded_without_hiding_stale() -> None:
+    facts = [fact(CARDIO, "vital_sign", 10, qty("hmotnost", 69), unit="kg")]
+    finding = Finding(id="C7", kind=FindingKind.DATE_CONFLICT, severity=Severity.HIGH, message="nesoulad",
+                      field="10_weight_height")  # fmt: skip
+    field = assemble(facts, findings=[finding]).fields.weight_height
+    assert field.status == HandoverStatus.STALE
+    assert field.conflicts == ["C7"]
+
+
+def test_unavailable_documents_are_reported_as_excluded() -> None:
+    h = assemble([], unavailable={GASTRO.doc_id: "extrakce dokumentu není k dispozici"})
+    assert GASTRO.doc_id not in h.included_documents
+    assert {e.doc_id: e.reason for e in h.excluded_documents}[GASTRO.doc_id] == "extrakce dokumentu není k dispozici"
+    assert GASTRO.doc_id not in {r.doc_id for r in h.fields.examinations.value or []}
+
+
+def test_lab_with_empty_name_does_not_crash_and_export_keeps_precision() -> None:
+    facts = [
+        fact(LAB, "lab_result", 13, qty("", 1234567.5), unit="u"),
+        fact(GASTRO, "lab_result", 13, qty("CRP", 1234567.5), unit="u"),
+    ]
+    md = to_markdown(assemble(facts))
+    assert "1234567,5 u" in md

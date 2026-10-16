@@ -271,7 +271,15 @@ def contacts_field(ctx: Context, patient: Patient | None) -> ContactsField:
         used.append(patient_phone_fact)
         items.insert(0, make_item(ctx, _person(patient_phone_fact).phone or "", [patient_phone_fact], label="Telefon"))
 
-    email_fact = ctx.latest(f for f in persons if _person(f).email and not _person(f).relation)
+    # Patient e-mail: never a named third party's (a physician's e-mail without a relation must not qualify).
+    patient_name = fold_text(patient.display_name) if patient else None
+    email_fact = ctx.latest(
+        f
+        for f in persons
+        if _person(f).email
+        and not _person(f).relation
+        and (not _person(f).name or fold_text(_person(f).name or "") == patient_name)
+    )
     if email_fact is not None:
         used.append(email_fact)
         items.append(make_item(ctx, _person(email_fact).email or "", [email_fact], label="E-mail"))
@@ -684,6 +692,8 @@ def labs_field(ctx: Context) -> LabsField:
 def _same_result(a: Fact, b: Fact) -> bool:
     qa, qb = quantity(a), quantity(b)
     if qa is None or qb is None or qa.number != qb.number:
+        return False
+    if not qa.name.split() or not qb.name.split():
         return False
     return same_stem(qa.name.split()[0], qb.name.split()[0])
 

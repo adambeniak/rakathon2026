@@ -71,9 +71,15 @@ def assemble_handover(
     epicrisis: EpicrisisField | None = None,
     rules: HandoverRules | None = None,
     generated_at: datetime | None = None,
+    unavailable: Mapping[str, str] | None = None,
 ) -> Handover:
+    """`unavailable`: doc_id -> Czech reason for known documents whose content could not be read or extracted;
+    they are reported in `excluded_documents` instead of silently missing."""
     rules = rules or HandoverRules()
     included, excluded = split_documents(documents, as_of)
+    for doc_id, reason in sorted((unavailable or {}).items()):
+        if included.pop(doc_id, None) is not None:
+            excluded.append(ExcludedDocument(doc_id=doc_id, reason=reason))
     # Second line of defence: facts from excluded (or unknown) documents never reach a field.
     ctx = Context(as_of=as_of, facts=tuple(included_facts(facts, included)), docs=included, rules=rules)
     medications = f.medications_field(ctx)
@@ -114,12 +120,12 @@ def apply_findings(built: HandoverFields, findings: Sequence[Finding]) -> Handov
         prefix = key.split("_", 1)[0] + "_"
         ids = [x.id for x in findings if x.kind in CONFLICT_KINDS and x.field and x.field.startswith(prefix)]
         current: HandoverFieldBase = getattr(built, name)
-        if not ids or current.status not in _CONFLICT_ELIGIBLE:
+        if not ids:
             continue
-        updates[name] = current.model_copy(
-            update={
-                "status": HandoverStatus.COMPLETE_WITH_CONFLICT,
-                "conflicts": sorted({*current.conflicts, *ids}),
-            }
-        )
+        # The ids are always recorded; the status changes only where a value exists that the finding contradicts
+        # (a stale or needs_clarification status says more than "conflict" and is kept).
+        update: dict[str, object] = {"conflicts": sorted({*current.conflicts, *ids})}
+        if current.status in _CONFLICT_ELIGIBLE:
+            update["status"] = HandoverStatus.COMPLETE_WITH_CONFLICT
+        updates[name] = current.model_copy(update=update)
     return built.model_copy(update=updates) if updates else built

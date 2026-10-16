@@ -166,10 +166,16 @@ def dedupe_by_text(ctx: Context, facts: Sequence[Fact]) -> list[Fact]:
     return ctx.chronological(kept.values())
 
 
-def item_evidence(docs: Mapping[str, SourceDocument], facts: Iterable[Fact]) -> list[ItemEvidence]:
-    """Evidence of the given facts (in order, no duplicates) with the source documents' dates."""
+def item_evidence(
+    docs: Mapping[str, SourceDocument], facts: Iterable[Fact], *, dedupe: bool = True
+) -> list[ItemEvidence]:
+    """Evidence of the given facts in order, with the source documents' dates.
+
+    `dedupe=False` keeps one entry per fact even when facts share a quote (epicrisis: parallel to the aliases).
+    """
     out: list[ItemEvidence] = []
-    for ev in union_evidence(facts):
+    facts = list(facts)
+    for ev in union_evidence(facts) if dedupe else [f.evidence[0] for f in facts]:
         doc = docs[ev.doc_id]
         out.append(ItemEvidence(**ev.model_dump(), authored_at=doc.authored_at, received_at=doc.received_at))
     return out

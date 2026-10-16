@@ -36,6 +36,7 @@ from app.extraction.values import (
     TextValue,
     make_fact_id,
 )
+from app.settings import PRAGUE
 
 MAX_QUOTE_LEN = 600
 # A negated text fact whose value lacks the negation word is repaired only for quotes up to this length.
@@ -358,7 +359,8 @@ def as_of_exclusion(
         raise ValueError("as_of must be timezone-aware")
     if authored is None:
         return "authored_unknown"
-    if authored >= as_of.date():
+    # The authored date is a Prague calendar day: compare with the as_of day in Prague, whatever offset was given.
+    if authored >= as_of.astimezone(PRAGUE).date():
         return "authored_after_as_of"
     if received is None:
         return "received_unknown" if require_received else None

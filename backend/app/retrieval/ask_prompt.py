@@ -103,7 +103,8 @@ def _escape(text: str) -> str:
 
 
 def _attr(value: str) -> str:
-    return value.replace('"', "'").replace("<", "‹").replace(">", "›")
+    """Attribute values come from FHIR (doc_id, title): one line, no quotes or angle brackets."""
+    return " ".join(value.split()).replace('"', "'").replace("<", "‹").replace(">", "›")
 
 
 def prompt_chunks(chunks: Sequence[RetrievedChunk]) -> list[RetrievedChunk]:

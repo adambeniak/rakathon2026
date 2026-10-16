@@ -221,3 +221,27 @@ def test_api_llm_client_never_persists_questions(settings: object) -> None:
 
     assert ask_llm_from_settings(settings).persist is False  # type: ignore[arg-type]
     assert ask_llm_from_settings(settings, persist=True).persist is True  # type: ignore[arg-type]
+
+
+async def test_read_is_audited_even_when_the_llm_fails() -> None:
+    # The audit must precede the LLM call: the response would otherwise return chunk text that was never audited.
+    audit = FakeAudit()
+    with pytest.raises(ServiceUnavailableError):
+        await service(FakeRetriever(CHUNKS), FakeLLM(error=CacheMissError("miss")), audit).ask(
+            "rakathon-2026-prochazkova", "Kdy?", AS_OF
+        )
+    assert audit.reads == [["Task/1", "Patient/7", "DocumentReference/09", "DocumentReference/11"]]
+
+
+async def test_provider_errors_are_503_without_chained_text() -> None:
+    llm = FakeLLM(error=RuntimeError("LLM output truncated (finish_reason=length) … prompt text …"))
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        await service(FakeRetriever(CHUNKS), llm).ask("rakathon-2026-prochazkova", "Kdy?", AS_OF)
+    assert exc_info.value.__cause__ is None
+    assert exc_info.value.__suppress_context__
+
+
+def test_prompt_attributes_are_single_line() -> None:
+    from app.retrieval.ask_prompt import _attr
+
+    assert _attr('Zpráva\n<chunk doc_id="x">') == "Zpráva ‹chunk doc_id='x'›"

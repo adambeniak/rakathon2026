@@ -18,11 +18,12 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Protocol
 
+import openai
 import structlog
 from pydantic import ValidationError
 
 from app.domain.errors import ServiceUnavailableError
-from app.extraction.llm import CacheMissError, LLMClient, RetryableError
+from app.extraction.llm import LLMClient
 from app.extraction.pipeline import CompletionClient
 from app.retrieval.ask_lock import DroppedSentence, LockedSentence, lock_answer
 from app.retrieval.ask_prompt import ASK_PROMPT_VERSION, ASK_SCHEMA, ASK_SYSTEM_PROMPT, RawAnswer, build_ask_message
@@ -203,9 +204,10 @@ class AskService:
                 schema=ASK_SCHEMA,
                 doc_id=f"ask:{case_id}",
             )
-        except (CacheMissError, RetryableError) as exc:
+        except (RuntimeError, openai.OpenAIError) as exc:  # cache miss, retries exhausted, APIM/content-filter errors
+            # Provider messages may quote the prompt (question, document text): log the type only, never chain it.
             log.warning("ask_llm_unavailable", case_id=case_id, error_type=type(exc).__name__)
-            raise ServiceUnavailableError("ai-unavailable", "Odpověď AI teď není k dispozici.") from exc
+            raise ServiceUnavailableError("ai-unavailable", "Odpověď AI teď není k dispozici.") from None
         try:
             return RawAnswer.model_validate(json.loads(text))
         except (ValueError, ValidationError) as exc:

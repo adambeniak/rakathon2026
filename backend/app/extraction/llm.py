@@ -148,7 +148,13 @@ class LLMClient:
                     raise
                 delay = e.retry_after if e.retry_after is not None else 2.0 * 2**attempt
                 delay += random.uniform(0, 0.5)  # noqa: S311 - jitter, not cryptography
-                log.warning("llm_retry", doc_id=doc_id, attempt=attempt + 1, delay_s=round(delay, 1), error=str(e))
+                log.warning(
+                    "llm_retry",
+                    doc_id=doc_id,
+                    attempt=attempt + 1,
+                    delay_s=round(delay, 1),
+                    error_type=type(e).__name__,
+                )
                 attempt += 1
                 await self._sleep(delay)
 

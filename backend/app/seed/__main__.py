@@ -52,17 +52,18 @@ async def run(args: argparse.Namespace) -> int:
             repo = FhirRepository(client, SEED_ACTOR, tag_code=DEMO_TAG_CODE)
             print(f"FHIR server: {httpx.URL(settings.fhir_base_url).host} · scenario: {args.scenario}")
             if args.reset:
-                # Ids only (no content is read): the chunks of these documents are deleted with them.
+                # Ids only (all pages; no content is read). Index rows go first: an interrupted reset must not leave
+                # document text in Stafeta.DocChunk without its DocumentReference.
                 documents = await repo.search(
                     "DocumentReference", {"_tag": f"{CS_TAG}|{DEMO_TAG_CODE}", "_count": "100"}
                 )
-                deleted = await repo.delete_by_tag(RESET_ORDER, DEMO_TAG_CODE)
-                summary = ", ".join(f"{t} {n}" for t, n in deleted.items() if n)
-                print(f"reset: deleted {summary or 'nothing'}")
                 cleaned = await asyncio.to_thread(
                     store.delete_documents, [f"DocumentReference/{d['id']}" for d in documents]
                 )
                 print(f"reset: removed vector-index rows of {cleaned} documents")
+                deleted = await repo.delete_by_tag(RESET_ORDER, DEMO_TAG_CODE)
+                summary = ", ".join(f"{t} {n}" for t, n in deleted.items() if n)
+                print(f"reset: deleted {summary or 'nothing'}")
             indexer = None if args.no_index else DocumentIndexer(store, embedder_from_settings(settings), repo)
             report = await seed(repo, args.scenario, data_dir=args.data_dir, indexer=indexer)
     finally:

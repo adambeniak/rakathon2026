@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from datetime import date, datetime
 
@@ -195,3 +196,14 @@ def test_openapi_is_stable_and_has_operation_ids(settings: Settings) -> None:
     assert '"operationId": "cases-list_cases"' in first
     assert '"operationId": "cases-get_case"' in first
     assert '"operationId": "health-health"' in first
+
+
+def test_access_log_has_full_route_template_and_no_ids(settings: Settings, capsys: pytest.CaptureFixture[str]) -> None:
+    app = create_app(settings.model_copy(update={"log_level": "INFO"}))
+    app.dependency_overrides[get_case_reader] = lambda: FakeReader()
+    with TestClient(app) as test_client:
+        test_client.get("/api/cases/rakathon-2026-prochazkova")
+
+    lines = [json.loads(line) for line in capsys.readouterr().out.splitlines() if '"http_request"' in line]
+    assert lines[-1]["route"] == "/api/cases/{case_id}"
+    assert "rakathon-2026-prochazkova" not in json.dumps(lines[-1])

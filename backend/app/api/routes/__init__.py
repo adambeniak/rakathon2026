@@ -10,6 +10,8 @@ import pkgutil
 
 from fastapi import APIRouter
 
+API_PREFIX = "/api"
+
 
 def discover_routers() -> list[APIRouter]:
     routers: list[APIRouter] = []

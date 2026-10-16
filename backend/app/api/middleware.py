@@ -16,6 +16,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.api.errors import problem_response
+from app.api.routes import API_PREFIX
 
 log = structlog.get_logger("app.http")
 
@@ -69,11 +70,13 @@ class RequestContextMiddleware:
             )
             await response(scope, receive, send_with_request_id)
         finally:
+            # Included routers keep paths relative to their mount prefix: add it back for API routes.
             route = scope.get("route")
+            prefix = API_PREFIX if str(scope.get("path", "")).startswith(f"{API_PREFIX}/") else ""
             log.info(
                 "http_request",
                 method=scope.get("method"),
-                route=getattr(route, "path", "<unmatched>"),
+                route=f"{prefix}{route.path}" if route is not None else "<unmatched>",
                 status=status,
                 duration_ms=round((time.perf_counter() - started) * 1000, 1),
             )

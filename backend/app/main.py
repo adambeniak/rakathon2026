@@ -17,7 +17,7 @@ from fastapi.routing import APIRoute
 from app import __version__
 from app.api.errors import register_error_handlers
 from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
-from app.api.routes import discover_routers
+from app.api.routes import API_PREFIX, discover_routers
 from app.iris.db import IrisPool
 from app.logging_config import configure_logging
 from app.settings import Settings, get_settings
@@ -71,5 +71,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_middleware(RequestContextMiddleware)
     for router in discover_routers():
-        app.include_router(router, prefix="/api")
+        app.include_router(router, prefix=API_PREFIX)
     return app

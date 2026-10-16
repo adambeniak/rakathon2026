@@ -73,6 +73,27 @@ case_postponed` → `409 problem+json` (`https://stafeta.example/problems/confli
 | `fail` | accepted, in_progress | owner, coordinator | reason | `failed`; reason in audit; notify coordinator |
 | `cancel` | requested, accepted, in_progress | coordinator | reason | `cancelled`; reason in audit |
 
+**Roles on pathway steps (F2-4).** In the pancreas pathway the steps done at another workplace (CT, odběry + TM,
+histologie) have owner role `external_workplace`; EUS-FNB, algeziologie, psychoonkologie and the MDT have
+`koc_physician`. The coordinator orders and confirms every step (`order_confirmed`, `accept`). External workplaces do
+not use Štafeta in the PoC, so for a task whose owner role is `external_workplace` the **coordinator may also record
+`start`, `performed` and `result_delivered` on their behalf**; the transition result is flagged `on_behalf`, the audit
+payload carries `actor_role=coordinator` and `on_behalf_of_role=external_workplace`, and the stored AuditEvent names the
+workplace. For tasks owned by a physician the coordinator may not do this (`forbidden_role`). Over HTTP the API verbs
+chain machine events: `confirm` = `order_confirmed` + `accept`, `perform` = `start` + `performed`,
+`deliver_result` = `result_delivered`. A refused transition answers 409 problem+json with the `code`
+(`forbidden_role` too, like the case transitions); launching and creating tasks are coordinator-only (403).
+
+**Board:** lane = role of the concrete owner, else the step's owner role (`koc_staff` sits in the physician lane). The
+baton holder is the owner of the open task with the earliest `due` among the steps the MDT readiness waits for
+(`required_for_mdt`: the MDT step and everything it depends on — dependency ordering, not a clinical priority); steps
+still waiting for unfinished prerequisites are skipped while others can start. Without open such steps the other open
+pathway steps, then ad-hoc tasks, are considered. `reason` says why the baton sits where it does: `action` (the owner
+acts), `awaiting_confirmation` (status `requested` / `objednano`: nothing is ordered yet, so the **coordinator** holds the
+baton until place and date are confirmed) or `dependency_failed` (a prerequisite failed or was cancelled: the coordinator
+decides). `objednano` therefore means "planned from the template, not yet ordered". Progress the coordinator recorded for
+an external workplace is visible on the task (`recorded_on_behalf_by`, the stated source in `note`).
+
 **Overdue / escalation:** deadline = earlier of `due` and `sla_due`. Once the deadline *day* is over (Prague), an open
 task yields one `escalation` event to the coordinator (`escalated_at` makes it fire once). Histology in the demo:
 `due` = 19. 10. (planned result), `sla_due` = 15. 10. (3 working days from 12. 10.) → escalation on Fri 16. 10.

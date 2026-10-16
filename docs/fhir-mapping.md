@@ -16,8 +16,9 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | Source document (`domain.document.SourceDocument`) | `DocumentReference` | identifier `source-document|<file stem>`, status current, docStatus final, type LOINC, subject, **date = received**, author → `PractitionerRole`, custodian → `Organization`, description = Czech title, context.encounter → case `EpisodeOfCare`, content.attachment: contentType, **base64 data**, size, hash (SHA-1), title = file name, **creation = authored** | F1 `mappers/document.py` |
 | Audit | `AuditEvent` | type `rest`, subtype restful-interaction (create/read/search-type/update/delete/transaction), action C/R/U/D/E, recorded (UTC), agent (workflow role, who = identifier `user|<id>` + display, requestor), source.observer display "Štafeta backend", entity.what = references | F1 `audit.py` |
 | Referral (žádost PL) | `ServiceRequest` | identifier `service-request|<case id>`, intent order, priority urgent, requester GP, performer KOC, reasonCode ICD-10 (code + text as written, suspected), supportingInfo → letter DocumentReference, note = GP's note; the case Task points to it with `basedOn` | F2-1 `mappers/referral.py` |
-| Step (`domain.task.Task`) | `Task` partOf case Task | owner, `restriction.period.end` = due, `businessStatus` (`task-business-status`), location, dependencies | F2-4 |
-| Pathway template | `PlanDefinition` → `CarePlan` | "Karcinom pankreatu – diagnostika", relatedAction before/after | F1-4 / F2-4 |
+| Step / ad-hoc task (`domain.task.Task`) | `Task` partOf case Task | identifier `case-step|<task id>`, groupIdentifier = case id, status (`in_progress` → `in-progress`), intent order, code `task-code|<step code>` (`ad-hoc` for single tasks), description = Czech title, `location` = workplace (display only), `businessStatus` (`task-business-status`), performerType = effective owner role, owner = Reference with identifier + display only (no PractitionerRole lookup in the PoC), `restriction.period.end` = due, `executionPeriod.start` = confirmed date/time (deviation, see notes), `output` = result document (identifier `source-document|<doc id>`), `statusReason` (reason of failed / cancelled), note (e.g. the source when the coordinator recorded progress for a workplace), extensions `depends-on` (repeats, business ids), `sla-due`, `escalated-at`, `ad-hoc`, `demo-assumption`, `recorded-on-behalf-by` | F2-4 `mappers/task.py` |
+| Pathway template | `PlanDefinition` | url `…/PlanDefinition/pancreas-dx` (conditional create by `url`), actions with `relatedAction` `after-end`; extensions `due-rule`, `sla-rule`, `place`, `owner-role`, `mdt-required-items`; all offsets labelled DEMO ASSUMPTION | F1-4 `mappers/plan_definition.py`, seeded by `make seed` |
+| Launched pathway | `CarePlan` + `ServiceRequest` per step + `Provenance` | CarePlan: identifier `careplan|<case id>.<plan key>`, instantiatesCanonical = PlanDefinition url, status active, intent plan, subject, **author = indicating KOC physician (PractitionerRole)**, created, period.start, activity.reference → step Tasks. ServiceRequest (one per step): identifier `case-step-order|<task id>`, status active, intent order, code `pathway-action|<step code>`, subject, authoredOn, **requester = indicating physician**, extension `demo-assumption`; the step Task points to it with `Task.focus`. Provenance: target = CarePlan + ServiceRequests, activity CREATE, agent = coordinator (`author`) with **`onBehalfOf` = indicating physician**. All written in **one transaction** (`If-None-Exist` on the CarePlan, ServiceRequests and Tasks). The launch requires `indicated_by` (422 without it) | F2-4 `mappers/care_plan.py`, `service_request.py`, `provenance.py` |
 | Lab result | `Observation` (LOINC) in `DiagnosticReport` | effectiveDateTime = collection time | F2/F3-5 |
 | Diagnosis | `Condition` (mCODE PrimaryCancerCondition idea) | category encounter-diagnosis, code ICD-10 + text, verificationStatus provisional → confirmed (histology), morphology ICD-O-3 in the mCODE `histology-morphology-behavior` extension | F2-2 `mappers/handover.py` |
 | Comorbidity | `Condition` | category problem-list-item, code ICD-10 if stated + text, `note` = detail as written | F2-2 |
@@ -43,6 +44,9 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `https://stafeta.example/fhir/sid/coverage` | Coverage | `<insurer code>-<rč>` |
 | `https://stafeta.example/fhir/sid/case` | EpisodeOfCare | case id, e.g. `rakathon-2026-prochazkova` |
 | `https://stafeta.example/fhir/sid/case-task` | coordinating Task | case id |
+| `https://stafeta.example/fhir/sid/case-step` | step / ad-hoc Task | domain task id, e.g. `rakathon-2026-prochazkova.ct`, `…adhoc-1a2b3c4d` |
+| `https://stafeta.example/fhir/sid/case-step-order` | ServiceRequest of a pathway step | domain task id |
+| `https://stafeta.example/fhir/sid/careplan` | CarePlan | `<case id>.<plan key>` (plan key = last segment of the PlanDefinition url) |
 | `https://stafeta.example/fhir/sid/source-document` | DocumentReference | file stem (= `doc_id` in evidence) |
 | `https://stafeta.example/fhir/sid/user` | AuditEvent agent | actor id (`system`, `seed`; people use `practitioner-role`) |
 | `https://stafeta.example/fhir/sid/service-request` | ServiceRequest | case id |
@@ -59,7 +63,8 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | Name | Codes |
 | --- | --- |
 | `case-state` | odeslano, triage, ceka_na_podklady, kompletni, pripraveno_mdt, zaver_mdt, zpetna_vazba_odeslana, uzavreno (see `contracts/case-states.md`) |
-| `task-code` | coordinate-case, request-report (F2-4 adds step codes) |
+| `task-code` | coordinate-case; step codes of the pancreas pathway: ct-thorax-abdomen, eus-fnb, labs-dx, histology, algesiology, psychooncology, mdt; `request-report` (report requests); `ad-hoc` (single tasks); `result-document` (Task.output type) |
+| `pathway-action` | codes of PlanDefinition actions (same values as the step codes). `PlanDefinition.action.participant.role` uses `workflow-role` and mirrors the `owner-role` extension; the mapper reads the extension |
 | `audit-type` | domain-event (business-level AuditEvent of a workflow event, payload = ids/states/roles in `entity.detail`) |
 | `audit-event-code` | machine event names: submit, accept, request_documents, docs_received, request_report, report_received, … |
 | `task-business-status` | objednano, potvrzeno, provedeno, vysledek_dorucen |
@@ -85,7 +90,36 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `previous-value-sha256` | Provenance (confirmation) | valueString, SHA-256 of the section value before the confirmation |
 | `tag` | stafeta-demo (all demo writes; wiped by `make demo-reset` except AuditEvents, which are never deleted), stafeta-test (integration tests, cleaned up by the tests) |
 
+## Our extensions (`https://stafeta.example/fhir/StructureDefinition/<name>`)
+| Name | On | Value |
+| --- | --- | --- |
+| `due-rule` | PlanDefinition.action | sub-extensions `anchor` (`start` \| `mdt` \| `action:<id>`), `days`, `workdays` |
+| `sla-rule` | PlanDefinition.action | same shape as `due-rule`; the promised turnaround (histology: EUS-FNB + 3 working days) |
+| `place` | PlanDefinition.action | workplace as text (on a Task it becomes `Task.location.display`) |
+| `owner-role` | PlanDefinition.action | `workflow-role` code of the party responsible for the step |
+| `mdt-required-items` | PlanDefinition | sub-extensions `item` (readiness items for the MDT) |
+| `depends-on` | Task | `valueString`: business id of a Task that must finish first (repeats) |
+| `sla-due` / `escalated-at` | Task | `valueDateTime`: promised deadline / when the overdue escalation fired (once) |
+| `ad-hoc` / `demo-assumption` | Task | `valueBoolean` |
+| `recorded-on-behalf-by` | Task | `valueReference` (identifier + display): the coordinator who recorded progress for the external workplace that owns the step |
+| `mdt-start` | coordinating Task | `valueDateTime`: planned MDT start (anchor of the pathway) |
+| `on-behalf-of` | AuditEvent.agent | `valueReference` (display only): the workplace the coordinator recorded a step for. R4 `AuditEvent.agent` has no `onBehalfOf` (Provenance does) |
+
 ## Modelling notes and deliberate deviations
+- **Deliberate deviations (F2-4).** `Task.executionPeriod.start` holds the *confirmed* date/time of a step that has not
+  happened yet (R4 means when it is carried out; an Appointment would be cleaner). `Task.owner` and `Task.location` are
+  display/identifier-only References (no PractitionerRole / Location resources in the PoC), so `Task?owner=` does not match.
+  `CarePlan` is linked to its case only by the identifier (`CarePlan.encounter` cannot point to an EpisodeOfCare), and the
+  step Tasks do not carry `basedOn` → CarePlan. `PlanDefinition` and existence checks (`care_plan_exists`) are read
+  without an AuditEvent: they hold no patient data. The ServiceRequest follows its Task: completed → `completed`, cancelled → `revoked` (Task, ServiceRequest and the AuditEvent in one transaction); a failed step keeps it `active`. Only pathway steps and ad-hoc tasks (identifier `case-step`) are read as steps; the other Tasks of a case (report requests) are ignored. Resources and the
+  PlanDefinition are validated offline against the R4B structure definitions; the launch Bundle, `If-Match` and the
+  lost-race response of a conditional create are covered only by mocks until `pytest -m iris` runs on `make up-local`.
+- **Pathway coordination (F2-4).** Steps are found through `Task.partOf` (the coordinating Task), never by `code`, so
+  `CaseReader.list_cases` (`code=coordinate-case`) is unaffected. Every read of tasks writes an `AuditEvent`
+  (`TaskStore`); every task update writes one `U` AuditEvent whose `outcomeDesc` carries the transition (ids and states
+  only; the free-text reason of a fail / cancel lives in `Task.statusReason`). Updates send `If-Match: W/"<versionId>"`; a concurrent change
+  answers 409/412 → `409 conflict`. External workplaces do not use Štafeta in the PoC: the coordinator records
+  `start`/`performed`/`result_delivered` for them and the audit agent carries the `on-behalf-of` extension.
 - **Profiles**: no `meta.profile` is claimed yet. The Patient matches `cz-patient-base` (CZ Core `cz-patient-core`
   requires a RID identifier 1..1, which the documents do not provide).
 - **`DocumentReference.date` = received time.** R4 defines it as "when this document reference was created"; we

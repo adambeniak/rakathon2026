@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     stafeta_demo_now: AwareDatetime | None = Field(
         None, description="Simulated 'now' for the demo, e.g. 2026-10-21T08:00:00+02:00."
     )
+    stafeta_watchdog_enabled: bool | None = Field(
+        None, description="SLA watchdog loop; unset = on in demo mode, off otherwise."
+    )
+    stafeta_watchdog_interval_s: float = Field(60.0, gt=0, description="Seconds between watchdog runs.")
     stafeta_llm_cache: bool = Field(True, description="1 = use cached LLM responses only (demo/CI).")
     handover_stale_vitals_days: int = Field(
         30, ge=1, description="DEMO RULE: weight older than this at as_of is reported as stale in the handover."
@@ -100,6 +104,10 @@ class Settings(BaseSettings):
         if "*" in self.cors_origins:
             raise ValueError("CORS_ORIGINS must list explicit origins outside local development")
         return self
+
+    @property
+    def watchdog_enabled(self) -> bool:
+        return self.stafeta_demo_mode if self.stafeta_watchdog_enabled is None else self.stafeta_watchdog_enabled
 
     def now(self) -> datetime:
         """Demo-aware current time in Europe/Prague (P4 replaces this with `app.domain.clock` in #2/#3)."""

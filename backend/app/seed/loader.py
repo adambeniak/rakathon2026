@@ -1,6 +1,8 @@
 """Seed scenarios. Every resource is created with `ensure` (search by identifier, then conditional create), so a
 second run writes nothing — no resources and no AuditEvents.
 
+Pathway templates (`iris/fhir/plandefinition-*.json`) are reference data: both scenarios load them, keyed by `url`.
+
 - `story` (default): directory, users, patient (+ daughter, coverage), the case in state `pripraveno_mdt`
   (snapshot as of the MDT start) and all 13 documents with their simulated received times.
 - `demo-start`: directory, users and the patient only; the GP creates the case live in demo step 1.
@@ -8,6 +10,7 @@ second run writes nothing — no resources and no AuditEvents.
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from enum import StrEnum
 from pathlib import Path
@@ -27,6 +30,7 @@ from app.seed import demo_case
 from app.settings import REPO_ROOT
 
 DEFAULT_DATA_DIR = REPO_ROOT / "data" / "raw" / "Pacient"
+PLAN_DEFINITION_DIR = REPO_ROOT / "iris" / "fhir"
 
 # Dependents first: used by `--reset` to delete everything carrying the demo tag. AuditEvents are never deleted.
 RESET_ORDER = (
@@ -61,6 +65,8 @@ class Scenario(StrEnum):
 class SeedRepository(Protocol):
     async def ensure(self, resource: Resource) -> EnsureResult: ...
 
+    async def ensure_by_url(self, resource: Resource) -> EnsureResult: ...
+
     async def read(self, resource_type: str, resource_id: str) -> Resource: ...
 
 
@@ -88,15 +94,23 @@ class SeedReport:
         return [f"{t:<18} created {self.created[t]:>3}   existing {self.existing[t]:>3}" for t in types]
 
 
+def _load_plan_definitions(plan_dir: Path) -> list[Resource]:
+    return [json.loads(f.read_text(encoding="utf-8")) for f in sorted(plan_dir.glob("plandefinition-*.json"))]
+
+
 async def seed(
     repo: SeedRepository,
     scenario: Scenario,
     *,
     data_dir: Path = DEFAULT_DATA_DIR,
     indexer: SeedIndexer | None = None,
+    plan_dir: Path = PLAN_DEFINITION_DIR,
 ) -> SeedReport:
     """With `indexer`, every document is also chunked and embedded into Stafeta.DocChunk (skipped if present)."""
     report = SeedReport()
+
+    for plan in _load_plan_definitions(plan_dir):
+        report.record(await repo.ensure_by_url(plan))
 
     async def ensure(resource: Resource) -> str:
         result = await repo.ensure(resource)
@@ -147,6 +161,7 @@ async def seed(
         baton_holder=mdt_chair.model_copy(update={"display": demo_case.MDT_BATON_DISPLAY}),
         next_deadline=demo_case.MDT_START,
         opened_at=demo_case.CASE_OPENED_AT,
+        mdt_start=demo_case.MDT_START,
     )
     episode_ref = await ensure(
         episode_of_care_to_fhir(

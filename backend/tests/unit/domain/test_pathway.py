@@ -26,7 +26,7 @@ def tasks(plan):
 
 def test_demo_story_dates(tasks):
     assert tasks["ct"].due.date() == date(2026, 10, 8)
-    assert tasks["eus_fnb"].due.date() == date(2026, 10, 12)
+    assert tasks["eus-fnb"].due.date() == date(2026, 10, 12)
     assert tasks["labs"].due.date() == date(2026, 10, 15)
     assert tasks["histology"].due.date() == date(2026, 10, 19)
     assert tasks["mdt"].due.date() == date(2026, 10, 21)
@@ -36,9 +36,17 @@ def test_demo_story_dates(tasks):
 
 def test_places_owners_and_labels(tasks):
     assert "KOC 1" in tasks["ct"].location
-    assert "KOC 2" in tasks["eus_fnb"].location
+    assert "KOC 2" in tasks["eus-fnb"].location
     assert tasks["mdt"].owner_role is Role.KOC_PHYSICIAN
-    assert tasks["ct"].owner_role is Role.COORDINATOR
+    assert {k: t.owner_role for k, t in tasks.items()} == {
+        "ct": Role.EXTERNAL_WORKPLACE,
+        "labs": Role.EXTERNAL_WORKPLACE,
+        "histology": Role.EXTERNAL_WORKPLACE,
+        "eus-fnb": Role.KOC_PHYSICIAN,
+        "algesiology": Role.KOC_PHYSICIAN,
+        "psychooncology": Role.KOC_PHYSICIAN,
+        "mdt": Role.KOC_PHYSICIAN,
+    }
     assert all(t.demo_assumption for t in tasks.values())
 
 
@@ -47,8 +55,8 @@ def test_dependencies_and_order(plan):
     pos = {t.id: i for i, t in enumerate(ordered)}
     assert all(pos[d] < pos[t.id] for t in ordered for d in t.depends_on)
     deps = {t.id.split(".")[1]: {d.split(".")[1] for d in t.depends_on} for t in ordered}
-    assert deps["eus_fnb"] == {"ct"}
-    assert deps["histology"] == {"eus_fnb"}
+    assert deps["eus-fnb"] == {"ct"}
+    assert deps["histology"] == {"eus-fnb"}
     assert deps["mdt"] == {"ct", "histology", "labs"}
     assert "mdt" not in {d for v in deps.values() for d in v}  # nothing waits for the MDT
 

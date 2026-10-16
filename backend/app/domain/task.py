@@ -50,4 +50,10 @@ class Task(DomainModel):
         None, description="Agreed deadline; may be earlier than `due`. Drives escalation."
     )
     escalated_at: AwareDatetime | None = Field(None, description="When the overdue escalation fired (fires once).")
-    demo_assumption: bool = Field(False, description="`due` comes from a demo template, not from clinical guidance.")
+    demo_assumption: bool = Field(
+        False, description="`due` and `sla_due` come from a demo template, not from clinical guidance."
+    )
+    recorded_on_behalf_by: PartyRef | None = Field(
+        None, description="Coordinator who recorded progress for the external workplace that owns the step."
+    )
+    ad_hoc: bool = Field(False, description="Single task created by the coordinator, not part of a pathway.")

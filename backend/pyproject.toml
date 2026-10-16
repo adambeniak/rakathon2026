@@ -72,5 +72,5 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra --strict-markers"
 markers = [
-    "iris: needs a live IRIS for Health (FHIR + SQL); run with `uv run --env-file ../.env pytest -m iris`",
+    "iris: needs a live IRIS for Health (FHIR + SQL); creates data, so run against `make up-local` only (skipped on a shared server)",
 ]

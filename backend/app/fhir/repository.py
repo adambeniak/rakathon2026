@@ -117,23 +117,58 @@ class FhirRepository:
         result = await self.create(resource, if_none_exist=f"identifier={system}|{value}")
         return EnsureResult(result.resource_type, result.id, created=result.created)
 
-    async def update(self, resource: Resource) -> Resource:
+    async def ensure_by_url(self, resource: Resource) -> EnsureResult:
+        """Idempotent create keyed by the canonical `url` (PlanDefinition and other definitional resources)."""
+        resource_type = str(resource["resourceType"])
+        url = str(resource["url"])
+        found = await self.client.search_all(resource_type, {"url": url})
+        if len(found) > 1:
+            raise FhirConflictError(f"{resource_type} url {url} is not unique ({len(found)} matches)")
+        if found:
+            return EnsureResult(resource_type, str(found[0]["id"]), created=False)
+        body = {k: v for k, v in resource.items() if k != "id"}  # the server assigns logical ids
+        result = await self.create(body, if_none_exist=f"url={url}")
+        return EnsureResult(result.resource_type, result.id, created=result.created)
+
+    async def update(
+        self,
+        resource: Resource,
+        *,
+        if_match: str | None = None,
+        description: str | None = None,
+        on_behalf_of: str | None = None,
+    ) -> Resource:
+        """PUT + AuditEvent. `description` (ids and states only, no PHI) and `on_behalf_of` ride on that one audit."""
         if "id" not in resource:
             raise ValueError("update() needs a resource with an id")
-        updated = await self.client.update(self._tagged(resource))
-        await self._audit("U", "update", [f"{resource['resourceType']}/{resource['id']}"])
+        updated = await self.client.update(self._tagged(resource), if_match=if_match)
+        await self._audit(
+            "U",
+            "update",
+            [f"{resource['resourceType']}/{resource['id']}"],
+            description=description,
+            on_behalf_of=on_behalf_of,
+        )
         return updated
 
     async def delete(self, resource_type: str, resource_id: str) -> None:
         await self.client.delete(resource_type, resource_id)
         await self._audit("D", "delete", [f"{resource_type}/{resource_id}"])
 
-    async def transaction(self, bundle: Resource, *, audit_in_bundle: bool = False) -> Resource:
+    async def transaction(
+        self,
+        bundle: Resource,
+        *,
+        audit_in_bundle: bool = False,
+        description: str | None = None,
+        on_behalf_of: str | None = None,
+    ) -> Resource:
         """Atomic multi-resource write. One AuditEvent lists every entry that was actually written.
 
         `audit_in_bundle=True`: the AuditEvent is an entry of the same transaction (data and audit commit or fail
         together). Its entities are the entries' `fullUrl`s (resolved by the server) or PUT URLs; every write entry
         gets a `fullUrl` for that. A conditional create that matches an existing resource is listed as well.
+        `description` (ids and states only) and `on_behalf_of` ride on that AuditEvent, in the bundle or separate.
         """
         for entry in bundle.get("entry", []):
             request = entry.get("request", {})
@@ -153,7 +188,13 @@ class FhirRepository:
                     entry.setdefault("fullUrl", f"urn:uuid:{uuid.uuid4()}")
                     entities.append(str(entry["fullUrl"]))
             event = build_audit_event(
-                action="E", subtype="transaction", actor=self.actor, entities=entities, recorded=self._clock()
+                action="E",
+                subtype="transaction",
+                actor=self.actor,
+                entities=entities,
+                recorded=self._clock(),
+                description=description,
+                on_behalf_of=on_behalf_of,
             )
             tagged["entry"].append(
                 {"resource": self._tagged(event), "request": {"method": "POST", "url": "AuditEvent"}}
@@ -162,7 +203,7 @@ class FhirRepository:
         response = await self.client.transaction(tagged)
         written = _written_references(tagged, response)
         if written:
-            await self._audit("E", "transaction", written)
+            await self._audit("E", "transaction", written, description=description, on_behalf_of=on_behalf_of)
         return response
 
     async def delete_by_tag(self, resource_types: Sequence[str], tag_code: str) -> dict[str, int]:
@@ -206,7 +247,13 @@ class FhirRepository:
         return tagged
 
     async def _audit(
-        self, action: AuditAction, subtype: AuditSubtype, entities: Sequence[str], *, description: str | None = None
+        self,
+        action: AuditAction,
+        subtype: AuditSubtype,
+        entities: Sequence[str],
+        *,
+        description: str | None = None,
+        on_behalf_of: str | None = None,
     ) -> None:
         event = build_audit_event(
             action=action,
@@ -215,6 +262,7 @@ class FhirRepository:
             entities=entities,
             recorded=self._clock(),
             description=description,
+            on_behalf_of=on_behalf_of,
         )
         try:
             await self.client.create(self._tagged(event))

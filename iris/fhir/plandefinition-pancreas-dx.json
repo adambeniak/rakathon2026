@@ -85,8 +85,8 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "coordinator"
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
+                "code": "external_workplace"
               }
             ]
           }
@@ -116,12 +116,12 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "coordinator"
+          "valueString": "external_workplace"
         }
       ]
     },
     {
-      "id": "eus_fnb",
+      "id": "eus-fnb",
       "title": "EUS-FNB (biopsie)",
       "description": "DEMO ASSUMPTION (není klinické doporučení): termín 4 kalendářní dny po CT.",
       "code": [
@@ -141,8 +141,8 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "coordinator"
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
+                "code": "koc_physician"
               }
             ]
           }
@@ -172,7 +172,7 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "coordinator"
+          "valueString": "koc_physician"
         }
       ],
       "relatedAction": [
@@ -203,8 +203,8 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "coordinator"
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
+                "code": "external_workplace"
               }
             ]
           }
@@ -216,7 +216,7 @@
           "extension": [
             {
               "url": "anchor",
-              "valueString": "action:eus_fnb"
+              "valueString": "action:eus-fnb"
             },
             {
               "url": "days",
@@ -234,12 +234,12 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "coordinator"
+          "valueString": "external_workplace"
         }
       ],
       "relatedAction": [
         {
-          "actionId": "eus_fnb",
+          "actionId": "eus-fnb",
           "relationship": "after-end"
         }
       ]
@@ -247,7 +247,7 @@
     {
       "id": "histology",
       "title": "Histologie",
-      "description": "DEMO ASSUMPTION (není klinické doporučení): plánovaný termín výsledku 7 kalendářních dnů po EUS-FNB; dohodnutý SLA slib laboratoře je 3 pracovní dny od odběru (sla-rule), eskalace následuje první den po jeho překročení.",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): plánovaný termín výsledku 7 kalendářních dnů po EUS-FNB; dohodnutá lhůta laboratoře (předpoklad dema) je 3 pracovní dny od odběru (sla-rule), eskalace následuje první den po jeho překročení.",
       "code": [
         {
           "coding": [
@@ -265,8 +265,8 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "coordinator"
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
+                "code": "external_workplace"
               }
             ]
           }
@@ -278,7 +278,7 @@
           "extension": [
             {
               "url": "anchor",
-              "valueString": "action:eus_fnb"
+              "valueString": "action:eus-fnb"
             },
             {
               "url": "days",
@@ -296,14 +296,14 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "coordinator"
+          "valueString": "external_workplace"
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/sla-rule",
           "extension": [
             {
               "url": "anchor",
-              "valueString": "action:eus_fnb"
+              "valueString": "action:eus-fnb"
             },
             {
               "url": "days",
@@ -318,7 +318,7 @@
       ],
       "relatedAction": [
         {
-          "actionId": "eus_fnb",
+          "actionId": "eus-fnb",
           "relationship": "after-end"
         }
       ]
@@ -344,8 +344,8 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "coordinator"
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
+                "code": "koc_physician"
               }
             ]
           }
@@ -375,7 +375,7 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "coordinator"
+          "valueString": "koc_physician"
         }
       ],
       "relatedAction": [
@@ -406,8 +406,8 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "coordinator"
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
+                "code": "koc_physician"
               }
             ]
           }
@@ -437,7 +437,7 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "coordinator"
+          "valueString": "koc_physician"
         }
       ],
       "relatedAction": [
@@ -450,7 +450,7 @@
     {
       "id": "mdt",
       "title": "MDT",
-      "description": "DEMO ASSUMPTION (není klinické doporučení): termín MDT je dán případem (parametr mdt_start), nikoli šablonou; vyžaduje CT, histologii a odběry.",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín MDT je dán případem (parametr mdt_start), nikoli šablonou; v demo šabloně jsou podmínkou připravenosti MDT: CT, histologie, odběry.",
       "code": [
         {
           "coding": [
@@ -468,7 +468,7 @@
           "role": {
             "coding": [
               {
-                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "system": "https://stafeta.example/fhir/CodeSystem/workflow-role",
                 "code": "koc_physician"
               }
             ]

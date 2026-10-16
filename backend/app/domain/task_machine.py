@@ -41,6 +41,7 @@ class TaskContext:
 class TaskResult:
     task: Task
     events: tuple[DomainEvent, ...]
+    on_behalf: bool = False  # the coordinator recorded the step for an external workplace
 
 
 Guard = Callable[[Task, TaskContext], str | None]
@@ -106,6 +107,10 @@ _OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORDINATOR})
 _OWNER_ONLY: frozenset[Role | _Owner] = frozenset({OWNER})
 _OWNER_SYSTEM: frozenset[Role | _Owner] = frozenset({OWNER, Role.SYSTEM})
 _COORD_ONLY: frozenset[Role | _Owner] = frozenset({Role.COORDINATOR})
+
+# External workplaces do not use Štafeta in the PoC: for steps they own, the coordinator records
+# these events on their behalf (the audit trail says so).
+ON_BEHALF_EVENTS = frozenset({"start", "performed", "result_delivered"})
 
 _RULES: tuple[_Rule, ...] = (
     _Rule(
@@ -194,7 +199,15 @@ def transition(
     rule = _BY_KEY.get((event, task.status))
     if rule is None:
         raise TransitionError("invalid_transition", f"event {event!r} not allowed in status {task.status.value!r}")
-    if actor not in rule.roles and not (OWNER in rule.roles and actor == _owner_role(task)):
+    owner_role = _owner_role(task)
+    allowed = actor in rule.roles or (OWNER in rule.roles and actor == owner_role)
+    on_behalf = (
+        not allowed
+        and event in ON_BEHALF_EVENTS
+        and actor is Role.COORDINATOR
+        and owner_role is Role.EXTERNAL_WORKPLACE
+    )
+    if not (allowed or on_behalf):
         raise TransitionError("forbidden_role", f"role {actor.value!r} may not {event!r}")
     problem = rule.guard(task, ctx) if rule.guard else None
     if problem:
@@ -212,11 +225,12 @@ def transition(
             "to": new.status.value,
             "business_status": _business(new).value,
             "actor_role": actor.value,
+            **({"on_behalf_of_role": Role.EXTERNAL_WORKPLACE.value} if on_behalf else {}),
             **({"reason": ctx.reason} if event in {"fail", "cancel"} else {}),
         },
     )
     notes = tuple(DomainEvent(EventKind.NOTIFICATION, tpl, at, {"task_id": task.id}, (r,)) for r, tpl in rule.notify)
-    return TaskResult(new, (audit, *notes))
+    return TaskResult(new, (audit, *notes), on_behalf=on_behalf)
 
 
 # --- overdue detection -----------------------------------------------------------------------
@@ -228,20 +242,36 @@ def effective_deadline(task: Task) -> date | None:
     return min(candidates).astimezone(clock.TZ).date() if candidates else None
 
 
-def check_overdue(task: Task, now: datetime | None = None) -> list[DomainEvent]:
-    """Escalation events for `task` at `now` (empty if not overdue or already escalated).
+@dataclass(frozen=True)
+class OverdueInfo:
+    deadline: date
+    basis: str  # "sla" | "due"
+    overdue_workdays: int
+
+
+def overdue_info(task: Task, now: datetime | None = None) -> OverdueInfo | None:
+    """Whether an open `task` is past its effective deadline at `now` (ignores `escalated_at`).
 
     A task is overdue once the deadline day is over (today > deadline), so a result due Thu
-    15. 10. escalates on Fri 16. 10.
+    15. 10. is overdue on Fri 16. 10.
     """
     now = now or clock.now()
-    if task.status not in OPEN_STATUSES or task.escalated_at is not None:
-        return []
+    if task.status not in OPEN_STATUSES:
+        return None
     deadline = effective_deadline(task)
     today = now.astimezone(clock.TZ).date()
     if deadline is None or today <= deadline:
-        return []
+        return None
     sla_first = task.sla_due is not None and (task.due is None or task.sla_due <= task.due)
+    return OverdueInfo(deadline, "sla" if sla_first else "due", clock.workdays_between(deadline, today))
+
+
+def check_overdue(task: Task, now: datetime | None = None) -> list[DomainEvent]:
+    """Escalation events for `task` at `now` (empty if not overdue or already escalated)."""
+    now = now or clock.now()
+    info = overdue_info(task, now)
+    if info is None or task.escalated_at is not None:
+        return []
     return [
         DomainEvent(
             EventKind.ESCALATION,
@@ -251,9 +281,9 @@ def check_overdue(task: Task, now: datetime | None = None) -> list[DomainEvent]:
                 "task_id": task.id,
                 "case_id": task.case_id,
                 "code": task.code,
-                "deadline": deadline.isoformat(),
-                "basis": "sla" if sla_first else "due",
-                "overdue_workdays": clock.workdays_between(deadline, today),
+                "deadline": info.deadline.isoformat(),
+                "basis": info.basis,
+                "overdue_workdays": info.overdue_workdays,
             },
             (Role.COORDINATOR,),
         )

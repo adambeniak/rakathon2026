@@ -82,3 +82,11 @@ describe('route smoke + axe', () => {
     expect(await screen.findByText('Případ nebyl nalezen')).toBeInTheDocument()
   })
 })
+
+describe('language', () => {
+  it('shows no English fixture text on the handover', async () => {
+    renderRoute(`${ALENA}/handover`, { today: '2026-10-21' })
+    await screen.findByRole('heading', { name: /Pacient$/ })
+    expect(document.body.textContent).not.toMatch(/\b(documented|must not|missing|inferred)\b/i)
+  })
+})

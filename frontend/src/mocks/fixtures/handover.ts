@@ -81,7 +81,7 @@ function rowsFor(key: string, f: Gf): Row[] {
     case '8_allergies':
       return [{ value: S(f.value) }]
     case '9_performance_status':
-      return [{ value: 'Neuvedeno', note: f.context }]
+      return [{ value: 'Neuvedeno', note: 'V dokumentaci je uvedeno pouze „Soběstačná“; ECOG/Karnofsky se nedovozuje.' }]
     case '10_weight_height': {
       return [
         { label: 'Výška', value: `${S(v.height_cm)} cm`, note: formatDate(S(v.height_date)) },

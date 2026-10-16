@@ -87,7 +87,7 @@ const OTHERS: CaseDetail[] = [
 
 export function allCases(today: string, s: MockStore): CaseDetail[] {
   const a = alena(today, s)
-  return [...(a ? [a] : []), ...s.extraCases, ...OTHERS]
+  return [...(a ? [a] : []), ...s.extraCases, ...OTHERS.filter((c) => c.referredAt <= today)]
 }
 
 export function caseById(id: string, today: string, s: MockStore): CaseDetail | undefined {

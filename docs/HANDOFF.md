@@ -13,3 +13,4 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: merge PR #5 → P2 moves extraction into backend/app, P3 runs `make contract` (gen:api), P4 starts #2/#3/#4 on app/domain.
   Risks: write+audit not atomic · API has no auth (#4), compose binds 127.0.0.1 · local IRIS fallback untested (F4) ·
   ACI restart = `make iris-bootstrap && make seed` · demo step 1 needs `make demo-reset` (directory + patient only).
+- 2026-10-16 · Claude (P3 frontend shell) · fe/shell · `frontend/` shell: design system, 7 routes, MSW fixtures from golden file, tests green · next: wire `src/lib/api/http.ts` to the generated client once `contracts/openapi.json` exists (`pnpm gen:api`), then drop temporary types in `src/lib/domain.ts` · risks: no contract yet, mock endpoint paths are guesses

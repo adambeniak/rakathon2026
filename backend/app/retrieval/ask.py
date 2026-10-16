@@ -25,6 +25,7 @@ from pydantic import ValidationError
 from app.domain.errors import ServiceUnavailableError
 from app.extraction.llm import LLMClient
 from app.extraction.pipeline import CompletionClient
+from app.iris.vector_store import VectorStoreUnavailableError
 from app.retrieval.ask_lock import DroppedSentence, LockedSentence, lock_answer
 from app.retrieval.ask_prompt import ASK_PROMPT_VERSION, ASK_SCHEMA, ASK_SYSTEM_PROMPT, RawAnswer, build_ask_message
 from app.retrieval.embeddings import EmbeddingError
@@ -146,8 +147,8 @@ class AskService:
             chunks = await self._retriever.search(
                 patient_ref=patient_ref, question=question, as_of=as_of, k=self._top_k
             )
-        except EmbeddingError as exc:
-            log.error("ask_embedding_failed", case_id=case_id, error_type=type(exc).__name__)
+        except (EmbeddingError, VectorStoreUnavailableError) as exc:
+            log.error("ask_search_failed", case_id=case_id, error_type=type(exc).__name__)
             raise ServiceUnavailableError("search-unavailable", "Vyhledávání v dokumentaci není dostupné.") from exc
         doc_refs = list(dict.fromkeys(c.hit.doc_ref for c in chunks))
         await self._auditor.audit_read([task_ref, patient_ref, *doc_refs])
@@ -157,13 +158,14 @@ class AskService:
         if chunks:
             answer = await self._complete(case_id, question, as_of, chunks)
             advice = advice or answer.question_type == "advice"
-        kept, dropped = lock_answer(answer.sentences, chunks) if answer and answer.answer_found else ([], [])
+        claimed = answer is not None and answer.answer_found
+        kept, dropped = lock_answer(answer.sentences, chunks) if answer and claimed else ([], [])
 
         if kept:
             status = AskStatus.ADVICE_DECLINED if advice else AskStatus.ANSWERED
             prefix = ADVICE_PREFIX if advice else None
             body = render(kept)
-        elif dropped:
+        elif claimed or dropped:  # the model claims an answer it could not back with a citation: never "není uvedeno"
             status = AskStatus.ADVICE_DECLINED if advice else AskStatus.NOT_VERIFIED
             prefix = ADVICE_NOTHING_PREFIX if advice else None
             body = UNVERIFIED_TEXT
@@ -204,6 +206,9 @@ class AskService:
                 schema=ASK_SCHEMA,
                 doc_id=f"ask:{case_id}",
             )
+        except ValueError as exc:  # live mode: the client parses the JSON before returning it (malformed / empty)
+            log.error("ask_llm_invalid_response", case_id=case_id, error_type=type(exc).__name__)
+            raise ServiceUnavailableError("ai-invalid", "Odpověď AI nemá očekávaný tvar.") from None
         except (RuntimeError, openai.OpenAIError) as exc:  # cache miss, retries exhausted, APIM/content-filter errors
             # Provider messages may quote the prompt (question, document text): log the type only, never chain it.
             log.warning("ask_llm_unavailable", case_id=case_id, error_type=type(exc).__name__)

@@ -158,3 +158,19 @@ async def test_background_indexing_never_raises(store: FakeStore, embedder: Fake
     repo = FakeCaseRepository([])
     await index_case_in_background("unknown", FakeLocator(), repo, DocumentIndexer(store, embedder, repo))
     assert store.rows == {}
+
+
+async def test_existing_seed_document_is_indexed_from_what_iris_stores(
+    store: FakeStore, embedder: FakeEmbedder, auditor: FakeAuditor
+) -> None:
+    repo = InMemoryRepository()
+    await seed(repo, Scenario.STORY)  # documents exist in FHIR, nothing indexed yet
+    biopsy = next(r for r in repo.of_type("DocumentReference") if r["identifier"][0]["value"] == BIOPSY.doc_id)
+    stored_text = "Uložená verze: apixaban vysazen 48 h před výkonem."
+    biopsy["content"][0]["attachment"]["contentType"] = "text/plain"
+    biopsy["content"][0]["attachment"]["data"] = base64.b64encode(stored_text.encode()).decode()
+
+    report = await seed(repo, Scenario.STORY, indexer=DocumentIndexer(store, embedder, auditor))
+
+    assert report.chunks_indexed > 0
+    assert [r.text for r in store.rows[f"DocumentReference/{biopsy['id']}"]] == [stored_text]

@@ -8,8 +8,9 @@ A sentence reaches the user only if ALL hold:
 4. every other number in the sentence appears in its quotes;
 5. outside its quotes, the sentence has no recommendation, necessity, suitability, prognosis or hedging wording
    (AGENTS.md 3: the model must not advise or interpret);
-6. outside its quotes, the sentence is attributed to the documentation ("je uvedeno", "v protokolu", "uvádí", …)
-   or reports an inconsistency ("Nesoulad: …"), so it never reads as the application's own statement.
+6. outside its quotes, EVERY sentence of the text is attributed to the documentation ("je uvedeno", "v protokolu",
+   "uvádí", …) or reports an inconsistency ("Nesoulad: …"), so nothing reads as the application's own statement.
+Quotes match whole words only ("byl vysazen" never matches inside "nebyl vysazen").
 Rejected sentences are dropped; only the reason is logged, never the text.
 """
 
@@ -43,6 +44,9 @@ ATTRIBUTION = re.compile(
     r"|výsledcích|anamnéze|popisu|záznamu))(?!\w)",
     re.IGNORECASE,
 )
+# One model "sentence" may hold several sentences: each is checked on its own (an attributed first sentence must not
+# carry an uncited instruction in the second). Same boundary rule as the chunker (dates "12. 10. 2026" stay whole).
+_SENTENCE_END = re.compile(r"(?<=[.!?…])\s+(?=[A-ZÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ])")
 _DATE_LITERAL = re.compile(r"(?<!\d)\d{1,2}\.\s*\d{1,2}\.(?:\s*\d{4})?(?!\d)")
 _BRACKETED = re.compile(r"\s*\[[^\]]{1,120}\]")
 
@@ -66,6 +70,14 @@ class DroppedSentence:
     reason: str
 
 
+def _at_word_boundaries(key: str, idx: int, length: int) -> bool:
+    """A quote must not start or end inside a word: "byl vysazen" must not match inside "nebyl vysazen"."""
+    before = key[idx - 1] if idx > 0 else " "
+    after = key[idx + length] if idx + length < len(key) else " "
+    first, last = key[idx], key[idx + length - 1]
+    return not (first.isalnum() and before.isalnum()) and not (last.isalnum() and after.isalnum())
+
+
 def _locate(quote: str, chunks: Sequence[RetrievedChunk]) -> LockedCitation | None:
     q = match_key(normalize_text(quote)).key
     if len(q.replace(" ", "")) < MIN_QUOTE_CHARS or len(q) > MAX_QUOTE_CHARS:
@@ -73,9 +85,11 @@ def _locate(quote: str, chunks: Sequence[RetrievedChunk]) -> LockedCitation | No
     for chunk in chunks:
         keyed = match_key(chunk.hit.text)
         idx = keyed.key.find(q)
-        if idx >= 0:
-            start, end = keyed.span(idx, len(q))
-            return LockedCitation(chunk.hit.doc_id, chunk.hit.title, chunk.hit.text[start:end], chunk.hit.seq)
+        while idx >= 0:
+            if _at_word_boundaries(keyed.key, idx, len(q)):
+                start, end = keyed.span(idx, len(q))
+                return LockedCitation(chunk.hit.doc_id, chunk.hit.title, chunk.hit.text[start:end], chunk.hit.seq)
+            idx = keyed.key.find(q, idx + 1)
     return None
 
 
@@ -122,8 +136,9 @@ def lock_sentence(raw: RawSentence, chunks: Sequence[RetrievedChunk]) -> LockedS
     unquoted = _without_quotes(text, quotes)
     if RECOMMENDATION.search(unquoted):
         return DroppedSentence("recommendation_wording")
-    if not ATTRIBUTION.search(unquoted):
-        return DroppedSentence("unattributed")
+    for part in _SENTENCE_END.split(unquoted):
+        if any(ch.isalpha() for ch in part) and not ATTRIBUTION.search(part):
+            return DroppedSentence("unattributed")
     return LockedSentence(text, tuple(citations))
 
 

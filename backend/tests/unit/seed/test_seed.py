@@ -35,6 +35,9 @@ class InMemoryRepository:
         self.writes[resource_type] += 1
         return EnsureResult(resource_type, stored["id"], created=True)
 
+    async def read(self, resource_type: str, resource_id: str) -> Resource:
+        return next(r for (t, _, _), r in self.store.items() if t == resource_type and r["id"] == resource_id)
+
     def of_type(self, resource_type: str) -> list[Resource]:
         return [r for (t, _, _), r in self.store.items() if t == resource_type]
 

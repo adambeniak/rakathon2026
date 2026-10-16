@@ -15,10 +15,26 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 
-from app.iris.db import IrisPool
+from app.iris.db import IrisPool, PoolClosedError, PoolExhaustedError
 from app.settings import PRAGUE
 
 MAX_K = 50
+
+
+class VectorStoreUnavailableError(RuntimeError):
+    """IRIS SQL could not answer a search (driver error, connection failure, pool exhausted). No PHI in the message."""
+
+
+def _driver_errors() -> tuple[type[BaseException], ...]:
+    try:
+        import iris.dbapi
+    except ImportError:  # pragma: no cover - the driver is a dependency; unit tests use fakes either way
+        return ()
+    return (iris.dbapi.Error,)
+
+
+# Infrastructure failures only: programming errors (TypeError, ValueError, …) still surface as 500.
+DB_ERRORS: tuple[type[BaseException], ...] = (PoolExhaustedError, PoolClosedError, OSError, *_driver_errors())
 
 # Literal SQL only; every value is bound as a parameter.
 INSERT_SQL = (
@@ -69,12 +85,18 @@ def utc_naive(value: datetime) -> datetime:
     return value.astimezone(UTC).replace(tzinfo=None)
 
 
+def utc_timestamp(value: datetime) -> str:
+    """Aware datetime -> 'YYYY-MM-DD HH:MM:SS.ffffff' in UTC (full precision) for `ReceivedOn`."""
+    return utc_naive(value).isoformat(sep=" ", timespec="microseconds")
+
+
 def as_of_params(as_of: datetime) -> tuple[str, str]:
     """(authored-before date, received-until UTC timestamp) for `AuthoredOn < ? AND ReceivedOn <= ?`."""
     if as_of.tzinfo is None:
         raise ValueError("as_of must be timezone-aware")
     authored_before = as_of.astimezone(PRAGUE).date()
-    return authored_before.isoformat(), utc_naive(as_of).isoformat(sep=" ", timespec="seconds")
+    # Microseconds on both sides: truncation would let a receipt at 06:00:00.9 pass an as_of of 06:00:00.1.
+    return authored_before.isoformat(), utc_timestamp(as_of)
 
 
 def vector_literal(vector: Sequence[float], dim: int) -> str:
@@ -162,7 +184,7 @@ class VectorStore:
                 r.seq,
                 r.title,
                 r.authored_on.isoformat(),
-                utc_naive(r.received_at).isoformat(sep=" ", timespec="seconds"),
+                utc_timestamp(r.received_at),
                 r.text,
                 r.char_start,
                 r.char_end,
@@ -206,7 +228,10 @@ class VectorStore:
         return self._hits(text_search_sql(k), [patient_ref, model, authored_before, received_until, query, query])
 
     def _hits(self, sql: str, params: Sequence[Any]) -> list[ChunkHit]:
-        with self._pool.cursor() as cur:
-            cur.execute(sql, params)
-            # IRIS DataRow objects become unreadable once the cursor is closed: convert inside the block.
-            return [hit_from_row(tuple(r)) for r in cur.fetchall()]
+        try:
+            with self._pool.cursor() as cur:
+                cur.execute(sql, params)
+                # IRIS DataRow objects become unreadable once the cursor is closed: convert inside the block.
+                return [hit_from_row(tuple(r)) for r in cur.fetchall()]
+        except DB_ERRORS as exc:
+            raise VectorStoreUnavailableError(f"IRIS vector search failed: {type(exc).__name__}") from exc

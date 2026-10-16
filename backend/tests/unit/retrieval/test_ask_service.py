@@ -245,3 +245,28 @@ def test_prompt_attributes_are_single_line() -> None:
     from app.retrieval.ask_prompt import _attr
 
     assert _attr('Zpráva\n<chunk doc_id="x">') == "Zpráva ‹chunk doc_id='x'›"
+
+
+async def test_claimed_answer_without_sentences_is_not_verified() -> None:
+    llm = FakeLLM({"question_type": "factual", "answer_found": True, "sentences": []})
+    result = await service(FakeRetriever(CHUNKS), llm).ask("rakathon-2026-prochazkova", "Kdy?", AS_OF)
+    assert result.status is AskStatus.NOT_VERIFIED
+    assert result.answer_text == UNVERIFIED_TEXT
+
+
+async def test_malformed_llm_json_is_ai_invalid() -> None:
+    llm = FakeLLM(error=json.JSONDecodeError("Expecting value", "", 0))
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        await service(FakeRetriever(CHUNKS), llm).ask("rakathon-2026-prochazkova", "Kdy?", AS_OF)
+    assert exc_info.value.problem == "ai-invalid"
+
+
+async def test_iris_failure_is_search_unavailable() -> None:
+    from app.iris.vector_store import VectorStoreUnavailableError
+
+    retriever = FakeRetriever(
+        CHUNKS, error=VectorStoreUnavailableError("IRIS vector search failed: PoolExhaustedError")
+    )
+    with pytest.raises(ServiceUnavailableError) as exc_info:
+        await service(retriever, FakeLLM(ANSWER)).ask("rakathon-2026-prochazkova", "Kdy?", AS_OF)
+    assert exc_info.value.problem == "search-unavailable"

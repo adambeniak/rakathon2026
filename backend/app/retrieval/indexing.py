@@ -82,6 +82,10 @@ class DocumentIndexer:
     def model_id(self) -> str:
         return self._embedder.model_id
 
+    async def is_indexed(self, reference: str) -> bool:
+        """True if the document has chunks for the current embedding model."""
+        return bool(await asyncio.to_thread(self._store.chunk_count, reference, self.model_id))
+
     async def index(self, resource: Resource, *, force: bool = False) -> IndexResult:
         stored = stored_document_from_fhir(resource)
         doc_id = stored.source.doc_id

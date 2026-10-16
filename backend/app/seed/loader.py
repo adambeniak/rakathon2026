@@ -61,9 +61,13 @@ class Scenario(StrEnum):
 class SeedRepository(Protocol):
     async def ensure(self, resource: Resource) -> EnsureResult: ...
 
+    async def read(self, resource_type: str, resource_id: str) -> Resource: ...
+
 
 class SeedIndexer(Protocol):
     async def index(self, resource: Resource, *, force: bool = False) -> IndexResult: ...
+
+    async def is_indexed(self, reference: str) -> bool: ...
 
 
 class SeedReport:
@@ -183,7 +187,10 @@ async def seed(
         )
         result = await repo.ensure(resource)
         report.record(result)
-        if indexer is not None:
-            indexed = await indexer.index({**resource, "id": result.id})
-            report.chunks_indexed += 0 if indexed.skipped else indexed.chunks
+        if indexer is None or (not result.created and await indexer.is_indexed(result.reference)):
+            continue
+        # An existing document is indexed from what IRIS stores, never from the local file (which may differ).
+        stored = {**resource, "id": result.id} if result.created else await repo.read("DocumentReference", result.id)
+        indexed = await indexer.index(stored)
+        report.chunks_indexed += 0 if indexed.skipped else indexed.chunks
     return report

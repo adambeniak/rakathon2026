@@ -163,3 +163,23 @@ def test_lock_answer_splits_kept_and_dropped() -> None:
     )
     assert len(kept) == 1
     assert dropped == [DroppedSentence("no_citation")]
+
+
+def test_quote_never_matches_inside_a_negated_word() -> None:
+    chunks = [chunk(BIOPSY, "Apixaban nebyl vysazen.", date(2026, 10, 12))]
+    raw = sentence("V dokumentaci je uvedeno, že apixaban byl vysazen.", (BIOPSY, "byl vysazen"))
+    assert lock_sentence(raw, chunks) == DroppedSentence("quote_not_found")
+    whole = sentence("V dokumentaci je uvedeno, že apixaban nebyl vysazen.", (BIOPSY, "nebyl vysazen"))
+    assert isinstance(lock_sentence(whole, chunks), LockedSentence)
+
+
+def test_every_sentence_of_a_multi_sentence_text_must_be_attributed() -> None:
+    raw = sentence(
+        "V protokolu je uvedeno, že apixaban byl vysazen. Zahajte chemoterapii.", (BIOPSY, "Apixaban vysazen")
+    )
+    assert lock_sentence(raw, CHUNKS) == DroppedSentence("unattributed")
+    both = sentence(
+        "V protokolu je uvedeno, že apixaban byl vysazen. V protokolu je také uvedeno nalačno od půlnoci.",
+        (BIOPSY, "Apixaban vysazen"),
+    )
+    assert isinstance(lock_sentence(both, CHUNKS), LockedSentence)

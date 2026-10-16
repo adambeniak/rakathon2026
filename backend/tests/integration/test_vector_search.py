@@ -142,3 +142,41 @@ def test_full_text_leg_matches_czech_prefixes_and_titles(live_store: tuple[Vecto
     assert found("Kdy byla vysazena antikoagulace?") == {biopsy}  # "vysaz*" matches "vysazen"
     assert found("Jaký je výsledek histologie?") == {histo}  # only the title says "Histologie"
     assert found("Jaký je ECOG?") == set()
+
+
+def test_sub_second_receipt_boundary(live_store: tuple[VectorStore, str, str, list[str]]) -> None:
+    store, patient, model, created = live_store
+    early = f"DocumentReference/{patient[8:]}-early"
+    late = f"DocumentReference/{patient[8:]}-late"
+    created += [early, late]
+    base = AS_OF.replace(second=0, microsecond=0)
+    store.replace_document(
+        early,
+        rows(
+            early,
+            patient,
+            model,
+            authored=date(2026, 10, 20),
+            received=base + timedelta(microseconds=50_000),
+            n=1,
+            seed=6,
+        ),
+    )
+    store.replace_document(
+        late,
+        rows(
+            late,
+            patient,
+            model,
+            authored=date(2026, 10, 20),
+            received=base + timedelta(microseconds=900_000),
+            n=1,
+            seed=7,
+        ),
+    )
+
+    hits = store.search(
+        patient_ref=patient, vector=unit_vector(6), as_of=base + timedelta(microseconds=100_000), k=5, model=model
+    )
+
+    assert [h.doc_ref for h in hits] == [early]  # 06:00:00.9 is after an as_of of 06:00:00.1

@@ -32,4 +32,5 @@ Also install once per machine: `/plugin install frontend-design@claude-plugins-o
 - Czech for any UI copy you write; English for code and docs in `docs/` unless the doc is user-facing.
 
 ## Session end
-Append to `docs/HANDOFF.md`: date/time, branch, what is done, what is next, open risks. Keep it to 5 lines.
+Fill the PR template sections; every 'Not done' item becomes a GitHub issue
+(`gh issue create`, title `[P#] … (F3|F4)`); append 5 lines to docs/HANDOFF.md. Never keep notes elsewhere.

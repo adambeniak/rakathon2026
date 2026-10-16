@@ -176,7 +176,7 @@ def _iso_parts(value: str) -> tuple[int, int | None, int | None] | None:
     return y, int(mo) if mo else None, int(d) if d else None
 
 
-def _date_supported(iso: str, quote: str, doc: NormalizedDoc) -> str | None:
+def _date_supported(iso: str, quote: str, doc: NormalizedDoc, *, include_header_dates: bool = False) -> str | None:
     """None if supported, else the rejection reason."""
     parts = _iso_parts(iso)
     if parts is None:
@@ -184,7 +184,7 @@ def _date_supported(iso: str, quote: str, doc: NormalizedDoc) -> str | None:
     y, mo, d = parts
     year_hint = doc.authored_date.year if doc.authored_date else None
     in_quote = set(find_dates(quote, year_hint))
-    candidates = in_quote | doc.all_header_dates()
+    candidates = in_quote | (doc.all_header_dates() if include_header_dates else set())
     if d is not None and mo is not None:
         return None if date(y, mo, d) in candidates else "date_unsupported"
     if mo is not None:
@@ -257,7 +257,7 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         iso = to_iso(raw.clinical_date, year_hint)
         if iso is None:
             notes.append(f"clinical_date_dropped:unparseable:{raw.clinical_date[:20]}")
-        elif _date_supported(iso, source_quote, doc):
+        elif _date_supported(iso, source_quote, doc, include_header_dates=True):
             notes.append(f"clinical_date_dropped:unsupported:{iso}")
         else:
             clinical_date = _date_and_precision(iso)

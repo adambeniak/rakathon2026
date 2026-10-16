@@ -327,6 +327,16 @@ def test_czech_date_literal_in_date_value_converted(doc) -> None:  # type: ignor
     rejected(evidence_lock(g, doc("07_")), "date_unsupported")
 
 
+def test_date_value_cannot_use_document_header_date(doc) -> None:  # type: ignore[no-untyped-def]
+    f = raw(
+        type="patient_identity",
+        handover_field=1,
+        value={"kind": "date", "label": "Datum narození", "date": "2026-10-02"},
+        quote="Datum narození: 22. 7. 1963 (63 let)",
+    )
+    rejected(evidence_lock(f, doc("07_")), "date_unsupported")
+
+
 def test_number_repeated_across_fields_ok(doc) -> None:  # type: ignore[no-untyped-def]
     # run 1: {code: "211", text: "ZP 211"} was rejected because 211 was counted twice
     f = raw(type="insurer", handover_field=1, value={"kind": "coded", "code": "211", "system": "other",

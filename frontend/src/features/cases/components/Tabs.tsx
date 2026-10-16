@@ -6,7 +6,7 @@ import { StatusPill } from '@/components/StatusPill'
 import { Timeline } from '@/components/Timeline'
 import { cases as t } from '@/i18n/cs/cases'
 import { formatDate, formatDateTime } from '@/lib/date'
-import { useAudit, useDocuments, useMessages, useTasks, useTimeline } from '../api'
+import { useAudit, useDocuments, useMessages, useTimeline } from '../api'
 
 type Q<T> = { isPending: boolean; isError: boolean; data?: T; refetch: () => unknown }
 
@@ -49,40 +49,6 @@ export function DocumentsTab() {
                 <td className={td}>{d.place}</td>
                 <td className={td}>{formatDate(d.authored)}</td>
                 <td className={td}>{formatDate(d.received)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </Section>
-  )
-}
-
-export function TasksTab() {
-  const { id = '' } = useParams()
-  const titleOf = (all: { id: string; title: string }[], dep: string) => all.find((x) => x.id === dep)?.title ?? dep
-  return (
-    <Section title={t.tasks.title} q={useTasks(id)} empty={t.tasks.empty} hint={t.tasks.emptyHint}>
-      {(items) => (
-        <table className="w-full border-collapse overflow-hidden rounded-lg border border-hairline bg-card">
-          <thead className="border-b border-hairline">
-            <tr>
-              {Object.values(t.tasks.cols).map((c) => (
-                <th key={c} className={th}>
-                  {c}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((x) => (
-              <tr key={x.id} className="border-b border-hairline last:border-0">
-                <td className={`${td} font-medium`}>{x.title}</td>
-                <td className={td}>{x.owner}</td>
-                <td className={td}>{x.place}</td>
-                <td className={td}>{formatDate(x.due)}</td>
-                <td className={td}>{x.dependsOn.length ? x.dependsOn.map((d) => titleOf(items, d)).join(', ') : t.tasks.none}</td>
-                <td className={`${td} ${x.state === 'overdue' ? 'font-semibold text-missing' : ''}`}>{t.tasks.state[x.state]}</td>
               </tr>
             ))}
           </tbody>

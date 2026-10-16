@@ -20,6 +20,7 @@ export function Referral() {
   const [over, setOver] = useState(false)
   const [koc, setKoc] = useState('')
   const [consent, setConsent] = useState(false)
+  const [note, setNote] = useState('')
   const kocs = useKocDirectory()
   const parse = useParseReferral()
   const submit = useSubmitReferral()
@@ -36,10 +37,19 @@ export function Referral() {
     return (
       <section className="mx-auto max-w-xl space-y-3 rounded-lg border border-hairline bg-card p-8 text-center" role="status">
         <h1 className="text-3xl">{t.sentTitle}</h1>
-        <div className="flex justify-center">
-          <CaseStateBadge state="odeslano" />
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-sm text-muted">{t.stateLabel}:</span>
+          <CaseStateBadge state={submit.data.state} />
         </div>
         <p className="text-muted">{t.sentHint}</p>
+        <div className="text-left">
+          <h2 className="text-lg">{t.nextTitle}</h2>
+          <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">
+            {t.nextSteps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </div>
         <Button asChild variant="primary">
           <Link to="/gp">{t.sentLink}</Link>
         </Button>
@@ -149,11 +159,27 @@ export function Referral() {
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-1 h-4 w-4 accent-[var(--accent)]" />
           <span>{t.consent}</span>
         </label>
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">{t.noteLabel}</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            maxLength={500}
+            aria-describedby="note-hint"
+            className="max-w-xl rounded border border-hairline bg-card p-2"
+          />
+          <span id="note-hint" className="text-xs text-muted">
+            {t.noteHint}
+          </span>
+        </label>
         <div className="flex items-center gap-3">
           <Button
             variant="primary"
             disabled={!parsed || !koc || !consent || submit.isPending}
-            onClick={() => parsed && submit.mutate({ kocId: koc, consent, filename: parsed.filename })}
+            onClick={() =>
+              parsed && submit.mutate({ kocId: koc, consent, filename: parsed.filename, note: note.trim() || undefined })
+            }
           >
             {submit.isPending ? t.submitting : t.submit}
           </Button>

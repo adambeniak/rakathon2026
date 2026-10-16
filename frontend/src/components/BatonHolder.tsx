@@ -32,7 +32,7 @@ export function BatonHolder({ baton, size = 'sm' }: { baton: BatonHolderInfo | n
       <p className={cn('ml-[22px]', overdue && 'font-semibold text-missing')}>
         {baton.due ? (
           <>
-            {common.baton.deadline}: {formatDate(baton.due)} ({formatRemaining(days ?? 0)})
+            {common.baton.deadline} {formatDate(baton.due)} ({formatRemaining(days ?? 0)})
           </>
         ) : (
           common.baton.none

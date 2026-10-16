@@ -51,7 +51,7 @@ export const common = {
     uzavreno: 'Archivováno s auditní stopou',
   },
   unknown: '—',
-  baton: { nobody: 'nikdo', label: 'Na tahu', deadline: 'Termín', none: 'bez termínu', overdue: 'po termínu' },
+  baton: { nobody: 'nikdo', label: 'Na tahu', deadline: 'do', none: 'bez termínu', overdue: 'po termínu' },
   evidence: {
     source: 'Zdroj',
     authored: 'Vyhotoveno',
@@ -59,6 +59,9 @@ export const common = {
     quote: 'Citace z dokumentu',
     noQuote: 'Hodnota převzata z dokumentu; doslovná citace není v ukázkových datech uvedena.',
     close: 'Zavřít',
+    open: 'Otevřít dokument',
+    panelDescription: 'Zdrojový dokument a citace, ze které byla hodnota převzata.',
+    afterAsOf: 'Dokument je po termínu MDT a není součástí handoveru.',
   },
   loading: 'Načítání…',
   error: 'Data se nepodařilo načíst. Zkuste to prosím znovu.',

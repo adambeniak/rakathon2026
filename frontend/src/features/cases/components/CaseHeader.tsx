@@ -4,6 +4,7 @@ import { StatusPill } from '@/components/StatusPill'
 import { cases as t } from '@/i18n/cs/cases'
 import { formatDate } from '@/lib/date'
 import type { CaseDetail } from '@/lib/domain'
+import { CaseAction } from './CaseAction'
 
 const dash = '—'
 
@@ -31,11 +32,14 @@ function Clock({ label, value }: { label: string; value: number | null }) {
 export function CaseHeader({ c }: { c: CaseDetail }) {
   return (
     <section aria-label={c.patientName} className="rounded-lg border border-hairline bg-card p-5">
-      <div className="flex flex-wrap items-baseline gap-x-4">
-        <h1 className="text-3xl">{c.patientName}</h1>
-        <p className="text-sm text-muted">
-          {formatDate(c.birthDate)} · {t.header.birthNumber} {c.birthNumber ?? dash} · {c.diagnosis ?? dash}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-baseline gap-x-4">
+          <h1 className="text-3xl">{c.patientName}</h1>
+          <p className="text-sm text-muted">
+            {formatDate(c.birthDate)} · {t.header.birthNumber} {c.birthNumber ?? dash} · {c.diagnosis ?? dash}
+          </p>
+        </div>
+        <CaseAction c={c} />
       </div>
       <div className="mt-4 grid gap-6 md:grid-cols-[1.1fr_1.3fr_1fr]">
         <CaseStateBadge state={c.state} variant="stepper" />

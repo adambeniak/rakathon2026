@@ -8,6 +8,7 @@ calls (not atomic): if the audit fails, `AuditWriteError` is raised with the ref
 from __future__ import annotations
 
 import copy
+import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -123,8 +124,13 @@ class FhirRepository:
         await self.client.delete(resource_type, resource_id)
         await self._audit("D", "delete", [f"{resource_type}/{resource_id}"])
 
-    async def transaction(self, bundle: Resource) -> Resource:
-        """Atomic multi-resource write. One AuditEvent lists every entry that was actually written."""
+    async def transaction(self, bundle: Resource, *, audit_in_bundle: bool = False) -> Resource:
+        """Atomic multi-resource write. One AuditEvent lists every entry that was actually written.
+
+        `audit_in_bundle=True`: the AuditEvent is an entry of the same transaction (data and audit commit or fail
+        together). Its entities are the entries' `fullUrl`s (resolved by the server) or PUT URLs; every write entry
+        gets a `fullUrl` for that. A conditional create that matches an existing resource is listed as well.
+        """
         for entry in bundle.get("entry", []):
             request = entry.get("request", {})
             if request.get("method") == "DELETE" and "?" in str(request.get("url", "")):
@@ -133,6 +139,22 @@ class FhirRepository:
         for entry in tagged.get("entry", []):
             if "resource" in entry:
                 entry["resource"] = self._tagged(entry["resource"])
+        if audit_in_bundle:
+            entities = []
+            for entry in tagged.get("entry", []):
+                request = entry.get("request", {})
+                if request.get("method") == "PUT":
+                    entities.append(str(request["url"]).strip("/"))
+                elif request.get("method") == "POST":
+                    entry.setdefault("fullUrl", f"urn:uuid:{uuid.uuid4()}")
+                    entities.append(str(entry["fullUrl"]))
+            event = build_audit_event(
+                action="E", subtype="transaction", actor=self.actor, entities=entities, recorded=self._clock()
+            )
+            tagged["entry"].append(
+                {"resource": self._tagged(event), "request": {"method": "POST", "url": "AuditEvent"}}
+            )
+            return await self.client.transaction(tagged)
         response = await self.client.transaction(tagged)
         written = _written_references(tagged, response)
         if written:

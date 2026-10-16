@@ -25,6 +25,7 @@ from app.domain.patient import Patient
 from app.extraction.handover import fields as f
 from app.extraction.handover.epicrisis import fallback_epicrisis
 from app.extraction.handover.facts import Context, HandoverRules
+from app.extraction.handover.review import value_hash
 from app.extraction.lock import AsOfExclusion, as_of_exclusion
 
 # Finding kinds that contradict a stated value (-> complete_with_conflict); missing/stale kinds do not.
@@ -106,9 +107,16 @@ def assemble_handover(
         generated_at=generated_at,
         included_documents=sorted(included),
         excluded_documents=excluded,
-        fields=apply_findings(built, findings),
+        fields=with_value_hashes(apply_findings(built, findings)),
         findings=list(findings),
         rules=rules.describe(),
+    )
+
+
+def with_value_hashes(built: HandoverFields) -> HandoverFields:
+    updates = {name: getattr(built, name) for name in HandoverFields.model_fields}
+    return built.model_copy(
+        update={name: field.model_copy(update={"value_hash": value_hash(field)}) for name, field in updates.items()}
     )
 
 

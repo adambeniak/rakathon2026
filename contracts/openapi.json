@@ -693,6 +693,18 @@
               }
             ],
             "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -735,6 +747,49 @@
           "text"
         ],
         "title": "Comorbidity",
+        "type": "object"
+      },
+      "ConfirmSection": {
+        "additionalProperties": false,
+        "description": "Body of a section confirmation. Without fields: the assembled value is confirmed as is.",
+        "examples": [
+          {
+            "expected_value_hash": "<value_hash of the section as shown>"
+          },
+          {
+            "accept_missing": true,
+            "expected_value_hash": "<value_hash>"
+          }
+        ],
+        "properties": {
+          "accept_missing": {
+            "default": false,
+            "description": "Confirm that a missing section stays missing for the MDT.",
+            "title": "Accept Missing",
+            "type": "boolean"
+          },
+          "edited_value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Physician's value; must fit the section's value schema (contracts/handover.schema.json)."
+          },
+          "expected_value_hash": {
+            "description": "`value_hash` of the section as the physician saw it; 409 if the content changed since.",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Expected Value Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expected_value_hash"
+        ],
+        "title": "ConfirmSection",
         "type": "object"
       },
       "Contacts": {
@@ -853,6 +908,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -1031,6 +1098,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -1410,6 +1489,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -1890,6 +1981,18 @@
               }
             ],
             "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -2486,6 +2589,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -2557,6 +2672,7 @@
         "title": "ItemEvidence",
         "type": "object"
       },
+      "JsonValue": {},
       "KocEntry": {
         "examples": [
           {
@@ -2745,6 +2861,18 @@
             ],
             "description": "Key values incl. tumour markers (golden: key_values).",
             "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -2871,6 +2999,18 @@
               }
             ],
             "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -3009,6 +3149,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -3255,6 +3407,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -3726,6 +3890,18 @@
           "state": {
             "$ref": "#/components/schemas/ReviewState",
             "default": "draft"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`value_hash` of the section the physician confirmed; a later change reopens the review.",
+            "title": "Value Hash"
           }
         },
         "title": "SectionReview",
@@ -3854,6 +4030,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -3963,6 +4151,18 @@
               }
             ],
             "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -4052,6 +4252,18 @@
               }
             ],
             "title": "Value"
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -4298,6 +4510,18 @@
                 "type": "null"
               }
             ]
+          },
+          "value_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.",
+            "title": "Value Hash"
           }
         },
         "required": [
@@ -5135,7 +5359,7 @@
     },
     "/api/cases/{case_id}/handover": {
       "get": {
-        "description": "Deterministic assembly from evidence-locked facts; every value cites its source. Documents authored or received after `as_of` are listed in `excluded_documents`. AI parts are drafts ('Návrh AI').",
+        "description": "Deterministic assembly from evidence-locked facts; every value cites its source. Documents authored or received after `as_of` are listed in `excluded_documents`. AI parts are drafts ('Návrh AI'). If the handover was persisted, the stored review state and confirmed edits are applied.",
         "operationId": "handover-get_handover",
         "parameters": [
           {
@@ -5256,6 +5480,132 @@
           }
         },
         "summary": "Handover (15 fields) as of a timestamp",
+        "tags": [
+          "handover"
+        ]
+      },
+      "post": {
+        "description": "Idempotent per (case, as_of): an existing Composition and its review state are kept.",
+        "operationId": "handover-persist_handover",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+              "examples": [
+                "2026-10-21",
+                "2026-10-21T08:00:00+02:00"
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Persist the handover for review (Composition preliminary + Provenance)",
         "tags": [
           "handover"
         ]
@@ -5401,6 +5751,177 @@
           }
         },
         "summary": "Handover as copyable text (Markdown), one block per section",
+        "tags": [
+          "handover"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/handover/sections/{number}/confirm": {
+      "post": {
+        "description": "Recorded as Provenance (who, when, previous value hash) on the Composition; the Composition becomes final when all 15 sections are confirmed or accepted as missing. A missing section needs `accept_missing: true` or an `edited_value`.",
+        "operationId": "handover-confirm_section",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Section 1..15 (Handover_obsah order).",
+            "in": "path",
+            "name": "number",
+            "required": true,
+            "schema": {
+              "description": "Section 1..15 (Handover_obsah order).",
+              "maximum": 15,
+              "minimum": 1,
+              "title": "Number",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time.",
+              "examples": [
+                "2026-10-21",
+                "2026-10-21T08:00:00+02:00"
+              ],
+              "title": "As Of"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmSection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handover"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "A KOC physician confirms, edits or accepts as missing one handover section",
         "tags": [
           "handover"
         ]

@@ -116,6 +116,8 @@ def _fhir_status(exc: FhirError) -> tuple[int, str, str]:
         return 409, "conflict", "Záznam byl mezitím změněn, načtěte jej znovu."
     if isinstance(exc, FhirAuthError):
         return 502, "storage-auth", "Backend se nemůže přihlásit k úložišti FHIR."
+    if isinstance(exc, FhirConflictError):
+        return 409, "conflict", "Záznam byl mezitím změněn jiným uživatelem; načtěte jej znovu."
     if isinstance(exc, FhirNotFoundError):
         return 404, "not-found", "Záznam v úložišti FHIR neexistuje."
     if isinstance(exc, FhirValidationError):

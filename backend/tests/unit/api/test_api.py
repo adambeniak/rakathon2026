@@ -18,6 +18,7 @@ from app.api.deps import (
     get_iris_pool,
     get_llm_clients,
 )
+from app.domain import clock
 from app.domain.case import Case, CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.document import SourceDocument
@@ -25,7 +26,7 @@ from app.domain.errors import NotFoundError
 from app.domain.patient import Patient, Sex
 from app.export_openapi import stable_json
 from app.extraction.llm import CacheMissError
-from app.fhir.cases import CaseContentsView, CaseDetailView, CaseOverview
+from app.fhir.cases import CaseContentsView, CaseDetailView, CaseOverview, LoadedCase
 from app.fhir.directory import Directory
 from app.fhir.errors import FhirAuthError, FhirConflictError, FhirUnavailableError
 from app.main import create_app
@@ -59,8 +60,16 @@ DOCUMENT = SourceDocument(
 
 
 class FakeReader:
-    def __init__(self, error: Exception | None = None) -> None:
+    def __init__(self, error: Exception | None = None, mdt_start: datetime | None = None) -> None:
         self.error = error
+        self.case = CASE.model_copy(update={"mdt_start": mdt_start})
+
+    async def load(self, case_id: str) -> LoadedCase:
+        if self.error:
+            raise self.error
+        if case_id != CASE.id:
+            raise NotFoundError("case", case_id)
+        return LoadedCase(task={"id": "5"}, episode={}, case=self.case)
 
     async def list_cases(self) -> list[CaseOverview]:
         if self.error:
@@ -490,3 +499,37 @@ def test_storage_version_conflict_is_409(app: FastAPI, client: TestClient) -> No
 
     assert response.status_code == 409
     assert response.json()["type"] == "https://stafeta.example/problems/conflict"
+
+
+MDT_START = datetime(2026, 10, 21, 8, 0, tzinfo=PRAGUE)
+
+
+def test_handover_without_as_of_defaults_to_mdt_start(app: FastAPI, client: TestClient) -> None:
+    app.dependency_overrides[get_case_reader] = lambda: FakeReader(mdt_start=MDT_START)
+
+    with clock.frozen("2026-10-19T10:00:00"):
+        response = client.get("/api/cases/rakathon-2026-prochazkova/handover")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["as_of"] == "2026-10-21T08:00:00+02:00"
+    assert [d["doc_id"] for d in body["excluded_documents"]] == [LATE_DOCUMENT.doc_id]
+
+
+def test_confirmations_in_different_minutes_hit_the_same_composition(app: FastAPI, client: TestClient) -> None:
+    app.dependency_overrides[get_case_reader] = lambda: FakeReader(mdt_start=MDT_START)
+    url = "/api/cases/rakathon-2026-prochazkova/handover"
+
+    with clock.frozen("2026-10-19T10:00:00"):
+        first = client.post(url).json()
+    with clock.frozen("2026-10-19T10:07:00"):
+        second = client.post(url).json()
+
+    assert first["composition_id"] == second["composition_id"] == "rakathon-2026-prochazkova@20261021T0600Z"
+
+
+def test_handover_without_as_of_and_without_mdt_start_uses_the_demo_clock(client: TestClient) -> None:
+    with clock.frozen("2026-10-19T10:00:00"):
+        response = client.get("/api/cases/rakathon-2026-prochazkova/handover")
+
+    assert response.json()["as_of"] == "2026-10-19T10:00:00+02:00"

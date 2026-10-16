@@ -28,6 +28,7 @@ from app.fhir.mappers.task import task_from_fhir, task_to_fhir
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import (
     CS_TASK_CODE,
+    EXT_MDT_START,
     SID_CASE_STEP,
     SID_SOURCE_DOCUMENT,
     SID_STEP_ORDER,
@@ -140,8 +141,12 @@ class TaskStore:
         indication: PractitionerRoleRef,
         coordinator: PartyRef,
         recorded: datetime,
+        mdt_start: datetime | None = None,
     ) -> LaunchResult:
         """CarePlan, one ServiceRequest + Task per step and the Provenance in one transaction.
+
+        `mdt_start`, when given, is written to the coordinating Task (`EXT_MDT_START`, `If-Match` on the version read)
+        in the same transaction: the case then knows its MDT and the handover `as_of` default follows from it.
 
         `indication` is the KOC physician who indicated the pathway: CarePlan.author and ServiceRequest.requester.
         The Provenance says the coordinator created it all on that physician's behalf. `If-None-Exist` makes a lost
@@ -204,6 +209,8 @@ class TaskStore:
                     },
                 }
             )
+        if mdt_start is not None:
+            entries.append(await self._case_task_with_mdt_start(header.task_reference, mdt_start))
         provenance = pathway_launch_provenance(
             targets=[care_plan_url, *order_urls.values()],
             coordinator=coordinator,
@@ -215,8 +222,12 @@ class TaskStore:
             {"resourceType": "Bundle", "type": "transaction", "entry": entries},
             description=f"pathway launched for case {header.case.id}: {len(tasks)} steps",
         )
-        if any(str(e.get("response", {}).get("status", "")).startswith("200") for e in response.get("entry", [])):
-            # A conditional create matched: another launch won the race (the pre-check ran before it committed).
+        if any(
+            sent["request"]["method"] == "POST" and str(got.get("response", {}).get("status", "")).startswith("200")
+            for sent, got in zip(entries, response.get("entry", []), strict=False)
+        ):
+            # A conditional create matched (the PUT of the case Task answers 200 too): another launch won the race
+            # (the pre-check ran before it committed).
             raise ConflictError("this pathway has already been launched for the case")
         ids = [_entry_id(e) for e in response.get("entry", [])]
         if len(ids) != len(entries):
@@ -228,6 +239,14 @@ class TaskStore:
             task_ids={t.id: ids[1 + count + i] for i, t in enumerate(tasks)},
             provenance_id=ids[-1],
         )
+
+    async def _case_task_with_mdt_start(self, case_task_reference: str, mdt_start: datetime) -> Resource:
+        """PUT entry for the coordinating Task with `EXT_MDT_START` set (If-Match: a concurrent change fails it)."""
+        resource = await self._repo.read("Task", case_task_reference.removeprefix("Task/"))
+        extensions = [e for e in resource.get("extension", []) if e.get("url") != EXT_MDT_START]
+        extensions.append({"url": EXT_MDT_START, "valueDateTime": mdt_start.isoformat()})
+        resource["extension"] = extensions
+        return _put_entry("Task", resource, resource.get("meta", {}).get("versionId"))
 
     async def create(self, header: CaseHeader, task: Task) -> str:
         """Create a single (ad-hoc) task; returns its FHIR id."""

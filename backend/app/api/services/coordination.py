@@ -132,6 +132,7 @@ def alert_out(alert: board_logic.Alert) -> AlertOut:
 MAX_TASKS_PER_CASE = 200
 MSG_INDICATION_REQUIRED = "Sada vyšetření vyžaduje indikujícího lékaře KOC."
 MSG_INDICATION_UNKNOWN = "Zadaný indikující lékař neexistuje."
+MSG_MDT_START_REQUIRED = "Pro spuštění sady je nutné zadat termín MDT."
 MSG_INDICATION_NOT_PHYSICIAN = "Indikujícím lékařem může být jen lékař KOC (role koc_physician)."
 
 
@@ -201,7 +202,7 @@ class CoordinationService:
         plan = await self._store.get_plan_definition(request.plan_url)
         mdt_start = request.mdt_start or header.case.mdt_start
         if mdt_start is None:
-            raise InvalidInputError("case has no mdt_start; pass it in the request")
+            raise InvalidInputError(MSG_MDT_START_REQUIRED)
         if await self._store.care_plan_exists(case_id, plan):
             raise ConflictError("this pathway has already been launched for the case")
         try:
@@ -210,7 +211,14 @@ class CoordinationService:
         except ValueError as exc:
             raise InvalidInputError(f"pathway template cannot be used: {exc}") from exc
         await self._store.launch_pathway(
-            header, plan, tasks, request.start_date, indication=physician, coordinator=actor, recorded=self._now()
+            header,
+            plan,
+            tasks,
+            request.start_date,
+            indication=physician,
+            coordinator=actor,
+            recorded=self._now(),
+            mdt_start=mdt_start if mdt_start != header.case.mdt_start else None,  # persisted in the same transaction
         )
         tasks.sort(key=board_logic.due_order)
         board = board_logic.build_board(case_id, tasks, self._now())

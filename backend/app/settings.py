@@ -16,6 +16,8 @@ from zoneinfo import ZoneInfo
 from pydantic import AwareDatetime, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.domain import clock
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PRAGUE = ZoneInfo("Europe/Prague")
 DEV_ENVS = frozenset({"local", "ci", "test"})
@@ -110,10 +112,11 @@ class Settings(BaseSettings):
         return self.stafeta_demo_mode if self.stafeta_watchdog_enabled is None else self.stafeta_watchdog_enabled
 
     def now(self) -> datetime:
-        """Demo-aware current time in Europe/Prague (P4 replaces this with `app.domain.clock` in #2/#3)."""
-        if self.stafeta_demo_now is not None:
+        """Demo-aware current time in Europe/Prague. The one clock is `app.domain.clock`; `STAFETA_DEMO_NOW` is its
+        start value and `PUT /api/demo/clock` moves it."""
+        if self.stafeta_demo_now is not None and not clock.is_overridden():
             return self.stafeta_demo_now.astimezone(PRAGUE)
-        return datetime.now(PRAGUE)
+        return clock.now().astimezone(PRAGUE)
 
 
 @lru_cache(maxsize=1)

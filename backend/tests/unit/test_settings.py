@@ -30,3 +30,18 @@ def test_deployed_env_refuses_wildcard_cors() -> None:
 
 def test_trailing_slash_is_stripped() -> None:
     assert Settings(_env_file=None, fhir_base_url="http://iris:52773/fhir/r4/").fhir_base_url.endswith("/r4")
+
+
+def test_settings_now_follows_the_domain_clock() -> None:
+    from datetime import datetime
+
+    from app.domain import clock
+
+    settings = Settings(_env_file=None, stafeta_demo_now="2026-10-02T09:00:00+02:00")
+    assert settings.now() == datetime(2026, 10, 2, 9, 0, tzinfo=clock.TZ)
+    try:
+        clock.set_override(datetime.fromisoformat("2026-10-16T09:00:00"))
+        assert settings.now() == datetime(2026, 10, 16, 9, 0, tzinfo=clock.TZ)
+    finally:
+        clock.set_override(None)
+    assert settings.now() == datetime(2026, 10, 2, 9, 0, tzinfo=clock.TZ)

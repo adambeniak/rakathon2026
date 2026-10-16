@@ -34,6 +34,7 @@ from app.extraction.handover.review import (
 from app.extraction.handover.service import build_handover
 from app.extraction.llm import CACHE_MODEL
 from app.extraction.prompt import PROMPT_VERSION
+from app.fhir.cases import CaseReader
 from app.fhir.client import Resource
 from app.fhir.handover_store import HandoverStore
 from app.fhir.mappers.handover import stored_review
@@ -86,9 +87,14 @@ class ConfirmSection(BaseModel):
         return value
 
 
-def parse_as_of(value: str | None, settings: Settings) -> datetime:
+async def parse_as_of(value: str | None, settings: Settings, reader: CaseReader, case_id: str) -> datetime:
+    """Without `as_of` the cut-off is the case's `mdt_start` (set at pathway launch), else the demo-aware now.
+
+    A fixed default makes repeated reads and confirmations hit the same Composition (its business id carries as_of).
+    """
     if value is None:
-        return settings.now()
+        mdt_start = (await reader.load(case_id)).case.mdt_start
+        return mdt_start if mdt_start is not None else settings.now()
     try:
         if len(value) == 10:
             return datetime.combine(date.fromisoformat(value), MDT_START_TIME, tzinfo=PRAGUE)
@@ -143,7 +149,7 @@ async def _reviewed(
     case_id: str,
     as_of: str | None,
 ) -> Handover:
-    cut_off = parse_as_of(as_of, settings)
+    cut_off = await parse_as_of(as_of, settings, reader, case_id)
     handover = await _assemble(reader, settings, llm, case_id, cut_off)
     return _with_review(handover, await store.find(case_id, cut_off))
 
@@ -183,7 +189,7 @@ async def persist_handover(
     case_id: str = CASE_ID,
     as_of: str | None = AS_OF,
 ) -> Handover:
-    cut_off = parse_as_of(as_of, settings)
+    cut_off = await parse_as_of(as_of, settings, reader, case_id)
     handover = await _assemble(reader, settings, llm, case_id, cut_off)
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
     return _with_review(handover, composition)
@@ -211,7 +217,7 @@ async def confirm_section(
 ) -> Handover:
     _require_confirming_role(actor)
     key = section_key(number)
-    cut_off = parse_as_of(as_of, settings)
+    cut_off = await parse_as_of(as_of, settings, reader, case_id)
     handover = await _assemble(reader, settings, llm, case_id, cut_off)
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
     assembled = field_of(handover, key)

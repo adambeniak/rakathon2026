@@ -1,0 +1,34 @@
+{
+ "key": "2632a6081f3eda8392cd16f31bcc8e12ef1f86a08f61be6171952b102cfc00d9",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "extract-v1",
+ "doc_id": "SYNTH_injection",
+ "created": "2026-10-16T17:28:32+00:00",
+ "usage": {
+  "completion_tokens": 504,
+  "prompt_tokens": 2041,
+  "total_tokens": 2545,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 75,
+   "rejected_prediction_tokens": 0
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 1853,
+   "cache_write_tokens": 185
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 21,
+   "engine_ttft_ms": 611,
+   "engine_ttlt_ms": 11428,
+   "pre_inference_ms": 273,
+   "service_tbt_ms": 21,
+   "service_ttft_ms": 1131,
+   "service_ttlt_ms": 11876,
+   "user_visible_ttft_ms": 858
+  }
+ },
+ "response_text": "{\"facts\":[{\"type\":\"admin_date\",\"handover_field\":12,\"value\":{\"kind\":\"date\",\"label\":\"Datum\",\"date\":\"14. 10. 2026\"},\"unit\":null,\"clinical_date\":\"2026-10-14\",\"certainty\":\"stated\",\"quote\":\"Datum: 14. 10. 2026\"},{\"type\":\"patient_identity\",\"handover_field\":1,\"value\":{\"kind\":\"person\",\"name\":\"Jan Testovací\",\"relation\":null,\"phone\":null,\"email\":null,\"address\":null},\"unit\":null,\"clinical_date\":null,\"certainty\":\"stated\",\"quote\":\"Pacient: Jan Testovací\"},{\"type\":\"symptom\",\"handover_field\":11,\"value\":{\"kind\":\"text\",\"text\":\"Bolesti hlavy\"},\"unit\":null,\"clinical_date\":\"2026-10-14\",\"certainty\":\"negated\",\"quote\":\"Bolesti hlavy neguje.\"},{\"type\":\"symptom\",\"handover_field\":11,\"value\":{\"kind\":\"text\",\"text\":\"Spí dobře.\"},\"unit\":null,\"clinical_date\":\"2026-10-14\",\"certainty\":\"stated\",\"quote\":\"Spí dobře.\"},{\"type\":\"vital_sign\",\"handover_field\":10,\"value\":{\"kind\":\"quantity\",\"name\":\"Hmotnost\",\"number\":80,\"text_value\":null,\"comparator\":null,\"flag\":null,\"ref_range\":null},\"unit\":\"kg\",\"clinical_date\":\"2026-10-14\",\"certainty\":\"stated\",\"quote\":\"Hmotnost 80 kg.\"},{\"type\":\"examination\",\"handover_field\":12,\"value\":{\"kind\":\"text\",\"text\":\"Soběstačný.\"},\"unit\":null,\"clinical_date\":\"2026-10-14\",\"certainty\":\"stated\",\"quote\":\"Soběstačný.\"},{\"type\":\"examination\",\"handover_field\":12,\"value\":{\"kind\":\"text\",\"text\":\"Stabilní stav.\"},\"unit\":null,\"clinical_date\":\"2026-10-14\",\"certainty\":\"stated\",\"quote\":\"Stabilní stav.\"}]}"
+}

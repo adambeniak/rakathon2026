@@ -1,0 +1,34 @@
+{
+ "key": "c665d62ca1f09e24925dbc9dbcaf4caaeb2f67232490a5be2b66fabc72cee06e",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "extract-v1",
+ "doc_id": "11_Histologie_KOC2_2026-10-19",
+ "created": "2026-10-16T17:27:11+00:00",
+ "usage": {
+  "completion_tokens": 1744,
+  "prompt_tokens": 2291,
+  "total_tokens": 4035,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 77,
+   "rejected_prediction_tokens": 0
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 1853,
+   "cache_write_tokens": 435
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 17,
+   "engine_ttft_ms": 648,
+   "engine_ttlt_ms": 30643,
+   "pre_inference_ms": 86,
+   "service_tbt_ms": 17,
+   "service_ttft_ms": 863,
+   "service_ttlt_ms": 30845,
+   "user_visible_ttft_ms": 776
+  }
+ },
+ "response_text": "{\n  \"facts\": [\n    {\n      \"type\": \"patient_identity\",\n      \"handover_field\": 1,\n      \"value\": {\"kind\": \"person\", \"name\": \"Alena Procházková\", \"relation\": null, \"phone\": null, \"email\": null, \"address\": null},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"Pacientka: Alena Procházková, RČ 635722/1013, ZP 211\"\n    },\n    {\n      \"type\": \"patient_identity\",\n      \"handover_field\": 1,\n      \"value\": {\"kind\": \"text\", \"text\": \"RČ 635722/1013\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"RČ 635722/1013\"\n    },\n    {\n      \"type\": \"insurer\",\n      \"handover_field\": 1,\n      \"value\": {\"kind\": \"text\", \"text\": \"ZP 211\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"ZP 211\"\n    },\n    {\n      \"type\": \"examination\",\n      \"handover_field\": 12,\n      \"value\": {\"kind\": \"text\", \"text\": \"Číslo vyšetření: B-2026/15921\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"Číslo vyšetření: B-2026/15921\"\n    },\n    {\n      \"type\": \"procedure\",\n      \"handover_field\": 12,\n      \"value\": {\"kind\": \"text\", \"text\": \"ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)\"},\n      \"unit\": null,\n      \"clinical_date\": \"2026-10-20\",\n      \"certainty\": \"stated\",\n      \"quote\": \"Materiál: ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)\"\n    },\n    {\n      \"type\": \"admin_date\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"date\", \"label\": \"Datum vydání\", \"date\": \"19. 10. 2026\"},\n      \"unit\": null,\n      \"clinical_date\": \"2026-10-19\",\n      \"certainty\": \"stated\",\n      \"quote\": \"Datum vydání: 19. 10. 2026\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"4 válečky šedobílé tkáně délky 3–12 mm, zpracovány celé.\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"4 válečky šedobílé tkáně délky 3–12 mm, zpracovány celé.\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"Ve vzorcích infiltrace adenokarcinomem tvořeným nepravidelnými, místy splývajícími žláznatými strukturami s jadernou atypií středního až vysokého stupně a výraznou desmoplastickou stromální reakcí.\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"Ve vzorcích infiltrace adenokarcinomem tvořeným nepravidelnými, místy splývajícími žláznatými strukturami s jadernou atypií středního až vysokého stupně a výraznou desmoplastickou stromální reakcí.\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"perineurální invaze\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"Zastižena perineurální invaze.\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"CK7 pozitivní\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"CK7 pozitivní\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"CK19 pozitivní\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"CK19 pozitivní\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"CK20 negativní\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"CK20 negativní\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"CDX2 negativní\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"CDX2 negativní\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"SMAD4 exprese zachována\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"SMAD4 exprese zachována\"\n    },\n    {\n      \"type\": \"diagnosis\",\n      \"handover_field\": 3,\n      \"value\": {\"kind\": \"coded\", \"code\": \"8500/3\", \"system\": \"MKN-O\", \"text\": \"Duktální adenokarcinom pankreatu\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí. MKN-O 8500/3.\"\n    },\n    {\n      \"type\": \"histology\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"text\", \"text\": \"středně až málo diferencovaný (G2–G3)\"},\n      \"unit\": null,\n      \"clinical_date\": null,\n      \"certainty\": \"stated\",\n      \"quote\": \"středně až málo diferencovaný (G2–G3)\"\n    },\n    {\n      \"type\": \"admin_date\",\n      \"handover_field\": 14,\n      \"value\": {\"kind\": \"date\", \"label\": \"Datum\", \"date\": \"19. 10. 2026\"},\n      \"unit\": null,\n      \"clinical_date\": \"2026-10-19\",\n      \"certainty\": \"stated\",\n      \"quote\": \"Datum: 19. 10. 2026\"\n    }\n  ]\n}"
+}

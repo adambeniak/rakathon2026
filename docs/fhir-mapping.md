@@ -111,7 +111,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
   display/identifier-only References (no PractitionerRole / Location resources in the PoC), so `Task?owner=` does not match.
   `CarePlan` is linked to its case only by the identifier (`CarePlan.encounter` cannot point to an EpisodeOfCare), and the
   step Tasks do not carry `basedOn` → CarePlan. `PlanDefinition` and existence checks (`care_plan_exists`) are read
-  without an AuditEvent: they hold no patient data. The ServiceRequest follows its Task: completed → `completed`, cancelled → `revoked`; a failed step keeps it `active`. Resources and the
+  without an AuditEvent: they hold no patient data. The ServiceRequest follows its Task: completed → `completed`, cancelled → `revoked` (Task, ServiceRequest and the AuditEvent in one transaction); a failed step keeps it `active`. Only pathway steps and ad-hoc tasks (identifier `case-step`) are read as steps; the other Tasks of a case (report requests) are ignored. Resources and the
   PlanDefinition are validated offline against the R4B structure definitions; the launch Bundle, `If-Match` and the
   lost-race response of a conditional create are covered only by mocks until `pytest -m iris` runs on `make up-local`.
 - **Pathway coordination (F2-4).** Steps are found through `Task.partOf` (the coordinating Task), never by `code`, so

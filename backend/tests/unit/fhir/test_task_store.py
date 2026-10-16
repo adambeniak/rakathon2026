@@ -11,7 +11,7 @@ import pytest
 import respx
 
 from app.domain.common import PartyRef, Role
-from app.domain.errors import ConflictError, NotFoundError
+from app.domain.errors import ConflictError, InvalidInputError, NotFoundError
 from app.domain.pathway import instantiate
 from app.domain.task import Task, TaskStatus
 from app.fhir.cases import CaseHeader
@@ -19,7 +19,7 @@ from app.fhir.client import FhirClient
 from app.fhir.errors import FhirConflictError
 from app.fhir.mappers.task import task_to_fhir
 from app.fhir.repository import FhirRepository
-from app.fhir.systems import EXT_ON_BEHALF_OF, SID_CASE_STEP
+from app.fhir.systems import CS_TASK_CODE, EXT_ON_BEHALF_OF, SID_CASE_STEP, SID_REQUEST_TASK
 from app.fhir.tasks import PractitionerRoleRef, TaskStore
 from app.security.actor import SYSTEM_ACTOR
 from tests.conftest import FHIR_BASE
@@ -137,42 +137,114 @@ async def test_launch_posts_orders_tasks_care_plan_and_provenance_in_one_transac
 
 
 ORDER = {"resourceType": "ServiceRequest", "id": "300", "status": "active", "meta": {"versionId": "2"}}
+TX_OK = {"resourceType": "Bundle", "type": "transaction-response", "entry": []}
 
 
-async def _store_with_order(store: TaskStore, steps: list[Task]) -> tuple[Any, Any]:
+async def _store_with_order(store: TaskStore, steps: list[Task], *, tx_status: int = 200) -> tuple[Any, Any, Any]:
+    """A stored step with an order; returns (stored task, the transaction route, the single Task PUT route)."""
     resource = {**stored_resource(steps[0], "1"), "focus": {"reference": "ServiceRequest/300"}}
     respx.get(f"{FHIR_BASE}/Task").mock(return_value=httpx.Response(200, json=bundle(resource)))
     respx.get(f"{FHIR_BASE}/ServiceRequest/300").mock(return_value=httpx.Response(200, json=ORDER))
     respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
-    respx.put(f"{FHIR_BASE}/Task/1").mock(return_value=httpx.Response(200, json={}))
-    order_put = respx.put(f"{FHIR_BASE}/ServiceRequest/300").mock(return_value=httpx.Response(200, json={}))
-    return await store.get("c1.ct"), order_put
+    task_put = respx.put(f"{FHIR_BASE}/Task/1").mock(return_value=httpx.Response(200, json={}))
+    transaction = respx.post(FHIR_BASE).mock(
+        return_value=httpx.Response(tx_status, json=TX_OK if tx_status == 200 else {"resourceType": "OperationOutcome"})
+    )
+    return await store.get("c1.ct"), transaction, task_put
 
 
 @pytest.mark.parametrize(
     ("status", "order_status"), [(TaskStatus.COMPLETED, "completed"), (TaskStatus.CANCELLED, "revoked")]
 )
 @respx.mock
-async def test_finishing_a_task_closes_its_order(
+async def test_finishing_a_task_commits_it_with_its_order_and_the_audit_in_one_transaction(
     store: TaskStore, steps: list[Task], status: TaskStatus, order_status: str
 ) -> None:
-    stored, order_put = await _store_with_order(store, steps)
+    stored, transaction, task_put = await _store_with_order(store, steps)
 
-    await store.save(stored, stored.task.model_copy(update={"status": status}), description="x")
+    await store.save(
+        stored,
+        stored.task.model_copy(update={"status": status}),
+        description="task c1.ct: done",
+        on_behalf_of="KOC 1",
+    )
 
-    assert order_put.call_count == 1
-    assert body(order_put.calls.last)["status"] == order_status
-    assert order_put.calls.last.request.headers["If-Match"] == 'W/"2"'
+    assert task_put.call_count == 0  # no separate write that could succeed alone
+    assert transaction.call_count == 1
+    task, order, audit = body(transaction.calls.last)["entry"]
+    assert task["request"] == {"method": "PUT", "url": "Task/1", "ifMatch": 'W/"1"'}
+    assert order["request"] == {"method": "PUT", "url": "ServiceRequest/300", "ifMatch": 'W/"2"'}
+    assert order["resource"]["status"] == order_status
+    assert audit["request"] == {"method": "POST", "url": "AuditEvent"}
+    event = audit["resource"]
+    assert [e["what"]["reference"] for e in event["entity"]] == ["Task/1", "ServiceRequest/300"]
+    assert event["outcomeDesc"] == "task c1.ct: done"
+    assert event["agent"][0]["extension"][0]["url"] == EXT_ON_BEHALF_OF
 
 
 @pytest.mark.parametrize("status", [TaskStatus.ACCEPTED, TaskStatus.IN_PROGRESS, TaskStatus.FAILED])
 @respx.mock
 async def test_other_transitions_leave_the_order_alone(store: TaskStore, steps: list[Task], status: TaskStatus) -> None:
-    stored, order_put = await _store_with_order(store, steps)
+    stored, transaction, task_put = await _store_with_order(store, steps)
 
     await store.save(stored, stored.task.model_copy(update={"status": status}), description="x")
 
-    assert order_put.call_count == 0
+    assert transaction.call_count == 0
+    assert task_put.call_count == 1
+
+
+@respx.mock
+async def test_a_stale_order_version_fails_the_whole_write(store: TaskStore, steps: list[Task]) -> None:
+    stored, transaction, task_put = await _store_with_order(store, steps, tx_status=412)
+
+    with pytest.raises(FhirConflictError):
+        await store.save(stored, stored.task.model_copy(update={"status": TaskStatus.COMPLETED}), description="x")
+
+    assert transaction.call_count == 1
+    assert task_put.call_count == 0  # the task is not written without its order
+
+
+@respx.mock
+async def test_report_requests_and_other_tasks_of_the_case_are_not_steps(store: TaskStore, steps: list[Task]) -> None:
+    report_request = {
+        "resourceType": "Task",
+        "id": "9",
+        "status": "requested",
+        "identifier": [{"system": SID_REQUEST_TASK, "value": "c1.report-1"}],
+        "code": {"coding": [{"system": CS_TASK_CODE, "code": "request-report"}]},
+    }
+    respx.get(f"{FHIR_BASE}/Task").mock(
+        return_value=httpx.Response(200, json=bundle(report_request, stored_resource(steps[0], "1")))
+    )
+    respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
+
+    listed = await store.list_for_case("Task/5")
+
+    assert [s.task.id for s in listed] == ["c1.ct"]
+
+
+@respx.mock
+async def test_a_document_without_a_receipt_timestamp_is_refused(store: TaskStore) -> None:
+    document = {"resourceType": "DocumentReference", "id": "8"}
+    respx.get(f"{FHIR_BASE}/DocumentReference").mock(return_value=httpx.Response(200, json=bundle(document)))
+    respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
+
+    with pytest.raises(InvalidInputError, match="no receipt timestamp"):
+        await store.patient_document_received_at("Patient/3", "doc-1")
+
+
+@respx.mock
+async def test_receipt_timestamp_of_a_patient_document(store: TaskStore) -> None:
+    document = {"resourceType": "DocumentReference", "id": "8", "date": "2026-10-02T09:30:00+02:00"}
+    route = respx.get(f"{FHIR_BASE}/DocumentReference").mock(return_value=httpx.Response(200, json=bundle(document)))
+    respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
+
+    received = await store.patient_document_received_at("Patient/3", "doc-1")
+
+    assert received == datetime(2026, 10, 2, 7, 30, tzinfo=UTC)
+    assert route.calls.last.request.url.params["patient"] == "Patient/3"
+    route.mock(return_value=httpx.Response(200, json=bundle()))
+    assert await store.patient_document_received_at("Patient/3", "doc-1") is None
 
 
 @respx.mock

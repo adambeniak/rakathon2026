@@ -10,11 +10,11 @@ from __future__ import annotations
 import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 
 from app.domain.board import due_order
 from app.domain.common import PartyRef, Role
-from app.domain.errors import ConflictError, NotFoundError
+from app.domain.errors import ConflictError, InvalidInputError, NotFoundError
 from app.domain.task import Task, TaskStatus
 from app.domain.task_machine import OPEN_STATUSES
 from app.fhir.cases import CaseHeader
@@ -78,7 +78,7 @@ class TaskStore:
         resources = await self._repo.search("Task", {"part-of": case_task_reference, "_count": "100"})
         if resources and audit:
             await self._repo.audit_read([f"Task/{r['id']}" for r in resources], subtype="search-type")
-        return _sorted(StoredTask(task_from_fhir(r), r) for r in resources)
+        return _sorted(StoredTask(task_from_fhir(r), r) for r in resources if _is_step(r))
 
     async def get(self, task_id: str) -> StoredTask:
         resource = await self._repo.find_by_identifier("Task", SID_CASE_STEP, task_id)
@@ -124,7 +124,9 @@ class TaskStore:
         if not found:
             return None
         received = found[0].get("date")
-        return datetime.fromisoformat(str(received)) if received else datetime.min.replace(tzinfo=UTC)
+        if not received:
+            raise InvalidInputError(f"document {doc_id!r} has no receipt timestamp")
+        return datetime.fromisoformat(str(received))
 
     # --- writes ---
 
@@ -238,7 +240,11 @@ class TaskStore:
     async def save(
         self, stored: StoredTask, task: Task, *, description: str, on_behalf_of: str | None = None
     ) -> StoredTask:
-        """Write `task` over `stored` (optimistic: `If-Match` on the version that was read)."""
+        """Write `task` over `stored` (optimistic: `If-Match` on the version that was read).
+
+        A task that becomes completed or cancelled changes its order (ServiceRequest) in the **same transaction**, with
+        the AuditEvent in the bundle too: the task, the order and the audit commit or fail together.
+        """
         resource = task_to_fhir(
             task,
             case_task_reference=str(stored.resource["partOf"][0]["reference"]),
@@ -247,32 +253,51 @@ class TaskStore:
         resource["id"] = stored.fhir_id
         if "focus" in stored.resource:
             resource["focus"] = stored.resource["focus"]  # the ServiceRequest this step fulfils
+        order = await self._closed_order(stored, task)
         try:
-            updated = await self._repo.update(
-                resource, if_match=stored.version_id, description=description, on_behalf_of=on_behalf_of
+            if order is None:
+                updated = await self._repo.update(
+                    resource, if_match=stored.version_id, description=description, on_behalf_of=on_behalf_of
+                )
+                return StoredTask(task, updated or resource)
+            entries = [
+                _put_entry("Task", resource, stored.version_id),
+                _put_entry("ServiceRequest", order, (order.get("meta") or {}).get("versionId")),
+            ]
+            await self._repo.transaction(
+                {"resourceType": "Bundle", "type": "transaction", "entry": entries},
+                audit_in_bundle=True,
+                description=description,
+                on_behalf_of=on_behalf_of,
             )
         except FhirNotFoundError as exc:
             raise NotFoundError("task", task.id) from exc
-        await self._close_order(stored, task)
-        return StoredTask(task, updated or resource)
+        return StoredTask(task, resource)
 
-    async def _close_order(self, stored: StoredTask, task: Task) -> None:
-        """Keep the order (ServiceRequest) in step with its Task: completed -> completed, cancelled -> revoked.
+    async def _closed_order(self, stored: StoredTask, task: Task) -> Resource | None:
+        """The order of `task` with its new status (completed -> completed, cancelled -> revoked), if it must change.
 
         A failed step keeps its active order (R4 has no "failed" request status; the coordinator decides what next).
         """
         status = _ORDER_STATUS.get(task.status)
         reference = str((stored.resource.get("focus") or {}).get("reference", ""))
         if status is None or task.status is stored.task.status or not reference.startswith("ServiceRequest/"):
-            return
+            return None
         order = await self._repo.read("ServiceRequest", reference.split("/", 1)[1])
         await self._repo.audit_read([reference], subtype="read")
-        order_version = (order.get("meta") or {}).get("versionId")
-        await self._repo.update(
-            {**order, "status": status},
-            if_match=str(order_version) if order_version else None,
-            description=f"order of task {task.id}: {status}",
-        )
+        return {**order, "status": status}
+
+
+def _is_step(resource: Resource) -> bool:
+    """Pathway steps and ad-hoc tasks, not the other Tasks of a case (e.g. report requests, F2-1)."""
+    return any(i.get("system") == SID_CASE_STEP for i in resource.get("identifier", []))
+
+
+def _put_entry(resource_type: str, resource: Resource, version_id: object) -> Resource:
+    request: Resource = {"method": "PUT", "url": f"{resource_type}/{resource['id']}"}
+    if version_id:
+        request["ifMatch"] = f'W/"{version_id}"'
+    return {"resource": resource, "request": request}
 
 
 _ORDER_STATUS = {TaskStatus.COMPLETED: "completed", TaskStatus.CANCELLED: "revoked"}

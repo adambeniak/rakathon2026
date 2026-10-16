@@ -17,6 +17,7 @@ import pytest
 
 from app.domain.case import Case
 from app.domain.common import PartyRef, Role
+from app.domain.errors import ConflictError
 from app.domain.pathway import instantiate
 from app.domain.task import TaskStatus
 from app.fhir.cases import CaseHeader
@@ -24,7 +25,7 @@ from app.fhir.client import FhirClient
 from app.fhir.errors import FhirConflictError, FhirNotFoundError
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_WORKFLOW_ROLE, SID_PRACTITIONER_ROLE, TEST_TAG_CODE
-from app.fhir.tasks import TaskStore
+from app.fhir.tasks import PractitionerRoleRef, TaskStore
 from app.security.actor import SYSTEM_ACTOR
 from app.settings import PRAGUE, Settings
 from tests.unit.domain.conftest import PATIENT, load_plan, load_template
@@ -101,9 +102,14 @@ async def test_launch_search_update_and_conflict(live: tuple[FhirClient, TaskSto
             "code": [{"coding": [{"system": CS_WORKFLOW_ROLE, "code": "koc_physician"}]}],
         }
     )
-    indication = await store.get_practitioner_role(physician_role)
-    assert indication is not None
-    assert indication.role is Role.KOC_PHYSICIAN
+    created = await repo.create(
+        {
+            "resourceType": "PractitionerRole",
+            "identifier": [{"system": SID_PRACTITIONER_ROLE, "value": physician_role}],
+            "code": [{"coding": [{"system": CS_WORKFLOW_ROLE, "code": "koc_physician"}]}],
+        }
+    )
+    indication = PractitionerRoleRef(created.reference, physician_role, "Integration test", Role.KOC_PHYSICIAN)
     coordinator = PartyRef(id="it-coordinator", display="Integration test", role=Role.COORDINATOR)
     recorded = datetime(2026, 10, 2, 9, 0, tzinfo=PRAGUE)
 
@@ -130,7 +136,7 @@ async def test_launch_search_update_and_conflict(live: tuple[FhirClient, TaskSto
     provenance = await client.read("Provenance", launched.provenance_id)
     assert provenance["agent"][0]["onBehalfOf"]["reference"] == indication.fhir_reference
 
-    again = await store.launch_pathway(
-        header, plan, tasks, date(2026, 10, 2), indication=indication, coordinator=coordinator, recorded=recorded
-    )  # lost race: the conditional creates match, nothing new is created
-    assert again.task_ids == launched.task_ids
+    with pytest.raises(ConflictError):  # lost race: the conditional creates match (200), so the launch is refused
+        await store.launch_pathway(
+            header, plan, tasks, date(2026, 10, 2), indication=indication, coordinator=coordinator, recorded=recorded
+        )

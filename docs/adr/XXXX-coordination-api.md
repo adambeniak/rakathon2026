@@ -61,8 +61,11 @@
   nothing proves the physician agreed. A confirmation by the physician (a Provenance signed by them) is a follow-up.
 - **"The physician of the case" has no source.** The backend stores no responsible physician per case; the UI pre-fill
   needs one (e.g. a `responsible_physician` on the case, or the MDT chair). Until then the UI must offer a picker.
-- **Order status.** A completed Task completes its ServiceRequest and a cancelled one revokes it; a failed step keeps its
-  order `active` (R4 has no "failed" request status).
+- **Order status.** A completed Task completes its ServiceRequest and a cancelled one revokes it — in one transaction
+  together with the AuditEvent, so they commit or fail together; a failed step keeps its order `active` (R4 has no
+  "failed" request status).
+- **Patient-owned tasks.** An ad-hoc task cannot be owned by the patient: a patient cannot act in Štafeta and the
+  coordinator records only for external workplaces, so it could never be completed (`known-issues.md` K18).
 - **Lost race.** A second concurrent launch answers 409, but the `Provenance` has no identifier, so an orphan one can
   remain.
 - The full list with proposed fixes and owners is `docs/known-issues.md`.

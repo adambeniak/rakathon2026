@@ -156,14 +156,19 @@ class FhirRepository:
         await self._audit("D", "delete", [f"{resource_type}/{resource_id}"])
 
     async def transaction(
-        self, bundle: Resource, *, audit_in_bundle: bool = False, description: str | None = None
+        self,
+        bundle: Resource,
+        *,
+        audit_in_bundle: bool = False,
+        description: str | None = None,
+        on_behalf_of: str | None = None,
     ) -> Resource:
         """Atomic multi-resource write. One AuditEvent lists every entry that was actually written.
 
         `audit_in_bundle=True`: the AuditEvent is an entry of the same transaction (data and audit commit or fail
         together). Its entities are the entries' `fullUrl`s (resolved by the server) or PUT URLs; every write entry
         gets a `fullUrl` for that. A conditional create that matches an existing resource is listed as well.
-        `description` (ids and states only) rides on the separate AuditEvent; the in-bundle audit has none.
+        `description` (ids and states only) and `on_behalf_of` ride on that AuditEvent, in the bundle or separate.
         """
         for entry in bundle.get("entry", []):
             request = entry.get("request", {})
@@ -183,7 +188,13 @@ class FhirRepository:
                     entry.setdefault("fullUrl", f"urn:uuid:{uuid.uuid4()}")
                     entities.append(str(entry["fullUrl"]))
             event = build_audit_event(
-                action="E", subtype="transaction", actor=self.actor, entities=entities, recorded=self._clock()
+                action="E",
+                subtype="transaction",
+                actor=self.actor,
+                entities=entities,
+                recorded=self._clock(),
+                description=description,
+                on_behalf_of=on_behalf_of,
             )
             tagged["entry"].append(
                 {"resource": self._tagged(event), "request": {"method": "POST", "url": "AuditEvent"}}
@@ -192,7 +203,7 @@ class FhirRepository:
         response = await self.client.transaction(tagged)
         written = _written_references(tagged, response)
         if written:
-            await self._audit("E", "transaction", written, description=description)
+            await self._audit("E", "transaction", written, description=description, on_behalf_of=on_behalf_of)
         return response
 
     async def delete_by_tag(self, resource_types: Sequence[str], tag_code: str) -> dict[str, int]:

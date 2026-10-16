@@ -18,7 +18,9 @@ from app.domain.task import TaskBusinessStatus, TaskStatus
 TransitionEvent = Literal["confirm", "perform", "deliver_result", "fail", "cancel"]
 # A module-level alias: a field named `date` would shadow the `date` type inside the class body.
 DateOrDateTime = date | datetime
-ALLOWED_OWNER_ROLES = frozenset({Role.GP, Role.COORDINATOR, Role.KOC_PHYSICIAN, Role.EXTERNAL_WORKPLACE, Role.PATIENT})
+# No patient: a patient cannot act in Štafeta and the coordinator may record only for external workplaces, so a
+# patient-owned task would never reach completion (see docs/known-issues.md K18).
+ALLOWED_OWNER_ROLES = frozenset({Role.GP, Role.COORDINATOR, Role.KOC_PHYSICIAN, Role.EXTERNAL_WORKPLACE})
 
 
 class TaskOwner(BaseModel):

@@ -573,6 +573,8 @@ def test_ad_hoc_task_rules(harness: Harness) -> None:
     body = {"title": "Doplnit ECOG", "owner_role": "koc_physician"}
     assert harness.client.post(url, json=body, headers=PHYSICIAN).status_code == 403
     assert harness.client.post(url, json={**body, "owner_role": "system"}, headers=COORDINATOR).status_code == 422
+    # a patient cannot act in Štafeta and nobody may record for them: such a task could never be completed
+    assert harness.client.post(url, json={**body, "owner_role": "patient"}, headers=COORDINATOR).status_code == 422
     assert harness.client.post(url, json={**body, "title": ""}, headers=COORDINATOR).status_code == 422
     unknown = harness.client.post(url, json={**body, "depends_on": ["c1.nope"]}, headers=COORDINATOR)
     assert unknown.status_code == 422

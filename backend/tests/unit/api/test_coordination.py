@@ -106,8 +106,11 @@ class FakeStore:
         indication: PractitionerRoleRef,
         coordinator: PartyRef,
         recorded: datetime,
+        mdt_start: datetime | None = None,
     ) -> LaunchResult:
-        self.launches.append({"indication": indication, "coordinator": coordinator, "recorded": recorded})
+        self.launches.append(
+            {"indication": indication, "coordinator": coordinator, "recorded": recorded, "mdt_start": mdt_start}
+        )
         self.care_plans.add(header.case.id)
         ids = {t.id: str(len(self.resources) + i + 1) for i, t in enumerate(tasks)}
         for task in tasks:
@@ -148,8 +151,15 @@ class FakeStore:
 
 
 class Harness:
-    def __init__(self, app: FastAPI, client: TestClient, store: FakeStore, now: dict[str, datetime]) -> None:
-        self.app, self.client, self.store, self._now = app, client, store, now
+    def __init__(
+        self, app: FastAPI, client: TestClient, store: FakeStore, now: dict[str, datetime], reader: FakeReader
+    ) -> None:
+        self.app, self.client, self.store, self._now, self.reader = app, client, store, now, reader
+
+    def case_without_mdt_start(self) -> None:
+        self.reader.loaded = LoadedCase(
+            task=self.reader.loaded.task, episode=self.reader.loaded.episode, case=make_case(mdt_start=None)
+        )
 
     def set_now(self, value: str) -> None:
         self._now["value"] = at(value)
@@ -187,7 +197,23 @@ def harness(settings: Settings) -> Iterator[Harness]:
         FakeProvider(),  # type: ignore[arg-type]
     )
     with TestClient(app) as client:
-        yield Harness(app, client, store, now)
+        yield Harness(app, client, store, now, reader)
+
+
+def test_launch_persists_the_mdt_start_it_was_given(harness: Harness) -> None:
+    harness.case_without_mdt_start()
+
+    response = harness.launch(mdt_start="2026-10-21T08:00:00+02:00")
+
+    assert response.status_code == 201
+    assert harness.store.launches[-1]["mdt_start"] == at("2026-10-21T08:00:00")
+
+
+def test_launch_keeps_the_mdt_start_the_case_already_has(harness: Harness) -> None:
+    response = harness.launch()  # the case has 2026-10-21T08:00
+
+    assert response.status_code == 201
+    assert harness.store.launches[-1]["mdt_start"] is None  # nothing to write
 
 
 def test_endpoints_are_in_the_contract(harness: Harness) -> None:
@@ -348,7 +374,9 @@ def test_launch_needs_an_mdt_start_from_the_case_or_the_request(settings: Settin
         url = f"/api/cases/{CASE_ID}/pathways"
         refused = client.post(url, json=LAUNCH)
         assert refused.status_code == 422
-        assert refused.json()["detail"] == "case has no mdt_start; pass it in the request"
+        assert refused.headers["content-type"] == "application/problem+json"
+        assert refused.json()["detail"] == "Pro spuštění sady je nutné zadat termín MDT."
+        assert store.launches == []
         accepted = client.post(url, json={**LAUNCH, "mdt_start": "2026-10-21T08:00:00+02:00"})
         assert accepted.status_code == 201
 

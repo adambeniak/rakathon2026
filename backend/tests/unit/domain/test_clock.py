@@ -67,3 +67,16 @@ def test_workdays_between():
     assert clock.workdays_between(date(2026, 10, 16), date(2026, 10, 19)) == 1
     assert clock.workdays_between(date(2026, 10, 16), date(2026, 10, 16)) == 0
     assert clock.next_workday(date(2026, 10, 16)) == date(2026, 10, 19)
+
+
+def test_set_override_moves_and_resets_the_clock(monkeypatch):
+    monkeypatch.setenv(clock.ENV_VAR, "2026-10-02T09:00:00+02:00")
+    try:
+        clock.set_override(datetime.fromisoformat("2026-10-16T09:00:00"))  # naive = Europe/Prague
+        assert clock.is_overridden()
+        assert clock.now() == datetime(2026, 10, 16, 9, 0, tzinfo=clock.TZ)
+        clock.set_override(None)
+        assert not clock.is_overridden()
+        assert clock.now() == datetime(2026, 10, 2, 9, 0, tzinfo=clock.TZ)  # back to the start value
+    finally:
+        clock.set_override(None)

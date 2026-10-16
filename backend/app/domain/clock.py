@@ -26,6 +26,16 @@ def _parse(value: str) -> datetime:
     return dt.replace(tzinfo=TZ) if dt.tzinfo is None else dt.astimezone(TZ)
 
 
+def set_override(value: datetime | None) -> None:
+    """Move the demo clock (None resets it to `STAFETA_DEMO_NOW` / the wall clock). Naive values are Europe/Prague."""
+    global _override
+    _override = None if value is None else (value.replace(tzinfo=TZ) if value.tzinfo is None else value.astimezone(TZ))
+
+
+def is_overridden() -> bool:
+    return _override is not None
+
+
 def now() -> datetime:
     if _override is not None:
         return _override

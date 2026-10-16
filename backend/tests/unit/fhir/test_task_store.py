@@ -19,7 +19,7 @@ from app.fhir.client import FhirClient
 from app.fhir.errors import FhirConflictError
 from app.fhir.mappers.task import task_to_fhir
 from app.fhir.repository import FhirRepository
-from app.fhir.systems import CS_TASK_CODE, EXT_ON_BEHALF_OF, SID_CASE_STEP, SID_REQUEST_TASK
+from app.fhir.systems import CS_TASK_CODE, EXT_MDT_START, EXT_ON_BEHALF_OF, SID_CASE_STEP, SID_REQUEST_TASK
 from app.fhir.tasks import PractitionerRoleRef, TaskStore
 from app.security.actor import SYSTEM_ACTOR
 from tests.conftest import FHIR_BASE
@@ -438,3 +438,73 @@ async def test_two_plan_definitions_with_one_url_are_a_conflict(store: TaskStore
     )
     with pytest.raises(FhirConflictError):
         await store.get_plan_definition(plan["url"])
+
+
+@respx.mock
+async def test_launch_persists_mdt_start_on_the_coordinating_task_in_the_same_transaction(
+    store: TaskStore, steps: list[Task]
+) -> None:
+    count = len(steps)
+    response = {
+        "resourceType": "Bundle",
+        "type": "transaction-response",
+        "entry": [{"response": {"status": "201", "location": "CarePlan/100/_history/1"}}]
+        + [{"response": {"status": "201", "location": f"ServiceRequest/{300 + i}/_history/1"}} for i in range(count)]
+        + [{"response": {"status": "201", "location": f"Task/{200 + i}/_history/1"}} for i in range(count)]
+        + [{"response": {"status": "200", "location": "Task/5/_history/4"}}]
+        + [{"response": {"status": "201", "location": "Provenance/400/_history/1"}}],
+    }
+    case_task = {
+        "resourceType": "Task",
+        "id": "5",
+        "meta": {"versionId": "3"},
+        "extension": [
+            {"url": EXT_MDT_START, "valueDateTime": "2026-01-01T08:00:00+01:00"},
+            {"url": "https://stafeta.example/fhir/StructureDefinition/other", "valueCode": "keep"},
+        ],
+    }
+    respx.get(f"{FHIR_BASE}/Task/5").mock(return_value=httpx.Response(200, json=case_task))
+    tx = respx.post(FHIR_BASE).mock(return_value=httpx.Response(200, json=response))
+    respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
+
+    result = await store.launch_pathway(
+        HEADER,
+        load_plan(),
+        steps,
+        date(2026, 10, 2),
+        indication=PHYSICIAN,
+        coordinator=COORDINATOR,
+        recorded=NOW,
+        mdt_start=datetime(2026, 10, 21, 8, 0, tzinfo=UTC),
+    )
+
+    entries = body(tx.calls.last)["entry"]
+    [put] = [e for e in entries if e["request"]["method"] == "PUT"]
+    assert put["request"] == {"method": "PUT", "url": "Task/5", "ifMatch": 'W/"3"'}  # lost update = failed launch
+    extensions = {e["url"]: e for e in put["resource"]["extension"]}
+    assert extensions[EXT_MDT_START]["valueDateTime"] == "2026-10-21T08:00:00+00:00"  # replaced, not duplicated
+    assert len(put["resource"]["extension"]) == 2  # the other extension is kept
+    assert result.provenance_id == "400"  # ids stay aligned with the entries
+
+
+@respx.mock
+async def test_launch_without_mdt_start_does_not_touch_the_coordinating_task(
+    store: TaskStore, steps: list[Task]
+) -> None:
+    count = len(steps)
+    response = {
+        "resourceType": "Bundle",
+        "type": "transaction-response",
+        "entry": [
+            {"response": {"status": "201", "location": f"{kind}/{i}/_history/1"}}
+            for i, kind in enumerate(["CarePlan"] + ["ServiceRequest"] * count + ["Task"] * count + ["Provenance"])
+        ],
+    }
+    tx = respx.post(FHIR_BASE).mock(return_value=httpx.Response(200, json=response))
+    respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
+
+    await store.launch_pathway(
+        HEADER, load_plan(), steps, date(2026, 10, 2), indication=PHYSICIAN, coordinator=COORDINATOR, recorded=NOW
+    )
+
+    assert all(e["request"]["method"] == "POST" for e in body(tx.calls.last)["entry"])

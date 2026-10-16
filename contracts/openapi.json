@@ -1578,6 +1578,33 @@
         "title": "CreateTaskRequest",
         "type": "object"
       },
+      "DemoClock": {
+        "examples": [
+          {
+            "now": "2026-10-16T09:00:00+02:00",
+            "overridden": true
+          }
+        ],
+        "properties": {
+          "now": {
+            "description": "The backend's current time (Europe/Prague) that all deadlines use.",
+            "format": "date-time",
+            "title": "Now",
+            "type": "string"
+          },
+          "overridden": {
+            "description": "True when the clock was moved with PUT; false = start value or wall clock.",
+            "title": "Overridden",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "now",
+          "overridden"
+        ],
+        "title": "DemoClock",
+        "type": "object"
+      },
       "Diagnosis": {
         "additionalProperties": false,
         "properties": {
@@ -4621,6 +4648,35 @@
           }
         },
         "title": "SectionReview",
+        "type": "object"
+      },
+      "SetDemoClock": {
+        "additionalProperties": false,
+        "examples": [
+          {
+            "now": "2026-10-16T09:00:00+02:00"
+          },
+          {}
+        ],
+        "properties": {
+          "now": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The time to pin the backend clock to (a timestamp without offset is Europe/Prague); null resets it to the start value (`STAFETA_DEMO_NOW`) or the wall clock.",
+            "title": "Now"
+          }
+        },
+        "required": [
+          "now"
+        ],
+        "title": "SetDemoClock",
         "type": "object"
       },
       "Severity": {
@@ -7725,6 +7781,175 @@
         "summary": "Apply a case event (state machine)",
         "tags": [
           "cases"
+        ]
+      }
+    },
+    "/api/demo/clock": {
+      "get": {
+        "operationId": "demo-get_clock",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoClock"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demo clock (demo mode only)",
+        "tags": [
+          "demo"
+        ]
+      },
+      "put": {
+        "description": "Every deadline, escalation and the board use this clock. `now: null` resets it.",
+        "operationId": "demo-put_clock",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetDemoClock"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoClock"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Move or reset the demo clock (demo mode only)",
+        "tags": [
+          "demo"
         ]
       }
     },

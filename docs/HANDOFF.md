@@ -53,3 +53,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
 - 2026-10-17 · claude (audit, P1) · fix/agent-conventions · Phase A triage done (docs/audit/TRIAGE.md: 9 P0, P1/P2 grouped, §Keep where main supersedes the log); Phase C: AGENTS.md Reporting + Cross-cutting rules, PR template sections (Deviations/Not done/Risks/Needs a human), CLAUDE.md session-end rule, decision log moved to docs/audit/ (00:26 version)
   Next: after merge, P0 issues + pinned "P0 fix board" + grouped P1/P2 issues; the team fixes P0 in parallel per the board's merge order
   Risks: frontend steps 1–4 run only on MSW mocks (P0-7/8/9, ~6 h); IRIS transactions for referral/coordination never run on IRIS (P0-5, needs a human with .iris/); fix 253cabd was lost from #11 (P0-1)
+- 2026-10-17 · claude (P4) · fix/demo-clock-mdt-start · #27: one demo clock (`Settings.now()` → `domain.clock`), `GET/PUT /api/demo/clock` (demo mode only, audited), `mdt_start` required + persisted at pathway launch, handover `as_of` defaults to it
+  Next: P3 `pnpm gen:api` after merge; #34 (UI step 4) needs #32 + #27; re-run `-m iris` on local IRIS (#29) because the launch transaction now PUTs the case Task
+  Risks: any demo role can move the clock; override is per process (single replica); If-Match version re-read in the store; PUT location in the transaction response unverified on IRIS
+  Issues: #55 (clock hardening), #56 (`/api/demo/advance`), #35 (handover authz)

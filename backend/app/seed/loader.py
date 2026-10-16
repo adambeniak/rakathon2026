@@ -27,9 +27,8 @@ from app.settings import REPO_ROOT
 
 DEFAULT_DATA_DIR = REPO_ROOT / "data" / "raw" / "Pacient"
 
-# Dependents first: used by `--reset` to delete everything carrying the demo tag.
+# Dependents first: used by `--reset` to delete everything carrying the demo tag. AuditEvents are never deleted.
 RESET_ORDER = (
-    "AuditEvent",
     "Provenance",
     "Composition",
     "Communication",

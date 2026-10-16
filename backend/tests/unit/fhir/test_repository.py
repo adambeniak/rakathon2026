@@ -184,3 +184,22 @@ async def test_audit_read_records_entities(repo: FhirRepository) -> None:
     event = _body(audit.calls[0])
     assert (event["action"], event["subtype"][0]["code"]) == ("R", "search-type")
     assert len(event["entity"]) == 2
+
+
+async def test_delete_by_tag_never_deletes_the_demo_audit_trail(repo: FhirRepository) -> None:
+    with pytest.raises(ValueError, match="never deleted"):
+        await repo.delete_by_tag(["AuditEvent", "Patient"], "stafeta-demo")
+
+
+@respx.mock
+async def test_delete_by_tag_audits_every_deleted_resource_in_chunks(repo: FhirRepository) -> None:
+    patients = [{"resourceType": "Patient", "id": str(i)} for i in range(150)]
+    respx.get(f"{FHIR_BASE}/Patient").mock(return_value=httpx.Response(200, json=_bundle(*patients)))
+    respx.delete(url__startswith=FHIR_BASE).mock(return_value=httpx.Response(204))
+    audit = respx.post(f"{FHIR_BASE}/AuditEvent").mock(
+        return_value=httpx.Response(201, headers={"Location": f"{FHIR_BASE}/AuditEvent/9"})
+    )
+
+    await repo.delete_by_tag(["Patient"], "stafeta-demo")
+
+    assert [len(_body(call)["entity"]) for call in audit.calls] == [100, 50]

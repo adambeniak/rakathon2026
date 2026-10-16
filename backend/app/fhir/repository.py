@@ -18,9 +18,12 @@ from app.domain.common import PartyRef
 from app.fhir.audit import AuditAction, AuditSubtype, build_audit_event
 from app.fhir.client import CreateResult, FhirClient, Resource, SearchParams, reference_from_location
 from app.fhir.errors import AuditWriteError, FhirConflictError, FhirError
-from app.fhir.systems import CS_TAG, DEMO_TAG_CODE
+from app.fhir.systems import CS_TAG, DEMO_TAG_CODE, TEST_TAG_CODE
 
 log = structlog.get_logger(__name__)
+
+# Max entities per summary AuditEvent written by delete_by_tag.
+AUDIT_CHUNK = 100
 
 
 @dataclass(frozen=True)
@@ -127,8 +130,12 @@ class FhirRepository:
     async def delete_by_tag(self, resource_types: Sequence[str], tag_code: str) -> dict[str, int]:
         """Delete every resource carrying `tag_code`, in the given order (dependents first).
 
-        Writes one summary AuditEvent instead of one per resource. Used by `python -m app.seed --reset` and tests.
+        The audit trail is never deleted (AuditEvent is refused, except for the integration-test tag). Writes summary
+        AuditEvents (one per `AUDIT_CHUNK` deleted resources) instead of one per resource. Used by
+        `python -m app.seed --reset` and the integration tests.
         """
+        if "AuditEvent" in resource_types and tag_code != TEST_TAG_CODE:
+            raise ValueError("AuditEvents are never deleted (AGENTS.md non-negotiable 6)")
         deleted: dict[str, int] = {}
         references: list[str] = []
         for resource_type in resource_types:
@@ -137,9 +144,12 @@ class FhirRepository:
                 await self.client.delete(resource_type, str(resource["id"]))
                 references.append(f"{resource_type}/{resource['id']}")
             deleted[resource_type] = len(found)
-        if references:
+        for start in range(0, len(references), AUDIT_CHUNK):
             await self._audit(
-                "D", "delete", references[:200], description=f"reset of tag {tag_code}: {len(references)} resources"
+                "D",
+                "delete",
+                references[start : start + AUDIT_CHUNK],
+                description=f"reset of tag {tag_code}: {len(references)} resources",
             )
         return deleted
 

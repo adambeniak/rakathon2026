@@ -58,3 +58,6 @@ def configure_logging(level: str = "INFO", *, json: bool = True) -> None:
         logger_factory=structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=False,
     )
+    # httpx logs full request URLs at INFO, and search URLs can carry identifiers (e.g. RČ): keep them quiet.
+    for noisy in ("httpx", "httpcore"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)

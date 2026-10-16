@@ -12,11 +12,13 @@ from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from pydantic import AwareDatetime, Field, SecretStr, field_validator
+from pydantic import AwareDatetime, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PRAGUE = ZoneInfo("Europe/Prague")
+DEV_ENVS = frozenset({"local", "ci", "test"})
+DEFAULT_JWT_SECRET = "change-me-local-only"  # noqa: S105 - refused outside DEV_ENVS
 
 
 class Settings(BaseSettings):
@@ -55,7 +57,7 @@ class Settings(BaseSettings):
     embedding_model: str = ""
 
     # --- App ---
-    jwt_secret: SecretStr = SecretStr("change-me-local-only")
+    jwt_secret: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
     smtp_host: str = "localhost"
     smtp_port: int = 1025
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
@@ -66,6 +68,17 @@ class Settings(BaseSettings):
     @classmethod
     def _strip_trailing_slash(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def _safe_outside_local(self) -> Settings:
+        """Refuse development defaults when deployed (STAFETA_ENV other than local/ci/test)."""
+        if self.stafeta_env in DEV_ENVS:
+            return self
+        if self.jwt_secret.get_secret_value() == DEFAULT_JWT_SECRET:
+            raise ValueError("JWT_SECRET must be set outside local development")
+        if "*" in self.cors_origins:
+            raise ValueError("CORS_ORIGINS must list explicit origins outside local development")
+        return self
 
     def now(self) -> datetime:
         """Demo-aware current time in Europe/Prague (P4 replaces this with `app.domain.clock` in #2/#3)."""

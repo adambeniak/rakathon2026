@@ -59,8 +59,8 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(run(args))
     except FhirError as exc:
         print(f"seed failed: {exc}", file=sys.stderr)
-        for issue in exc.issues:
-            print(f"  {issue.severity} {issue.code}: {issue.diagnostics or ''}", file=sys.stderr)
+        for issue in exc.issues:  # codes and FHIRPath only: diagnostics may quote values (PHI)
+            print(f"  {issue.severity} {issue.code} at {', '.join(issue.expression) or '?'}", file=sys.stderr)
         return 1
 
 

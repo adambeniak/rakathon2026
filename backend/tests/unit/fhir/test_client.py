@@ -5,7 +5,7 @@ import pytest
 import respx
 
 from app.fhir.client import FhirClient, reference_from_location
-from app.fhir.errors import FhirAuthError, FhirUnavailableError, FhirValidationError
+from app.fhir.errors import FhirAuthError, FhirError, FhirUnavailableError, FhirValidationError
 from tests.conftest import FHIR_BASE
 
 OUTCOME = {
@@ -138,3 +138,19 @@ async def test_count_uses_summary_count(fhir_client: FhirClient) -> None:
 
     assert await fhir_client.count("DocumentReference", {"encounter": "EpisodeOfCare/4"}) == 13
     assert route.calls[0].request.url.params["_summary"] == "count"
+
+
+@respx.mock
+async def test_paging_link_to_another_origin_is_refused(fhir_client: FhirClient) -> None:
+    respx.get(f"{FHIR_BASE}/Task").mock(
+        return_value=httpx.Response(
+            200,
+            json={"resourceType": "Bundle", "link": [{"relation": "next", "url": "http://evil.test/fhir/r4/Task?p=2"}]},
+        )
+    )
+    evil = respx.get(url__startswith="http://evil.test")
+
+    with pytest.raises(FhirError, match="different origin"):
+        await fhir_client.search_all("Task", {})
+
+    assert evil.call_count == 0

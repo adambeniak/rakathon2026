@@ -138,7 +138,7 @@ class FhirClient:
         headers: Mapping[str, str] | None = None,
     ) -> httpx.Response:
         if path_or_url.startswith(("http://", "https://")):
-            url = path_or_url
+            url = _same_origin(path_or_url, self._base)
         else:
             url = f"{self._base}/{path_or_url}" if path_or_url else self._base
         label = f"{method} {_resource_path(url, self._base)}"
@@ -154,14 +154,23 @@ class FhirClient:
         if response.is_success:
             return response
         issues = _outcome_issues(response)
+        # Codes and FHIRPath expressions only: diagnostics may quote the offending value (PHI).
         log.warning(
             "fhir_request_failed",
             request=label,
             status=response.status_code,
             issue_codes=[i.code for i in issues],
-            diagnostics=[i.diagnostics for i in issues],
+            issue_expressions=[list(i.expression) for i in issues],
         )
         raise error_for_status(f"{label} -> HTTP {response.status_code}", response.status_code, issues)
+
+
+def _same_origin(url: str, base: str) -> str:
+    """Paging links are absolute: never send credentials to another origin than the configured FHIR base."""
+    target, expected = httpx.URL(url), httpx.URL(base)
+    if (target.scheme, target.host, target.port) != (expected.scheme, expected.host, expected.port):
+        raise FhirError("FHIR server returned a link to a different origin; refusing to follow it")
+    return url
 
 
 def _resource_path(url: str, base: str) -> str:

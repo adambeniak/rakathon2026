@@ -36,7 +36,8 @@ export function EvidenceChip({ docId, quote, doc }: { docId: string; quote?: str
     <>
       <Popover.Root open={pop} onOpenChange={setPop}>
         <Popover.Trigger
-          className="inline-flex items-center gap-1 rounded border border-hairline bg-card px-2 py-0.5 text-xs hover:bg-accent-soft"
+          title={title}
+          className="inline-flex min-h-6 items-center gap-1 rounded border border-hairline bg-card px-2 py-1 text-xs hover:bg-accent-soft"
           aria-label={`${common.evidence.source}: ${title}${info ? `, ${formatDate(info.authored)}` : ''}`}
         >
           <FileText aria-hidden className="h-3 w-3 text-accent" />

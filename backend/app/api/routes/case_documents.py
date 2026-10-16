@@ -41,7 +41,7 @@ async def upload_document(
     request_id: Annotated[str | None, Form(pattern=BUSINESS_ID_PATTERN, max_length=140)] = None,
     authored_at: Annotated[date | None, Form(description="Date the report was written (ISO).")] = None,
 ) -> DocumentReceived:
-    upload = await read_upload(file)
+    upload = await read_upload(file, max_bytes=settings.upload_max_bytes)
     authored = authored_at or upload.doc.authored_date
     if authored is None:
         raise InvalidInputError("authored_at is required: the file name carries no date")

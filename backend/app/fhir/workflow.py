@@ -342,10 +342,12 @@ class RequestWorkflow(CaseWorkflow):
 
         builder = BundleBuilder()
         recipient_name = None
+        recipient_ref: str | None = None
         events: list[DomainEvent] = []
         document_ref = ""
         if target is not None:
             recipient_name = request_task_from_fhir(target).location
+            recipient_ref = _ref_recipient(target)
         document_ref = builder.post(
             document_to_fhir(
                 SourceDocument(
@@ -360,7 +362,7 @@ class RequestWorkflow(CaseWorkflow):
                 upload.content,
                 patient_reference=patient_ref,
                 episode_reference=episode_ref,
-                custodian_reference=None,
+                custodian_reference=recipient_ref,  # the workplace the report was requested from
                 author_reference=None,
             )
         )
@@ -389,7 +391,9 @@ class RequestWorkflow(CaseWorkflow):
 
         case = loaded.case
         case_event: str | None = None
-        if target is not None and remaining == 0 and case.state is CaseState.CEKA_NA_PODKLADY:
+        # A postponed case keeps its state (the machine refuses events); docs_received is fired after resume.
+        postponed = case.odlozeny
+        if target is not None and remaining == 0 and case.state is CaseState.CEKA_NA_PODKLADY and not postponed:
             result = case_machine.transition(
                 case,
                 "docs_received",
@@ -400,10 +404,8 @@ class RequestWorkflow(CaseWorkflow):
             case = assign_holder(result.case, SYSTEM_ACTOR, directory, loaded)
             case_event = CASE_EVENT_COMPLETE
             await self.save_case(loaded, case, result.events, actor=SYSTEM_ACTOR, directory=directory, bundle=builder)
-        elif target is not None:
+        else:  # always PUT the case Task (If-Match): concurrent uploads are serialised, also unlinked ones
             await self.save_case(loaded, case, (), actor=actor, directory=directory, bundle=builder)
-        else:
-            await self._repo.transaction(builder.build())
         document = SourceDocument(
             doc_id=upload.doc.doc_id,
             title=upload.file_name,

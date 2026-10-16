@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
+from typing import Any
 
 from app.documents.ingest import UploadedDocument
-from app.documents.normalize import match_key, stem_date
+from app.documents.normalize import NormalizedDoc, match_key
 from app.domain import case_machine
 from app.domain.case import Case
 from app.domain.case_ids import case_id_candidates
@@ -143,7 +144,10 @@ class ReferralWriter:
         if existing_patient is not None:
             patient_ref = f"Patient/{existing_patient['id']}"
         else:
-            patient_ref = bundle.post(patient_to_fhir(patient, general_practitioner=gp.ref))
+            patient_ref = bundle.post(
+                patient_to_fhir(patient, general_practitioner=gp.ref),
+                if_none_exist=f"identifier={CZ_RODNE_CISLO}|{rc_value(patient.birth_number)}",
+            )
             created.append(patient_ref)
         related_ref = None
         if submission.contact_person is not None:
@@ -152,7 +156,7 @@ class ReferralWriter:
                 "RelatedPerson", SID_RELATED_PERSON, str(related["identifier"][0]["value"])
             )
             if related_ref is None:
-                related_ref = bundle.post(related)
+                related_ref = bundle.post(related, if_none_exist=_identifier_query(related))
                 created.append(related_ref)
         if patient.insurer_code:
             insurer = directory.insurer(patient.insurer_code)
@@ -166,7 +170,7 @@ class ReferralWriter:
                     payor_display=insurer.org.name,
                 )
                 if await self._existing_ref("Coverage", SID_COVERAGE, str(coverage["identifier"][0]["value"])) is None:
-                    created.append(bundle.post(coverage))
+                    created.append(bundle.post(coverage, if_none_exist=_identifier_query(coverage)))
 
         episode_ref = bundle.post(
             episode_of_care_to_fhir(
@@ -184,7 +188,7 @@ class ReferralWriter:
                     doc_id=letter.doc.doc_id,
                     title=LETTER_TITLE,
                     type_code=LETTER_TYPE_CODE,
-                    authored_at=letter.doc.authored_date or now.date(),
+                    authored_at=_authored(letter.doc),
                     received_at=now,
                     custodian=_gp_organization(directory, gp.role.organization_id),
                     author=gp.display,
@@ -204,7 +208,7 @@ class ReferralWriter:
                     SourceDocument(
                         doc_id=extra.doc.doc_id,
                         title=extra.file_name,
-                        authored_at=extra.doc.authored_date or stem_date(extra.doc.doc_id) or now.date(),
+                        authored_at=_authored(extra.doc),
                         received_at=now,
                         custodian=_gp_organization(directory, gp.role.organization_id),
                         author=gp.display,
@@ -257,7 +261,7 @@ class ReferralWriter:
                 )
             )
         )
-        edited, added = compare_with_prefill(prefill, submission) if prefill else (None, None)
+        edited, added, cleared = compare_with_prefill(prefill, submission) if prefill else (None, None, None)
         bundle.post(
             provenance_to_fhir(
                 targets=created,
@@ -267,6 +271,7 @@ class ReferralWriter:
                 recorded_at=now,
                 edited=edited,
                 added=added,
+                cleared=cleared,
             )
         )
         for event in submitted.events:
@@ -277,6 +282,7 @@ class ReferralWriter:
         return ReferralResult(case_id=case_id, warnings=tuple(warnings))
 
     async def _free_case_id(self, year: int, family: str) -> str:
+        """Random suffix: two patients with the same family name never share an id, with no reservation step."""
         for candidate in case_id_candidates(year, family):
             if await self._repo.find_by_identifier("Task", SID_CASE_TASK, candidate) is None:
                 return candidate
@@ -305,3 +311,18 @@ def _unedited_diagnosis_evidence(prefill: ReferralPrefill | None, submission: Re
     if (diagnosis.value.code, diagnosis.value.text) != (submission.diagnosis_code, submission.diagnosis_text):
         return []
     return list(diagnosis.evidence)
+
+
+def _identifier_query(resource: dict[str, Any]) -> str:
+    first = resource["identifier"][0]
+    return f"identifier={first['system']}|{first['value']}"
+
+
+def _authored(doc: NormalizedDoc) -> date:
+    """Authored date from the file name or the signing line of the document; never the date of receipt (as-of rule)."""
+    if doc.authored_date is not None:
+        return doc.authored_date
+    signed = doc.header_dates.get("V … dne")
+    if signed:
+        return signed[0]
+    raise InvalidInputError("Datum vyhotovení dokumentu nelze určit; přidejte do názvu souboru datum RRRR-MM-DD.")

@@ -16,6 +16,7 @@ from app.fhir.systems import (
     DATA_OPERATION,
     EXT_CONSENT_STATEMENT,
     EXT_PREFILL_ADDED,
+    EXT_PREFILL_CLEARED,
     EXT_PREFILL_COMPARISON,
     EXT_PREFILL_EDITED,
     EXT_REASON_EVIDENCE,
@@ -131,6 +132,7 @@ def provenance_to_fhir(
     recorded_at: datetime,
     edited: Sequence[str] | None,
     added: Sequence[str] | None,
+    cleared: Sequence[str] | None = None,
 ) -> Resource:
     """The GP confirmed an AI-assisted prefill (AGENTS #5). Field NAMES only: values are not copied here."""
     comparison = "not-compared" if edited is None or added is None else "compared"
@@ -139,6 +141,8 @@ def provenance_to_fhir(
         extensions.append({"url": EXT_PREFILL_EDITED, "valueString": ",".join(edited)})
     if added:
         extensions.append({"url": EXT_PREFILL_ADDED, "valueString": ",".join(added)})
+    if cleared:
+        extensions.append({"url": EXT_PREFILL_CLEARED, "valueString": ",".join(cleared)})
     return {
         "resourceType": "Provenance",
         "target": [{"reference": t} for t in targets],

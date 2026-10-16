@@ -170,3 +170,32 @@ def test_file_name_without_a_date_needs_authored_at(client: TestClient) -> None:
 
     assert missing.status_code == 422
     assert given.status_code == 201
+
+
+def test_invalid_date_in_the_file_name_is_a_422_not_a_500(client: TestClient) -> None:
+    path = DOCS_DIR / "03_RTG_plic_2026-09-03.docx"
+
+    response = client.post(
+        f"{CASE_URL}/documents",
+        files={"file": ("rtg_2026-13-45.docx", path.read_bytes(), "application/octet-stream")},
+        headers={"X-Demo-Role": "coordinator"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_the_configured_upload_limit_is_used_not_a_constant(settings: Settings, workflow: FakeWorkflow) -> None:
+    small = settings.model_copy(update={"upload_max_bytes": 2048})
+    app = create_app(small)
+    app.dependency_overrides[get_directory_provider] = lambda: FakeProvider()
+    app.dependency_overrides[get_request_workflow] = lambda: workflow
+    app.dependency_overrides[get_case_reader] = lambda: FakeReader()
+    app.dependency_overrides[get_fhir_client] = lambda: object()
+    path = DOCS_DIR / "03_RTG_plic_2026-09-03.docx"
+    with TestClient(app) as test_client:
+        response = test_client.post(
+            f"{CASE_URL}/documents", files={"file": (path.name, path.read_bytes(), "application/octet-stream")}
+        )
+
+    assert response.status_code == 413
+    assert response.headers["content-type"].startswith("application/problem+json")

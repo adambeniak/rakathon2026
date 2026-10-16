@@ -51,8 +51,8 @@ class CaseDetailView:
 
 @dataclass(frozen=True)
 class LoadedCase:
-    """The coordinating Task as stored (id, version), its EpisodeOfCare and the domain case. Not audited by the
-    reader: the writer that uses it records the interaction in its transaction."""
+    """The coordinating Task as stored (id, version), its EpisodeOfCare and the domain case. `load` audits the read;
+    the writer records its own write in the transaction."""
 
     task: Resource
     episode: Resource
@@ -100,6 +100,7 @@ class CaseReader:
             raise NotFoundError("case", case_id)
         episode_reference = _focus(task)
         episode, case = await asyncio.gather(self._repo.read(*episode_reference.split("/", 1)), self._case(task))
+        await self._repo.audit_read(_audit_entities([task]), subtype="read")  # clinical content was read
         return LoadedCase(task=task, episode=episode, case=case)
 
     async def _overview(self, task: Resource) -> CaseOverview:

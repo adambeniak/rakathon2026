@@ -58,3 +58,10 @@ requests the reports the letter lists but nobody attached. Several places needed
 - Notifications returned by the machines are not persisted yet (`notify/` is empty); only audit events are.
 - KOC 1 has no coordinator in the seed: referring to it is a 422 (`koc_without_coordinator`).
 - New CodeSystems/extensions are listed in `docs/fhir-mapping.md`.
+
+## Review follow-ups
+- Case ids are `rakathon-<year>-<family>-<6 hex>` (collision-resistant without a reservation step); patient, contact and coverage are created
+  with `ifNoneExist`. A report may be fulfilled while the case is postponed (the state stays; `docs_received` is fired after resume).
+  Every upload PUTs the case Task with `If-Match`. Provenance also records cleared fields and diagnosis-code edits. The authored date is
+  never taken from the receipt date. `CaseReader.load` audits its read.
+- FHIR R4 `CommunicationRequest` has no `intent` element (that arrived in R5), so none is written.

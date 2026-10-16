@@ -27,6 +27,11 @@ MAX_PDF_PAGES = 50
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 PDF_MEDIA_TYPE = "application/pdf"
 
+
+def too_large_message(max_bytes: int) -> str:
+    return f"Soubor je příliš velký. Maximální velikost jednoho souboru je {max_bytes // (1024 * 1024)} MB."
+
+
 _ID_CHARS = re.compile(r"[^A-Za-z0-9_.@-]+")
 
 
@@ -90,13 +95,18 @@ def _pdf_blocks(content: bytes) -> list[tuple[str, str, str | None]]:
 
 
 def normalize_upload(
-    file_name: str, content: bytes, *, authored_date: date | None = None, doc_id: str | None = None
+    file_name: str,
+    content: bytes,
+    *,
+    authored_date: date | None = None,
+    doc_id: str | None = None,
+    max_bytes: int = MAX_UPLOAD_BYTES,
 ) -> UploadedDocument:
     """Validate and normalise an upload. `authored_date` overrides the date in the file name."""
     if not content:
         raise InvalidInputError("the uploaded file is empty")
-    if len(content) > MAX_UPLOAD_BYTES:
-        raise PayloadTooLargeError("Soubor je příliš velký. Maximální velikost jednoho souboru je 10 MB.")
+    if len(content) > max_bytes:
+        raise PayloadTooLargeError(too_large_message(max_bytes))
     media_type = sniff_media_type(content)
     resolved_id = doc_id or doc_id_from_filename(file_name)
     authored = authored_date or stem_date(resolved_id)

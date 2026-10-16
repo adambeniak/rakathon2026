@@ -176,3 +176,13 @@ def test_roles_that_a_browser_may_not_pick_are_refused_or_defaulted(
     else:
         assert response.status_code == 401
         assert all(call[2] is not Role.SYSTEM for call in workflow.calls)
+
+
+def test_directory_needs_an_identified_actor(settings: Settings) -> None:
+    app = create_app(settings.model_copy(update={"stafeta_demo_mode": False}))
+    app.dependency_overrides[get_directory_provider] = lambda: FakeProvider()
+    app.dependency_overrides[get_fhir_client] = lambda: object()
+    with TestClient(app) as test_client:
+        response = test_client.get("/api/directory/kocs")
+
+    assert response.status_code == 401

@@ -186,7 +186,7 @@ async def test_case_id_follows_the_seed_pattern_and_state_is_odeslano(letter: Up
     await _submit(repo, letter)
 
     task = entries(repo)["Task"][0]
-    assert task["identifier"][0]["value"] == "rakathon-2026-prochazkova"
+    assert re.fullmatch(r"rakathon-2026-prochazkova-[0-9a-f]{6}", task["identifier"][0]["value"])
     assert CaseState.ODESLANO.value in str(task["businessStatus"])
     assert Role.GP.value not in str(task["owner"])
 
@@ -222,3 +222,62 @@ async def test_duplicate_open_case_message_is_neutral(letter: UploadedDocument) 
     message = str(caught.value)
     assert message == "Pro tohoto pacienta již existuje otevřený případ v tomto KOC. Kontaktujte koordinátora."
     assert "rakathon" not in message
+
+
+async def test_cleared_and_edited_fields_including_the_diagnosis_code_are_recorded(letter: UploadedDocument) -> None:
+    from app.documents.normalize import NormalizedDoc  # noqa: F401
+    from app.domain.referral import compare_with_prefill
+    from app.extraction.llm import CACHE_MODEL, LLMClient
+    from app.extraction.pipeline import extract_facts
+    from app.extraction.referral_prefill import build_prefill
+
+    result = await extract_facts(letter.doc, LLMClient(model=CACHE_MODEL, cache_only=True))
+    prefill = build_prefill(result.accepted, doc_id=letter.doc.doc_id, authored_at=letter.doc.authored_date)
+
+    edited, added, cleared = compare_with_prefill(
+        prefill, submission(phone=None, diagnosis_code="C25.1", given="Alžběta")
+    )
+
+    assert "given" in edited
+    assert "diagnosis_code" in edited
+    assert "phone" in cleared
+    assert added == []
+
+    repo = FakeRepo()
+    await ReferralWriter(repo).submit(  # type: ignore[arg-type]
+        submission(phone=None),
+        letter,
+        [],
+        actor=GP.party(),  # type: ignore[union-attr]
+        directory=DIRECTORY,
+        now=NOW,
+        prefill=prefill,
+    )
+    extensions = {
+        e["url"].rsplit("/", 1)[-1]: e["valueString"]
+        for e in entries(repo)["Provenance"][0]["extension"]
+        if "valueString" in e
+    }
+    assert extensions["prefill-cleared-fields"] == "phone"
+
+
+async def test_patient_is_created_conditionally_and_the_authored_date_is_never_the_receipt_date() -> None:
+    repo = FakeRepo()
+    undated = normalize_upload("zadost.docx", (DOCS_DIR / "07_PL_zadost_KOC2_2026-10-02.docx").read_bytes())
+    # the file name has no date, the letter's signing line ("V … dne 2. 10. 2026") is used
+    await _submit(repo, undated)
+
+    [bundle] = repo.bundles
+    patient = next(e for e in bundle["entry"] if e["resource"]["resourceType"] == "Patient")
+    assert patient["request"]["ifNoneExist"].startswith("identifier=https://ncez.mzcr.cz/fhir/sid/rcis|")
+    document = next(e["resource"] for e in bundle["entry"] if e["resource"]["resourceType"] == "DocumentReference")
+    assert document["content"][0]["attachment"]["creation"] == "2026-10-02"
+
+
+async def test_a_letter_without_any_date_is_refused_not_dated_by_receipt(letter: UploadedDocument) -> None:
+    from dataclasses import replace
+
+    nodate = replace(letter, doc=replace(letter.doc, authored_date=None, header_dates={}))
+
+    with pytest.raises(InvalidInputError, match="Datum vyhotovení"):
+        await _submit(FakeRepo(), nodate)

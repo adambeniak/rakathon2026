@@ -193,3 +193,14 @@ async def test_suspected_diagnosis_comes_with_its_evidence_from_the_service_requ
         "suspektní tumor hlavy pankreatu",
     )
     assert [(e.doc_id, e.quote) for e in overview.extras.diagnosis_evidence] == [("07_PL", "Suspektní diagnóza: C25.0")]
+
+
+async def test_loading_a_case_for_a_write_audits_the_read(reader: CaseReader, iris: respx.MockRouter) -> None:
+    iris.get("/Task").respond(200, json=_bundle(TASK))
+
+    loaded = await reader.load("rakathon-2026-prochazkova")
+
+    assert loaded.case.id == "rakathon-2026-prochazkova"
+    audit = json.loads(iris.routes[2].calls[0].request.content)
+    assert audit["action"] == "R"
+    assert {e["what"]["reference"] for e in audit["entity"]} == {"Task/5", "Patient/3", "EpisodeOfCare/4"}

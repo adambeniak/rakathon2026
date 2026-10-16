@@ -295,7 +295,7 @@ async def test_report_without_a_request_is_stored_and_the_state_is_unchanged() -
 
     assert outcome.case_event is None
     assert outcome.open_requests_remaining == 1
-    assert set(by_type(repo)) == {"DocumentReference"}
+    assert set(by_type(repo)) == {"DocumentReference", "Task"}  # + the case Task PUT: serialises writers
 
 
 async def test_patient_role_may_not_upload() -> None:
@@ -347,3 +347,58 @@ async def test_only_the_coordinator_links_a_report_to_a_request() -> None:
             directory=DIRECTORY,
             now=NOW,
         )
+
+
+async def test_report_is_accepted_while_the_case_is_postponed_and_the_state_stays() -> None:
+    repo = FakeRepo([open_request(1)])
+    wf = workflow(CaseState.CEKA_NA_PODKLADY, repo)
+    wf._reader.loaded = LoadedCase(  # type: ignore[attr-defined]
+        task=loaded(CaseState.CEKA_NA_PODKLADY).task,
+        episode=loaded(CaseState.CEKA_NA_PODKLADY).episode,
+        case=loaded(CaseState.CEKA_NA_PODKLADY).case.model_copy(update={"odlozeny": True}),
+    )
+
+    outcome = await wf.receive_document(
+        "c",
+        upload(),
+        authored_at=date(2026, 9, 3),
+        request_id=f"{demo_case.CASE_ID}-req-1",
+        actor=COORDINATOR.party(),  # type: ignore[union-attr]
+        directory=DIRECTORY,
+        now=NOW,
+    )
+
+    assert outcome.case.state is CaseState.CEKA_NA_PODKLADY
+    assert outcome.case.odlozeny is True
+    assert outcome.case_event is None  # the machine refuses events while postponed; docs_received follows after resume
+    request = next(t for t in by_type(repo)["Task"] if t["id"] == "r1")
+    assert request["status"] == "completed"
+
+
+async def test_linked_report_keeps_the_workplace_reference_and_unlinked_upload_is_locked() -> None:
+    repo = FakeRepo([open_request(1)])
+    await workflow(CaseState.CEKA_NA_PODKLADY, repo).receive_document(
+        "c",
+        upload(),
+        authored_at=date(2026, 9, 3),
+        request_id=f"{demo_case.CASE_ID}-req-1",
+        actor=COORDINATOR.party(),  # type: ignore[union-attr]
+        directory=DIRECTORY,
+        now=NOW,
+    )
+    document = by_type(repo)["DocumentReference"][0]
+    assert document["custodian"]["reference"] == "Organization/3"
+
+    repo = FakeRepo()
+    await workflow(CaseState.CEKA_NA_PODKLADY, repo).receive_document(
+        "c",
+        upload(),
+        authored_at=date(2026, 9, 3),
+        request_id=None,
+        actor=COORDINATOR.party(),  # type: ignore[union-attr]
+        directory=DIRECTORY,
+        now=NOW,
+    )
+    [bundle] = repo.bundles
+    put = next(e for e in bundle["entry"] if e["request"]["method"] == "PUT")
+    assert put["request"]["ifMatch"] == 'W/"1"'

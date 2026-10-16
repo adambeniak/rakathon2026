@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.api.deps import DirectoryProviderDep
+from app.api.deps import ActorDep, DirectoryProviderDep
 from app.api.schemas.common import problem_responses
 from app.api.schemas.directory import CoordinatorContact, KocEntry
 from app.domain.common import Role
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/directory", tags=["directory"])
     summary="List KOCs with their coordinator contact",
     responses=problem_responses(401, 502, 503),
 )
-async def list_kocs(provider: DirectoryProviderDep) -> list[KocEntry]:
+async def list_kocs(provider: DirectoryProviderDep, _actor: ActorDep) -> list[KocEntry]:
     directory = await provider.get()
     result: list[KocEntry] = []
     for entry in directory.kocs():

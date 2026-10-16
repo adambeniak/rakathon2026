@@ -45,9 +45,10 @@ async def prefill_referral(
     llm: LlmClientDep,
     provider: DirectoryProviderDep,
     repository: RepositoryDep,
+    settings: SettingsDep,
     _actor: ActorDep,
 ) -> ReferralPrefill:
-    upload = await read_upload(letter)
+    upload = await read_upload(letter, max_bytes=settings.upload_max_bytes)
     await repository.audit_extract()  # before the document leaves for the model
     prefill = await prefill_from_letter(upload, llm)
     return enrich_prefill(prefill, await provider.get())
@@ -83,8 +84,8 @@ async def create_referral(
         ) from exc
     if len(attachments or []) > MAX_ATTACHMENTS:
         raise InvalidInputError(f"at most {MAX_ATTACHMENTS} attachments are accepted")
-    upload = await read_upload(letter)
-    extras = [await read_upload(a) for a in attachments or []]
+    upload = await read_upload(letter, max_bytes=settings.upload_max_bytes)
+    extras = [await read_upload(a, max_bytes=settings.upload_max_bytes) for a in attachments or []]
     directory = await provider.get()
     await repository.audit_extract()
     try:

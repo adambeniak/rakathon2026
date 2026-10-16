@@ -265,7 +265,12 @@ def build_doc(
 def stem_date(stem: str) -> date | None:
     """Authored date from a file stem ending in YYYY-MM-DD, e.g. '07_PL_zadost_KOC2_2026-10-02'."""
     m = _STEM_DATE.search(stem)
-    return date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+    if m is None:
+        return None
+    try:
+        return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:  # e.g. '2026-13-45': no date, the caller asks for authored_at (422)
+        return None
 
 
 def normalize_docx_bytes(doc_id: str, content: bytes, authored_date: date | None) -> NormalizedDoc:
@@ -279,8 +284,7 @@ def normalize(path: Path, source: SourceDocument | None = None) -> NormalizedDoc
     With `source` (P1's document metadata), the received timestamp is attached for the as-of rule.
     """
     stem = path.stem
-    m = _STEM_DATE.search(stem)
-    authored = date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+    authored = stem_date(stem)
     doc = build_doc(stem, _raw_blocks(path), authored)
     if source is None:
         return doc

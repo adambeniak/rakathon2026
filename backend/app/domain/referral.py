@@ -93,8 +93,11 @@ class ReferralSubmission(DomainModel):
     note: str | None = Field(None, max_length=1000, description="Optional note of the GP to the KOC.")
 
 
-def compare_with_prefill(prefill: ReferralPrefill, submission: ReferralSubmission) -> tuple[list[str], list[str]]:
-    """Names of the fields the GP changed (`edited`) or filled in although the letter had no value (`added`)."""
+def compare_with_prefill(
+    prefill: ReferralPrefill, submission: ReferralSubmission
+) -> tuple[list[str], list[str], list[str]]:
+    """Field names the GP changed (`edited`), filled in although the letter had no value (`added`) or emptied
+    although the letter had one (`cleared`)."""
     rc = prefill.birth_number.value
     diagnosis = prefill.suspected_diagnosis.value
     pairs: list[tuple[str, object, object]] = [
@@ -107,12 +110,20 @@ def compare_with_prefill(prefill: ReferralPrefill, submission: ReferralSubmissio
         ("phone", prefill.patient_phone.value, submission.phone),
         ("address", prefill.address.value, submission.address),
         ("contact_person", prefill.contact_person.value, submission.contact_person),
+        ("diagnosis_code", diagnosis.code if diagnosis else None, submission.diagnosis_code),
         ("diagnosis_text", diagnosis.text if diagnosis else None, submission.diagnosis_text),
     ]
     edited: list[str] = []
     added: list[str] = []
+    cleared: list[str] = []
     for name, original, confirmed in pairs:
-        if confirmed in (None, "") or confirmed == original:
+        had, has = original not in (None, ""), confirmed not in (None, "")
+        if confirmed == original or (not had and not has):
             continue
-        (edited if original not in (None, "") else added).append(name)
-    return edited, added
+        if had and not has:
+            cleared.append(name)
+        elif has and not had:
+            added.append(name)
+        else:
+            edited.append(name)
+    return edited, added, cleared

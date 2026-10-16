@@ -108,8 +108,9 @@ Switch providers with `make index FORCE=1`; rows are filtered by `EmbeddingModel
 
 ## Why hybrid
 
-Rank of the key chunk of report 09 ("Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer)")
-among 84 as-of chunks:
+Rank of the key chunk of report 09 ("Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer)").
+The dense columns were measured on the first index (character chunks, 84 as-of chunks); the hybrid column on the
+final token-budgeted index (76 as-of chunks), where each leg's top 3 always reaches the top 10:
 
 | Question | dense, title prefix | dense, no prefix | hybrid (shipped) |
 | --- | --- | --- | --- |
@@ -178,6 +179,12 @@ Every answer carries the label `Návrh AI` and a disclaimer. Retrieved documents
 AuditEvent per question). The question is never logged, and the API never writes live answers to disk.
 
 ## Operations
+
+The backend image contains `app/` only, not the recorded LLM cache (`backend/tests/fixtures/llm_cache`). In a
+container, `/ask` therefore needs live APIM: set `STAFETA_LLM_CACHE=0`. Verified on the built image against ACI: all
+acceptance questions are answered, and no file is written (the API never persists answers). With
+`STAFETA_LLM_CACHE=1`, the container answers `503 ai-unavailable`. The cached replay is for `make eval` and local
+runs from the repo.
 
 | Command | What |
 | --- | --- |

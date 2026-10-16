@@ -44,8 +44,9 @@ export const handlers = [
   http.get('/api/cases/:id/tasks', ({ params, request }) =>
     HttpResponse.json(params.id === ALENA_ID ? tasksAt(todayOf(request), store.setStarted, store.taskPhase) : []),
   ),
-  http.post('/api/cases/:id/task-sets', ({ request }) => {
+  http.post('/api/cases/:id/task-sets', ({ params, request }) => {
     if (roleOf(request) !== 'coordinator') return problem(403, 'Sadu může spustit pouze koordinátorka')
+    if (params.id !== ALENA_ID) return problem(404, 'Sada úkolů pro tento případ není k dispozici')
     store.setStarted = true
     return HttpResponse.json({ started: true })
   }),

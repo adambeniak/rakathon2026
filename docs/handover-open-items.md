@@ -7,7 +7,7 @@ Owners are roles from AGENTS.md.
 ## Broken (fix before the demo)
 | # | What | Where | Owner |
 | --- | --- | --- | --- |
-| B1 | Confirming a section always returns **403** outside tests. `current_actor()` returns `system`, and only `koc_physician` may confirm. | `app/security/actor.py` (#4), `routes/handover.py` | P4 |
+| B1 | ~~Confirm always 403~~ — since #18 (`X-Demo-Role` demo login) a KOC physician confirms in demo mode (tested end to end via the real login dependency). Outside demo mode every request is 401 until real authentication (#4). | `app/security/actor.py` (#4) | P4 |
 | B4 | The frontend calls `/handover/sections/{key}/confirm` and `/handover/confirm-all` with its own mock shape. The API has `/sections/{n}/confirm` (n = 1..15), returns `Handover`, and has no confirm-all. | `frontend/src/features/handover/api.ts` | P3 |
 | B5 | The demo epicrisis is the code-built **fallback** (a list of facts), not a summary. The `epicrisis-v1` LLM answer is not in the cache. | `tests/fixtures/llm_cache` | human: `STAFETA_LLM_CACHE=0 make eval` |
 

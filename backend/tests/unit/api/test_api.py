@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import (
     LlmClients,
     get_case_reader,
+    get_directory_provider,
     get_fhir_client,
     get_handover_store,
     get_iris_pool,
@@ -25,10 +26,12 @@ from app.domain.patient import Patient, Sex
 from app.export_openapi import stable_json
 from app.extraction.llm import CacheMissError
 from app.fhir.cases import CaseContentsView, CaseDetailView, CaseOverview
+from app.fhir.directory import Directory
 from app.fhir.errors import FhirAuthError, FhirConflictError, FhirUnavailableError
 from app.main import create_app
 from app.security.actor import current_actor
 from app.settings import PRAGUE, Settings
+from tests.directory_fixtures import demo_directory
 from tests.unit.api.fake_handover_store import FakeStore
 
 CASE = Case(
@@ -362,6 +365,11 @@ def test_handover_export_markdown(client: TestClient) -> None:
     assert "Nezahrnuto: 12_Algeziologie_2026-10-26" in response.text
 
 
+class DemoDirectory:
+    async def get(self) -> Directory:
+        return demo_directory()
+
+
 PHYSICIAN = PartyRef(id="markova-lenka@koc2-nemocnice-lipova", display="MUDr. Lenka Marková", role=Role.KOC_PHYSICIAN)
 CONFIRM = "/api/cases/rakathon-2026-prochazkova/handover/sections/{n}/confirm?as_of=2026-10-21"
 
@@ -380,8 +388,8 @@ def _hash(client: TestClient, n: int) -> str:
     return value_hash
 
 
-def _confirm(client: TestClient, n: int, **body: object) -> Any:
-    return client.post(CONFIRM.format(n=n), json={"expected_value_hash": _hash(client, n), **body})
+def _confirm(client: TestClient, n: int, headers: dict[str, str] | None = None, **body: object) -> Any:
+    return client.post(CONFIRM.format(n=n), json={"expected_value_hash": _hash(client, n), **body}, headers=headers)
 
 
 def test_persist_handover_returns_preliminary_composition(client: TestClient) -> None:
@@ -397,12 +405,20 @@ def test_persist_handover_returns_preliminary_composition(client: TestClient) ->
     assert again["composition_id"] == body["composition_id"]
 
 
-def test_confirm_requires_a_koc_physician(client: TestClient) -> None:
-    response = _confirm(client, 9, accept_missing=True)
+def test_confirm_requires_a_koc_physician(app: FastAPI, client: TestClient) -> None:
+    # the real demo login (X-Demo-Role -> seeded person of that role), no actor override
+    app.dependency_overrides[get_directory_provider] = lambda: DemoDirectory()
+
+    response = _confirm(client, 9, headers={"X-Demo-Role": "coordinator"}, accept_missing=True)
 
     assert response.status_code == 403
     assert response.headers["content-type"] == "application/problem+json"
     assert response.json()["type"] == "https://stafeta.example/problems/forbidden"
+
+    physician = _confirm(client, 9, headers={"X-Demo-Role": "koc_physician"}, accept_missing=True)
+    assert physician.status_code == 200
+    review = physician.json()["fields"]["9_performance_status"]["review"]
+    assert review["by"]["role"] == "koc_physician"
 
 
 @pytest.mark.usefixtures("physician")

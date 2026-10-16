@@ -18,9 +18,8 @@ from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
 from app.extraction.llm import LLMClient
 from app.extraction.pipeline import CompletionClient
 from app.fhir.cases import CaseReader
-from app.fhir.referrals import ReferralWriter
-from app.fhir.client import FhirClient
 from app.fhir.handover_store import HandoverStore
+from app.fhir.referrals import ReferralWriter
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
 from app.fhir.triage import TriageReader

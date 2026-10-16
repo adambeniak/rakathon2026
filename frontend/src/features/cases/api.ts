@@ -31,8 +31,16 @@ export function useDocuments(id: string) {
     queryKey: ['case', id, 'documents', today],
     queryFn: async () => adaptDetail(unwrap(await client.GET('/api/cases/{case_id}', { params: { path: { case_id: id } } }))).documents,
   })
-  const excluded = new Set((handover.data?.excluded ?? []).map((d) => d.id))
-  return { ...q, data: q.data?.map((d) => ({ ...d, afterAsOf: excluded.has(d.id) })) }
+  const excluded = handover.isSuccess ? new Set(handover.data.excluded.map((d) => d.id)) : undefined
+  return {
+    ...q,
+    isPending: q.isPending || handover.isPending,
+    isError: q.isError || handover.isError,
+    refetch: async () => {
+      await Promise.all([q.refetch(), handover.refetch()])
+    },
+    data: q.data?.map((d) => ({ ...d, afterAsOf: excluded?.has(d.id) })),
+  }
 }
 export const useTasks = (id: string) => useCaseQuery<TaskItem[]>(id, 'tasks')
 export const useTimeline = (id: string) => useCaseQuery<TimelineEvent[]>(id, 'timeline')

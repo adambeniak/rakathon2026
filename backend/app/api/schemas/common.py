@@ -2,7 +2,18 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
+
+_PROBLEM_DESCRIPTIONS = {
+    404: "Not found",
+    409: "Not allowed in the current state",
+    422: "Request validation failed",
+    500: "Unexpected server error",
+    502: "FHIR storage rejected the operation",
+    503: "IRIS unavailable",
+}
 
 
 class ValidationIssue(BaseModel):
@@ -36,3 +47,11 @@ class ProblemDetails(BaseModel):
     instance: str | None = None
     request_id: str | None = None
     errors: list[ValidationIssue] | None = Field(None, description="Present for 422 validation problems.")
+
+
+def problem_responses(*statuses: int) -> dict[int | str, dict[str, Any]]:
+    """OpenAPI `responses` for error statuses; the body is `ProblemDetails` sent as application/problem+json."""
+    return {
+        status: {"model": ProblemDetails, "description": f"{_PROBLEM_DESCRIPTIONS[status]} (application/problem+json)"}
+        for status in statuses
+    }

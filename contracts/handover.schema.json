@@ -1,0 +1,1817 @@
+{
+  "$defs": {
+    "CitedSentence": {
+      "additionalProperties": false,
+      "properties": {
+        "fact_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Fact Ids",
+          "type": "array"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "fact_ids"
+      ],
+      "title": "CitedSentence",
+      "type": "object"
+    },
+    "ComorbiditiesField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Comorbidity"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ComorbiditiesField",
+      "type": "object"
+    },
+    "Comorbidity": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "icd10": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icd10"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Comorbidity",
+      "type": "object"
+    },
+    "ContactPerson": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phone"
+        },
+        "relation": {
+          "title": "Relation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "relation"
+      ],
+      "title": "ContactPerson",
+      "type": "object"
+    },
+    "Contacts": {
+      "additionalProperties": false,
+      "properties": {
+        "contact_person": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ContactPerson"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "patient_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patient Email"
+        },
+        "patient_phone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Patient Phone"
+        }
+      },
+      "title": "Contacts",
+      "type": "object"
+    },
+    "ContactsField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Contacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ContactsField",
+      "type": "object"
+    },
+    "Diagnosis": {
+      "additionalProperties": false,
+      "properties": {
+        "icd10": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MKN-10 code, e.g. 'C25.0'.",
+          "title": "Icd10"
+        },
+        "icdo3_morphology": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ICD-O-3 morphology, e.g. '8500/3'.",
+          "title": "Icdo3 Morphology"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "tnm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tnm"
+        },
+        "verified_histologically_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Verified Histologically On"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Diagnosis",
+      "type": "object"
+    },
+    "DiagnosisField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Diagnosis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "DiagnosisField",
+      "type": "object"
+    },
+    "Epicrisis": {
+      "additionalProperties": false,
+      "properties": {
+        "sentences": {
+          "description": "Each sentence with its cited facts.",
+          "items": {
+            "$ref": "#/$defs/CitedSentence"
+          },
+          "title": "Sentences",
+          "type": "array"
+        },
+        "text": {
+          "description": "AI draft ('Návrh AI') until a physician confirms it.",
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Epicrisis",
+      "type": "object"
+    },
+    "EpicrisisField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Epicrisis"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "EpicrisisField",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "A verbatim (whitespace-normalised) quote from a source document.\n\nThe golden file (`data/golden`) names the document key `doc`; the API and code use `doc_id`.",
+      "properties": {
+        "char_end": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Char End"
+        },
+        "char_start": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Offset of the quote in the normalised text.",
+          "title": "Char Start"
+        },
+        "doc_id": {
+          "description": "File stem of the source document.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "quote": {
+          "description": "Must occur verbatim in the normalised document text.",
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "doc_id",
+        "quote"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Examination": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "doc_id": {
+          "description": "Document with the full text.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "place": {
+          "title": "Place",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "place",
+        "type",
+        "doc_id"
+      ],
+      "title": "Examination",
+      "type": "object"
+    },
+    "ExaminationsField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Examination"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ExaminationsField",
+      "type": "object"
+    },
+    "ExcludedDocument": {
+      "additionalProperties": false,
+      "properties": {
+        "doc_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "reason": {
+          "description": "E.g. 'authored after as_of'.",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "doc_id",
+        "reason"
+      ],
+      "title": "ExcludedDocument",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "docs": {
+          "description": "doc_ids involved.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Docs",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "field": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Affected handover field or path, e.g. '3_diagnosis.tnm'.",
+          "title": "Field"
+        },
+        "id": {
+          "description": "Stable id referenced from handover fields, e.g. 'C1'.",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/FindingKind"
+        },
+        "message": {
+          "description": "Neutral Czech description of what is inconsistent or missing.",
+          "title": "Message",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "suggested_action": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Workflow action, e.g. 'create_verification_task'.",
+          "title": "Suggested Action"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "severity",
+        "message"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "FindingKind": {
+      "enum": [
+        "date_conflict",
+        "sla_breach",
+        "missing",
+        "stale",
+        "missing_document",
+        "temporal_cutoff",
+        "metadata_mismatch",
+        "insurer",
+        "needs_clarification",
+        "not_documented",
+        "lost_information",
+        "role_mismatch"
+      ],
+      "title": "FindingKind",
+      "type": "string"
+    },
+    "HandoverFields": {
+      "additionalProperties": false,
+      "properties": {
+        "10_weight_height": {
+          "$ref": "#/$defs/WeightHeightField",
+          "description": "Váha a výška"
+        },
+        "11_symptoms": {
+          "$ref": "#/$defs/SymptomsField",
+          "description": "Symptomy a jejich počátek"
+        },
+        "12_examinations": {
+          "$ref": "#/$defs/ExaminationsField",
+          "description": "Provedená vyšetření"
+        },
+        "13_labs": {
+          "$ref": "#/$defs/LabsField",
+          "description": "Laboratoř vč. onkomarkerů"
+        },
+        "14_histology": {
+          "$ref": "#/$defs/HistologyField",
+          "description": "Histologie"
+        },
+        "15_other": {
+          "$ref": "#/$defs/TextListField",
+          "description": "Jiná důležitá sdělení vč. přání pacienta"
+        },
+        "1_patient": {
+          "$ref": "#/$defs/PatientField",
+          "description": "Nacionále"
+        },
+        "2_contacts": {
+          "$ref": "#/$defs/ContactsField",
+          "description": "Kontakty"
+        },
+        "3_diagnosis": {
+          "$ref": "#/$defs/DiagnosisField",
+          "description": "Diagnóza"
+        },
+        "4_epicrisis": {
+          "$ref": "#/$defs/EpicrisisField",
+          "description": "Epikríza"
+        },
+        "5_mdt_question": {
+          "$ref": "#/$defs/TextField",
+          "description": "Požadavek / otázka na MDT"
+        },
+        "6_comorbidities": {
+          "$ref": "#/$defs/ComorbiditiesField",
+          "description": "Komorbidity (OA)"
+        },
+        "7_medications": {
+          "$ref": "#/$defs/MedicationsField",
+          "description": "Léková anamnéza (FA)"
+        },
+        "8_allergies": {
+          "$ref": "#/$defs/TextField",
+          "description": "Alergie (AA)"
+        },
+        "9_performance_status": {
+          "$ref": "#/$defs/PerformanceStatusField",
+          "description": "PS / Karnofsky"
+        }
+      },
+      "required": [
+        "1_patient",
+        "2_contacts",
+        "3_diagnosis",
+        "4_epicrisis",
+        "5_mdt_question",
+        "6_comorbidities",
+        "7_medications",
+        "8_allergies",
+        "9_performance_status",
+        "10_weight_height",
+        "11_symptoms",
+        "12_examinations",
+        "13_labs",
+        "14_histology",
+        "15_other"
+      ],
+      "title": "HandoverFields",
+      "type": "object"
+    },
+    "HandoverStatus": {
+      "enum": [
+        "complete",
+        "partial",
+        "missing",
+        "stale",
+        "needs_clarification",
+        "complete_with_conflict",
+        "generated_with_citations"
+      ],
+      "title": "HandoverStatus",
+      "type": "string"
+    },
+    "Histology": {
+      "additionalProperties": false,
+      "properties": {
+        "grade": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Grade"
+        },
+        "ihc": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Immunohistochemistry marker -> result as written.",
+          "title": "Ihc",
+          "type": "object"
+        },
+        "issued": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Issued"
+        },
+        "perineural_invasion": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Perineural Invasion"
+        },
+        "report_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Report Id"
+        }
+      },
+      "title": "Histology",
+      "type": "object"
+    },
+    "HistologyField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Histology"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "HistologyField",
+      "type": "object"
+    },
+    "LabResult": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "doc_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "flag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "As written in the report, e.g. 'H' or 'L'.",
+          "title": "Flag"
+        },
+        "test": {
+          "title": "Test",
+          "type": "string"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "test",
+        "value",
+        "date",
+        "doc_id"
+      ],
+      "title": "LabResult",
+      "type": "object"
+    },
+    "LabsField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/LabResult"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Key values incl. tumour markers (golden: key_values).",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "LabsField",
+      "type": "object"
+    },
+    "Medication": {
+      "additionalProperties": false,
+      "properties": {
+        "dose": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dose"
+        },
+        "drug": {
+          "title": "Drug",
+          "type": "string"
+        },
+        "schedule": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "As written, e.g. '1-0-1'.",
+          "title": "Schedule"
+        }
+      },
+      "required": [
+        "drug"
+      ],
+      "title": "Medication",
+      "type": "object"
+    },
+    "MedicationsField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/Medication"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "MedicationsField",
+      "type": "object"
+    },
+    "PatientField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PatientIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "PatientField",
+      "type": "object"
+    },
+    "PatientIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "age_years": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Age Years"
+        },
+        "birth_date": {
+          "format": "date",
+          "title": "Birth Date",
+          "type": "string"
+        },
+        "birth_number": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Birth Number"
+        },
+        "birth_number_checksum_valid": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Birth Number Checksum Valid"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string"
+        },
+        "given": {
+          "title": "Given",
+          "type": "string"
+        },
+        "insurer_code": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Insurer Code"
+        },
+        "insurer_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Code-list lookup, not extracted text.",
+          "title": "Insurer Name"
+        },
+        "sex": {
+          "$ref": "#/$defs/Sex"
+        }
+      },
+      "required": [
+        "given",
+        "family",
+        "sex",
+        "birth_date"
+      ],
+      "title": "PatientIdentity",
+      "type": "object"
+    },
+    "PerformanceStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "scale": {
+          "enum": [
+            "ECOG",
+            "Karnofsky"
+          ],
+          "title": "Scale",
+          "type": "string"
+        },
+        "value": {
+          "description": "As documented; never inferred (e.g. not from 'soběstačná').",
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scale",
+        "value"
+      ],
+      "title": "PerformanceStatus",
+      "type": "object"
+    },
+    "PerformanceStatusField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PerformanceStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "PerformanceStatusField",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "high",
+        "medium",
+        "low",
+        "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "Sex": {
+      "enum": [
+        "female",
+        "male",
+        "other",
+        "unknown"
+      ],
+      "title": "Sex",
+      "type": "string"
+    },
+    "Symptoms": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "onset": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "As written, e.g. 'polovina srpna 2026'.",
+          "title": "Onset"
+        }
+      },
+      "title": "Symptoms",
+      "type": "object"
+    },
+    "SymptomsField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Symptoms"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "SymptomsField",
+      "type": "object"
+    },
+    "TextField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "TextField",
+      "type": "object"
+    },
+    "TextListField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "TextListField",
+      "type": "object"
+    },
+    "WeightHeight": {
+      "additionalProperties": false,
+      "properties": {
+        "height_cm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height Cm"
+        },
+        "height_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height Date"
+        },
+        "weights": {
+          "items": {
+            "$ref": "#/$defs/WeightMeasurement"
+          },
+          "title": "Weights",
+          "type": "array"
+        }
+      },
+      "title": "WeightHeight",
+      "type": "object"
+    },
+    "WeightHeightField": {
+      "additionalProperties": false,
+      "properties": {
+        "conflicts": {
+          "description": "Ids of findings that contradict the value.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "missing": {
+          "description": "Sub-items not stated in the sources.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Missing",
+          "type": "array"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        },
+        "status": {
+          "$ref": "#/$defs/HandoverStatus"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeightHeight"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "WeightHeightField",
+      "type": "object"
+    },
+    "WeightMeasurement": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "kg": {
+          "title": "Kg",
+          "type": "number"
+        }
+      },
+      "required": [
+        "kg",
+        "date"
+      ],
+      "title": "WeightMeasurement",
+      "type": "object"
+    }
+  },
+  "$id": "https://stafeta.example/contracts/handover.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Handover for one case. Documents count only if authored <= as_of AND received <= as_of.",
+  "properties": {
+    "as_of": {
+      "description": "Cut-off timestamp, e.g. MDT start 2026-10-21T08:00:00+02:00.",
+      "format": "date-time",
+      "title": "As Of",
+      "type": "string"
+    },
+    "case_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "excluded_documents": {
+      "items": {
+        "$ref": "#/$defs/ExcludedDocument"
+      },
+      "title": "Excluded Documents",
+      "type": "array"
+    },
+    "fields": {
+      "$ref": "#/$defs/HandoverFields"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "generated_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Generated At"
+    },
+    "included_documents": {
+      "description": "doc_ids used for this handover.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Included Documents",
+      "type": "array"
+    }
+  },
+  "required": [
+    "case_id",
+    "as_of",
+    "included_documents",
+    "fields"
+  ],
+  "title": "Handover",
+  "type": "object"
+}

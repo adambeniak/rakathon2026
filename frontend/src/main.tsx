@@ -11,8 +11,9 @@ import { Providers } from './app/providers'
 import { createRouter } from './app/router'
 
 async function bootstrap() {
-  // Real API by default (dev proxies /api to the backend); VITE_MOCKS=1 opts into MSW for offline work.
-  if (import.meta.env.VITE_MOCKS === '1') {
+  // Keep mocks as the development default until the remaining workflows use the backend contract.
+  const mocks = import.meta.env.VITE_MOCKS === '1' || (import.meta.env.DEV && import.meta.env.VITE_MOCKS !== '0')
+  if (mocks) {
     const { worker } = await import('./mocks/browser')
     await worker.start({ onUnhandledRequest: 'bypass', quiet: true })
   }

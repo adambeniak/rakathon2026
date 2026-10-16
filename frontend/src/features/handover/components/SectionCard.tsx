@@ -35,10 +35,10 @@ export function SectionCard({
   const [reason, setReason] = useState('')
   const [saving, setSaving] = useState(false)
   const changed = Object.entries(draft).filter(([i, v]) => v !== s.rows[Number(i)]?.value)
-  const canEdit = roleAllowed && s.rows.length > 0
+  const canEdit = roleAllowed && s.rows.some((r) => !r.readOnly)
 
   function startEdit() {
-    setDraft(Object.fromEntries(s.rows.map((r, i) => [i, r.value])))
+    setDraft(Object.fromEntries(s.rows.flatMap((r, i) => (r.readOnly ? [] : [[i, r.value]]))))
     setReason('')
     setEditing(true)
   }
@@ -90,7 +90,7 @@ export function SectionCard({
           <div key={i} className="flex flex-wrap gap-x-3">
             {r.label ? <dt className="w-44 shrink-0 text-muted">{r.label}</dt> : <dt className="sr-only">{s.title}</dt>}
             <dd className="min-w-0 flex-1">
-              {editing ? (
+              {editing && !r.readOnly ? (
                 <input
                   value={draft[i] ?? ''}
                   onChange={(e) => setDraft({ ...draft, [i]: e.target.value })}
@@ -101,6 +101,14 @@ export function SectionCard({
                 <>
                   {r.value}
                   {r.note && <span className="ml-2 text-xs text-muted">{r.note}</span>}
+                  {r.readOnly && (
+                    <span className="ml-2 inline-flex flex-wrap items-center gap-1 align-middle">
+                      <span className="text-xs text-muted">{t.readOnly}</span>
+                      {r.evidence?.map((e, k) => (
+                        <EvidenceChip key={k} docId={e.docId} quote={e.quote} doc={docs.find((d) => d.id === e.docId)} />
+                      ))}
+                    </span>
+                  )}
                 </>
               )}
             </dd>

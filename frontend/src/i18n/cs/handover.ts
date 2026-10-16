@@ -8,6 +8,7 @@ export const handover = {
   confirmedBy: (who: string) => `Potvrdil(a) ${who}`,
   cannotConfirm: 'Chybějící údaj nelze potvrdit',
   edit: 'Upravit',
+  readOnly: 'Souhlas pacienta – nelze upravit',
   editAria: (title: string) => `Upravit sekci: ${title}`,
   editValueAria: (label: string) => `Hodnota: ${label}`,
   reasonLabel: 'Důvod změny',

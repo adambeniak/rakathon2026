@@ -9,7 +9,7 @@ import { problem, roleOf } from './util'
 
 export const handlers = [
   http.get('/api/cases/:id/handover', ({ params, request }) => {
-    if (params.id !== ALENA_ID) return HttpResponse.json({ asOf: AS_OF_DEFAULT, sections: [], excluded: [] })
+    if (params.id !== ALENA_ID) return HttpResponse.json({ asOf: AS_OF_DEFAULT, sections: [], excluded_documents: [] })
     const asOf = new URL(request.url).searchParams.get('as_of') ?? AS_OF_DEFAULT
     return HttpResponse.json({
       asOf,
@@ -23,7 +23,7 @@ export const handlers = [
           ),
         }
       }),
-      excluded: DOCUMENTS.filter((d) => new Date(d.received).getTime() > new Date(asOf).getTime()),
+      excluded_documents: DOCUMENTS.filter((d) => new Date(d.received).getTime() > new Date(asOf).getTime()),
     })
   }),
   http.post('/api/cases/:id/handover/sections/:key/confirm', ({ params, request }) => {

@@ -110,7 +110,11 @@ function rowsFor(key: string, f: Gf, inc: Set<string>): Row[] {
       ]
     }
     case '15_other':
-      return ((f.value as string[] | undefined) ?? []).map((i) => ({ value: i }))
+      return ((f.value as string[] | undefined) ?? []).map((i) => {
+        const ev = (f.evidence ?? []).find((e) => e.quote === i)
+        // The API marks consent / wishes of the patient: read-only, with their own source.
+        return /^Souhlas/.test(i) && ev ? { value: i, readOnly: true, evidence: [{ docId: ev.doc, quote: ev.quote }] } : { value: i }
+      })
     default:
       return []
   }

@@ -9,24 +9,6 @@ import { golden } from './golden'
 type Row = HandoverSection['rows'][number]
 type Gf = (typeof golden.fields)[string]
 
-const TITLES: Record<string, string> = {
-  '1_patient': 'Pacient',
-  '2_contacts': 'Kontakty',
-  '3_diagnosis': 'Diagnóza',
-  '4_epicrisis': 'Epikríza',
-  '5_mdt_question': 'Otázka pro MDT',
-  '6_comorbidities': 'Komorbidity',
-  '7_medications': 'Léková anamnéza',
-  '8_allergies': 'Alergie',
-  '9_performance_status': 'Stav výkonnosti',
-  '10_weight_height': 'Výška a hmotnost',
-  '11_symptoms': 'Symptomy',
-  '12_examinations': 'Provedená vyšetření',
-  '13_labs': 'Laboratoř',
-  '14_histology': 'Histologie',
-  '15_other': 'Jiná sdělení',
-}
-
 const FINDING_LINKS: Record<string, string[]> = {
   '2_contacts': ['M3'],
   '3_diagnosis': ['M2'],
@@ -122,11 +104,6 @@ function rowsFor(key: string, f: Gf, inc: Set<string>): Row[] {
   }
 }
 
-const MISSING_LABEL: Record<string, string> = {
-  patient_email: 'E-mail pacientky',
-  tnm_clinical_stage: 'Klinické TNM',
-}
-
 const DOC = {
   uz: '06_UZ_bricha_2026-09-29',
   ct: '08_CT_KOC1_2026-10-08',
@@ -198,16 +175,23 @@ export function buildSections(confirmed: Record<string, string>, asOf: string = 
     return {
       key,
       number,
-      title: TITLES[key] ?? key,
+      title: (t.sectionTitles as Record<string, string>)[key] ?? key,
       status,
       rows,
-      missing: (f.missing ?? []).map((m) => MISSING_LABEL[m] ?? m),
+      missing: (f.missing ?? []).map((m) => (t.missingItems as Record<string, string>)[m] ?? m),
       evidence,
       findingIds,
       confirmed: key in confirmed,
       confirmedBy: confirmed[key],
     }
   })
+}
+
+/** Stand-in for the API's SHA-256 `value_hash`: changes whenever the displayed values change. */
+export function sectionHash(s: HandoverSection): string {
+  let h = 5381
+  for (const ch of JSON.stringify(s.rows.map((r) => [r.label, r.value]))) h = (h * 33) ^ ch.charCodeAt(0)
+  return (h >>> 0).toString(16).padStart(8, '0').repeat(8)
 }
 
 export const CONFIRMABLE = (s: HandoverSection): boolean => s.status !== 'missing'

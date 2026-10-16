@@ -39,4 +39,28 @@ export const handover = {
   empty: 'Handover zatím není k dispozici',
   emptyHint: 'Handover se sestaví po přijetí dokumentů k případu.',
   sectionsDone: (done: number, total: number) => `Potvrzeno ${done} z ${total} sekcí`,
+  excludedReasonUnknown: 'Důvod není uveden',
+  /** Czech section titles by handover field key (contracts/handover.schema.json). */
+  sectionTitles: {
+    '1_patient': 'Pacient',
+    '2_contacts': 'Kontakty',
+    '3_diagnosis': 'Diagnóza',
+    '4_epicrisis': 'Epikríza',
+    '5_mdt_question': 'Otázka pro MDT',
+    '6_comorbidities': 'Komorbidity',
+    '7_medications': 'Léková anamnéza',
+    '8_allergies': 'Alergie',
+    '9_performance_status': 'Stav výkonnosti',
+    '10_weight_height': 'Výška a hmotnost',
+    '11_symptoms': 'Symptomy',
+    '12_examinations': 'Provedená vyšetření',
+    '13_labs': 'Laboratoř',
+    '14_histology': 'Histologie',
+    '15_other': 'Jiná sdělení',
+  },
+  /** Labels of sub-items the sources do not state, by `missing` key; unknown keys are shown as they come. */
+  missingItems: {
+    patient_email: 'E-mail pacientky',
+    tnm_clinical_stage: 'Klinické TNM',
+  },
 } as const

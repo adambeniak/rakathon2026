@@ -1,30 +1,31 @@
 import { http, HttpResponse } from 'msw'
 import { ALENA_ID } from '../fixtures/cases'
-import { AS_OF_DEFAULT, DOCUMENTS } from '../fixtures/documents'
-import { buildReviewedSections, buildSections, CONFIRMABLE } from '../fixtures/handover'
+import { AS_OF_DEFAULT } from '../fixtures/documents'
+import { buildReviewedSections, buildSections, CONFIRMABLE, sectionHash } from '../fixtures/handover'
+import { emptyWire, toWire } from '../fixtures/handoverWire'
 import { store } from '../fixtures/store'
 import { DEMO_USERS } from '../fixtures/people'
 import { problem, roleOf } from './util'
 
 
 export const handlers = [
+  // Wire shape of the contract (`Handover`); the UI adapts it with `adaptHandover`.
   http.get('/api/cases/:id/handover', ({ params, request }) => {
-    if (params.id !== ALENA_ID) return HttpResponse.json({ asOf: AS_OF_DEFAULT, sections: [], excluded_documents: [] })
     const asOf = new URL(request.url).searchParams.get('as_of') ?? AS_OF_DEFAULT
-    return HttpResponse.json({
-      asOf,
-      sections: buildReviewedSections(store.confirmed, store.edits, asOf),
-      excluded_documents: DOCUMENTS.filter((d) => new Date(d.received).getTime() > new Date(asOf).getTime()),
-    })
+    if (params.id !== ALENA_ID) return HttpResponse.json(emptyWire(String(params.id), asOf))
+    return HttpResponse.json(toWire(ALENA_ID, asOf, buildSections(store.confirmed, asOf), store.edits))
   }),
-  http.post('/api/cases/:id/handover/sections/:key/confirm', ({ params, request }) => {
+  // Contract route: by section number, with the hash of the value the physician saw.
+  http.post('/api/cases/:id/handover/sections/:number/confirm', async ({ params, request }) => {
     const role = roleOf(request)
     if (role !== 'physician') return problem(403, 'Sekci může potvrdit pouze lékař')
-    const key = String(params.key)
-    const s = buildSections(store.confirmed).find((x) => x.key === key)
+    const s = buildReviewedSections(store.confirmed, store.edits).find((x) => x.number === Number(params.number))
     if (!s) return problem(404, 'Sekce nebyla nalezena')
+    const body = (await request.json().catch(() => ({}))) as { expected_value_hash?: string }
+    if (!body.expected_value_hash) return problem(422, 'Chybí kontrolní otisk hodnoty sekce')
+    if (body.expected_value_hash !== sectionHash(s)) return problem(409, 'Hodnota sekce se mezitím změnila')
     if (!CONFIRMABLE(s)) return problem(409, 'Chybějící údaj nelze potvrdit')
-    store.confirmed[key] = DEMO_USERS[role].name
+    store.confirmed[s.key] = DEMO_USERS[role].name
     return HttpResponse.json({ ok: true })
   }),
   http.post('/api/cases/:id/handover/sections/:key/edit', async ({ params, request }) => {

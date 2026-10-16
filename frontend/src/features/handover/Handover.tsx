@@ -96,7 +96,7 @@ export function Handover() {
           findings={(findings.data ?? []).filter((f) => s.findingIds.includes(f.id))}
           busy={confirm.isPending}
           canConfirm={isPhysician}
-          onConfirm={(key) => confirm.mutate(key)}
+          onConfirm={(section) => confirm.mutate(section)}
         />
       ))}
 
@@ -109,7 +109,8 @@ export function Handover() {
           <ul className="mt-2 space-y-1">
             {q.data.excluded.map((d) => (
               <li key={d.id}>
-                <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span> {d.title}
+                <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span>{' '}
+                {docs.data?.find((x) => x.id === d.id)?.title ?? d.id} <span className="text-sm text-muted">· {d.reason}</span>
               </li>
             ))}
           </ul>

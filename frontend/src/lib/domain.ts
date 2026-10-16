@@ -54,6 +54,12 @@ export const handoverSectionSchema = z.object({
   findingIds: z.array(z.string()),
   confirmed: z.boolean(),
   confirmedBy: z.string().optional(),
+  /** Section-level remark of the API (e.g. why a value is not stated). */
+  note: z.string().optional(),
+  /** The physician has changed the assembled value (API: `review.edited`). */
+  edited: z.boolean().optional(),
+  /** `value_hash` of the section as shown; a confirmation has to send it back. */
+  valueHash: z.string().optional(),
 })
 export type HandoverSection = z.infer<typeof handoverSectionSchema>
 

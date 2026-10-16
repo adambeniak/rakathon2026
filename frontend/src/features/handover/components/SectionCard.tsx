@@ -23,7 +23,7 @@ export function SectionCard({
   s: HandoverSection
   docs: DocumentInfo[]
   findings: Finding[]
-  onConfirm: (key: string) => void
+  onConfirm: (section: HandoverSection) => void
   onEdit: (key: string, rows: Record<number, string>, reason: string) => Promise<unknown>
   editError: boolean
   busy: boolean
@@ -56,7 +56,7 @@ export function SectionCard({
   }
 
   // "Chybí" only when a field is actually listed as missing; a partial section otherwise shows just "Neúplné".
-  const edited = s.rows.some((r) => r.note?.startsWith('Upraveno lékařem'))
+  const edited = s.edited === true || s.rows.some((r) => r.note?.startsWith('Upraveno lékařem'))
   const pills = pillForHandover(s.status, s.confirmed).filter((p) => p !== 'missing' || s.status === 'missing' || s.missing.length > 0)
   const canConfirm = roleAllowed && s.status !== 'missing' && !s.confirmed
 
@@ -123,6 +123,7 @@ export function SectionCard({
           </div>
         ))}
       </dl>
+      {s.note && <p className="mt-2 text-sm text-muted">{s.note}</p>}
 
       {editing && (
         <div className="mt-3 space-y-2 rounded bg-accent-soft/50 p-3">
@@ -185,7 +186,7 @@ export function SectionCard({
           <Button
             variant="secondary"
             disabled={!canConfirm || busy}
-            onClick={() => onConfirm(s.key)}
+            onClick={() => onConfirm(s)}
             aria-label={t.confirmSectionAria(s.title)}
             title={!roleAllowed ? t.physicianOnly : s.status === 'missing' ? t.cannotConfirm : undefined}
           >

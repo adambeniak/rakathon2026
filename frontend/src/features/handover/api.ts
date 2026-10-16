@@ -1,24 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDemo } from '@/app/DemoContext'
+import { client, unwrap } from '@/lib/api/client'
 import { api } from '@/lib/api/http'
-import { handoverSectionSchema } from '@/lib/domain'
-import { z } from 'zod'
+import type { HandoverSection } from '@/lib/domain'
+import { adaptHandover } from './adapter'
 import type { HandoverView } from './types'
-
-const viewSchema = z.object({
-  asOf: z.string(),
-  sections: z.array(handoverSectionSchema),
-  excluded_documents: z.array(z.any()),
-})
 
 export function useHandover(id: string) {
   const { today } = useDemo()
   return useQuery({
     queryKey: ['case', id, 'handover', today],
-    queryFn: async () => {
-      const v = viewSchema.parse(await api.get(`/api/cases/${id}/handover`))
-      return { asOf: v.asOf, sections: v.sections, excluded: v.excluded_documents } as HandoverView
-    },
+    queryFn: async () => adaptHandover(unwrap(await client.GET('/api/cases/{case_id}/handover', { params: { path: { case_id: id } } }))),
   })
 }
 
@@ -28,14 +20,21 @@ export function useConfirmSection(id: string) {
   const { today } = useDemo()
   const key = ['case', id, 'handover', today]
   return useMutation({
-    mutationFn: (sectionKey: string) => api.post(`/api/cases/${id}/handover/sections/${sectionKey}/confirm`),
-    onMutate: async (sectionKey: string) => {
+    // The contract confirms by section number and needs the hash of the value the physician saw (409 if it changed since).
+    mutationFn: async (section: HandoverSection) =>
+      unwrap(
+        await client.POST('/api/cases/{case_id}/handover/sections/{number}/confirm', {
+          params: { path: { case_id: id, number: section.number } },
+          body: { expected_value_hash: section.valueHash ?? '', accept_missing: false },
+        }),
+      ),
+    onMutate: async (section: HandoverSection) => {
       await qc.cancelQueries({ queryKey: key })
       const previous = qc.getQueryData<HandoverView>(key)
       if (previous) {
         qc.setQueryData<HandoverView>(key, {
           ...previous,
-          sections: previous.sections.map((s) => (s.key === sectionKey ? { ...s, confirmed: true } : s)),
+          sections: previous.sections.map((s) => (s.key === section.key ? { ...s, confirmed: true } : s)),
         })
       }
       return { previous }

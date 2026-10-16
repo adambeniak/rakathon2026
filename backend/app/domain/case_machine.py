@@ -2,72 +2,28 @@
 pripraveno_mdt → zaver_mdt → zpetna_vazba_odeslana → uzavreno, plus the `odlozeny` flag.
 
 Table-driven: every allowed transition is one `_Rule` (state · event · roles · guard · next state ·
-baton · notifications). Anything not in the table raises `TransitionError`.
+baton · notifications). Anything not in the table raises `TransitionError` (→ 409 problem+json).
+The table is documented in `contracts/case-states.md`; keep both in sync.
+
+The machine owns the baton *role* (`Case.baton_role`). The concrete person (`Case.baton_holder`) is
+resolved by the caller; a holder whose role no longer matches is cleared.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime
-from enum import StrEnum
 
-from . import clock
-from .events import DomainEvent, EventKind, Role, TransitionError
-from .pathway import Readiness
+from app.domain import clock
+from app.domain.case import Case, CaseState
+from app.domain.common import Role
+from app.domain.events import DomainEvent, EventKind, TransitionError
+from app.domain.pathway import Readiness
+from app.domain.patient import Patient
 
-
-class CaseState(StrEnum):
-    ODESLANO = "odeslano"
-    TRIAGE = "triage"
-    CEKA_NA_PODKLADY = "ceka_na_podklady"
-    KOMPLETNI = "kompletni"
-    PRIPRAVENO_MDT = "pripraveno_mdt"
-    ZAVER_MDT = "zaver_mdt"
-    ZPETNA_VAZBA_ODESLANA = "zpetna_vazba_odeslana"
-    UZAVRENO = "uzavreno"
-
-
-class Baton(StrEnum):
-    """Who is "na tahu"."""
-
-    GP = "gp"
-    COORD = "coordinator"
-    KOC_DOC = "koc_doctor"
-    MDT = "mdt"
-    EXTERNAL = "external"  # postponed: waiting for an external step
-    NONE = "none"  # closed
-
-
-class Bucket(StrEnum):
-    NOVY = "novy"
-    AKTIVNI = "aktivni"
-    ODLOZENY = "odlozeny"
-    ARCHIV = "archiv"
-
-
-@dataclass(frozen=True)
-class Case:
-    id: str
-    state: CaseState | None = None  # None = not yet submitted
-    baton: Baton = Baton.NONE
-    odlozeny: bool = False
-    resume_baton: Baton | None = None
-    mdt_start: datetime | None = None
-    conclusion_confirmed: bool = False
-    delivery_receipt: bool = False
-
-    @property
-    def bucket(self) -> Bucket | None:
-        if self.state is None:
-            return None
-        if self.state is CaseState.UZAVRENO:
-            return Bucket.ARCHIV
-        if self.odlozeny:
-            return Bucket.ODLOZENY
-        if self.state is CaseState.ODESLANO:
-            return Bucket.NOVY
-        return Bucket.AKTIVNI
+S = CaseState
+_GP, _COORD, _DOC, _SYS = Role.GP, Role.COORDINATOR, Role.KOC_PHYSICIAN, Role.SYSTEM
 
 
 @dataclass(frozen=True)
@@ -100,10 +56,10 @@ Guard = Callable[[Case, CaseContext, datetime], str | None]
 @dataclass(frozen=True)
 class _Rule:
     event: str
-    from_state: CaseState | None
+    from_state: CaseState | None  # None only for `submit`, which creates the case
     roles: frozenset[Role]
     to: CaseState | None  # None = stay in the same state
-    baton: Baton | None  # None = keep
+    baton: Role | None  # None = keep
     guard: Guard | None = None
     notify: tuple[tuple[tuple[Role, ...], str], ...] = ()
     audit_action: str = "update"
@@ -145,7 +101,7 @@ def _g_ready(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
     if not r.ready:
         return f"readiness gate not passed, missing: {', '.join(r.missing)}"
     for w in r.waived:  # defence in depth; readiness_gate already validates
-        if w.by_role is not Role.KOC_DOC or not _nonblank(w.reason):
+        if w.by_role is not Role.KOC_PHYSICIAN or not _nonblank(w.reason):
             return "invalid waiver"
     return None
 
@@ -184,105 +140,132 @@ def _g_resume(case: Case, _c: CaseContext, _n: datetime) -> str | None:
     return None if case.odlozeny else "case is not postponed"
 
 
-_C, _D, _M, _G, _S = Role.COORD, Role.KOC_DOC, Role.MDT, Role.GP, Role.SYSTEM
-S = CaseState
+_SUBMIT = _Rule(
+    "submit", None, frozenset({_GP}), S.ODESLANO, _COORD, _g_submit,
+    notify=(((_COORD,), "case.new"),), audit_action="create",
+)  # fmt: skip
 _POSTPONABLE = (S.TRIAGE, S.CEKA_NA_PODKLADY, S.KOMPLETNI, S.PRIPRAVENO_MDT)
 
+# The MDT is a meeting of KOC physicians (no separate role), so MDT-side actions belong to KOC_PHYSICIAN.
 _RULES: tuple[_Rule, ...] = (
-    _Rule(
-        "submit",
-        None,
-        frozenset({_G}),
-        S.ODESLANO,
-        Baton.COORD,
-        _g_submit,
-        notify=(((_C,), "case.new"),),
-        audit_action="create",
-    ),
-    _Rule(
-        "accept",
-        S.ODESLANO,
-        frozenset({_C}),
-        S.TRIAGE,
-        Baton.COORD,
-        notify=(((_G,), "case.accepted"),),
-    ),
+    _Rule("accept", S.ODESLANO, frozenset({_COORD}), S.TRIAGE, _COORD, notify=(((_GP,), "case.accepted"),)),
     _Rule(
         "request_documents",
         S.TRIAGE,
-        frozenset({_C}),
+        frozenset({_COORD}),
         S.CEKA_NA_PODKLADY,
-        Baton.COORD,
+        _COORD,
         _g_request_docs,
-        notify=(((_G,), "case.documents_requested"),),
+        notify=(((_GP,), "case.documents_requested"),),
     ),
-    _Rule("mark_complete", S.TRIAGE, frozenset({_C}), S.KOMPLETNI, Baton.KOC_DOC, _g_complete),
-    _Rule(
-        "docs_received",
-        S.CEKA_NA_PODKLADY,
-        frozenset({_C, _S}),
-        S.KOMPLETNI,
-        Baton.KOC_DOC,
-        _g_docs_received,
-    ),
-    _Rule(
-        "missing_found",
-        S.KOMPLETNI,
-        frozenset({_C, _D}),
-        S.CEKA_NA_PODKLADY,
-        Baton.COORD,
-        _g_reason,
-    ),
+    _Rule("mark_complete", S.TRIAGE, frozenset({_COORD}), S.KOMPLETNI, _DOC, _g_complete),
+    _Rule("docs_received", S.CEKA_NA_PODKLADY, frozenset({_COORD, _SYS}), S.KOMPLETNI, _DOC, _g_docs_received),
+    _Rule("missing_found", S.KOMPLETNI, frozenset({_COORD, _DOC}), S.CEKA_NA_PODKLADY, _COORD, _g_reason),
     _Rule(
         "mark_ready_mdt",
         S.KOMPLETNI,
-        frozenset({_D}),
+        frozenset({_DOC}),
         S.PRIPRAVENO_MDT,
-        Baton.MDT,
+        _DOC,
         _g_ready,
-        notify=(((_M,), "case.ready_for_mdt"),),
+        notify=(((_DOC,), "case.ready_for_mdt"),),
     ),
-    _Rule("reopen", S.PRIPRAVENO_MDT, frozenset({_D}), S.KOMPLETNI, Baton.KOC_DOC, _g_reason),
+    _Rule("reopen", S.PRIPRAVENO_MDT, frozenset({_DOC}), S.KOMPLETNI, _DOC, _g_reason),
     _Rule(
         "record_mdt_conclusion",
         S.PRIPRAVENO_MDT,
-        frozenset({_D, _M}),
+        frozenset({_DOC}),
         S.ZAVER_MDT,
-        Baton.COORD,
+        _COORD,
         _g_conclusion,
         set_={"conclusion_confirmed": True},
     ),
     _Rule(
         "send_feedback",
         S.ZAVER_MDT,
-        frozenset({_C}),
+        frozenset({_COORD}),
         S.ZPETNA_VAZBA_ODESLANA,
-        Baton.GP,
+        _GP,
         _g_feedback,
-        notify=(((_G,), "feedback.sent"), ((Role.REVIEWER,), "feedback.sent_reviewer")),
+        notify=(((_GP,), "feedback.sent"), ((Role.REVIEWER,), "feedback.sent_reviewer")),
     ),
     _Rule(
         "delivery_confirmed",
         S.ZPETNA_VAZBA_ODESLANA,
-        frozenset({_S}),
+        frozenset({_SYS}),
         None,
-        Baton.COORD,
+        _COORD,
         _g_receipt,
         set_={"delivery_receipt": True},
     ),
-    _Rule(
-        "gp_opened", S.ZPETNA_VAZBA_ODESLANA, frozenset({_G, _S}), None, None, audit_action="read"
-    ),
-    _Rule("close", S.ZPETNA_VAZBA_ODESLANA, frozenset({_C}), S.UZAVRENO, Baton.NONE, _g_closed),
-    *(
-        _Rule("postpone", s, frozenset({_C}), None, Baton.EXTERNAL, _g_postpone)
-        for s in _POSTPONABLE
-    ),
-    *(_Rule("resume", s, frozenset({_C}), None, None, _g_resume) for s in _POSTPONABLE),
+    _Rule("gp_opened", S.ZPETNA_VAZBA_ODESLANA, frozenset({_GP, _SYS}), None, None, audit_action="read"),
+    _Rule("close", S.ZPETNA_VAZBA_ODESLANA, frozenset({_COORD}), S.UZAVRENO, None, _g_closed),
+    *(_Rule("postpone", s, frozenset({_COORD}), None, Role.EXTERNAL_WORKPLACE, _g_postpone) for s in _POSTPONABLE),
+    *(_Rule("resume", s, frozenset({_COORD}), None, None, _g_resume) for s in _POSTPONABLE),
 )
 
-CASE_EVENTS = tuple(dict.fromkeys(r.event for r in _RULES))
+CASE_EVENTS = ("submit", *dict.fromkeys(r.event for r in _RULES))
 _BY_KEY = {(r.event, r.from_state): r for r in _RULES}
+
+
+def _fail(code: str, detail: str) -> TransitionError:
+    return TransitionError(code, detail)
+
+
+def _events(
+    rule: _Rule, old: Case | None, new: Case, actor: Role, ctx: CaseContext, now: datetime
+) -> tuple[DomainEvent, ...]:
+    payload: dict[str, object] = {
+        "case_id": new.id,
+        "event": rule.event,
+        "from": old.state.value if old else None,
+        "to": new.state.value,
+        "baton_role": new.baton_role.value if new.baton_role else None,
+        "bucket": new.bucket.value,
+        "actor_role": actor.value,
+    }
+    if ctx.reason:
+        payload["reason"] = ctx.reason
+    if rule.event == "mark_ready_mdt" and ctx.readiness:
+        payload["waived"] = [{"item": w.item, "by": w.by, "reason": w.reason} for w in ctx.readiness.waived]
+    if rule.event == "record_mdt_conclusion":
+        payload["confirmed_by"] = ctx.confirmed_by
+    audit = DomainEvent(EventKind.AUDIT, rule.audit_action, now, payload)
+    notes = tuple(
+        DomainEvent(EventKind.NOTIFICATION, tpl, now, {"case_id": new.id}, recipients)
+        for recipients, tpl in rule.notify
+    )
+    return (audit, *notes)
+
+
+def _with_baton(case: Case, changes: dict[str, object], role: Role | None) -> dict[str, object]:
+    changes["baton_role"] = role
+    holder = case.baton_holder
+    if holder is not None and holder.role is not role:
+        changes["baton_holder"] = None  # the caller assigns a person who holds the new role
+    return changes
+
+
+def submit_referral(
+    case_id: str,
+    patient: Patient,
+    actor: Role,
+    ctx: CaseContext | None = None,
+    now: datetime | None = None,
+    mdt_start: datetime | None = None,
+) -> TransitionResult:
+    """The only transition that creates a case: GP sends the referral (state `odeslano`, baton: coordinator)."""
+    ctx = ctx or CaseContext()
+    now = now or clock.now()
+    rule = _SUBMIT
+    if actor not in rule.roles:
+        raise _fail("forbidden_role", f"role {actor.value!r} may not 'submit'")
+    draft = Case(id=case_id, patient=patient, state=S.ODESLANO, opened_at=now, mdt_start=mdt_start)
+    problem = rule.guard(draft, ctx, now) if rule.guard else None
+    if problem:
+        raise _fail("guard_failed", problem)
+    new = draft.model_copy(update={"baton_role": _COORD})
+    return TransitionResult(new, _events(rule, None, new, actor, ctx, now))
 
 
 def transition(
@@ -296,47 +279,27 @@ def transition(
     now = now or clock.now()
     rule = _BY_KEY.get((event, case.state))
     if rule is None:
-        raise TransitionError(
-            "invalid_transition",
-            f"event {event!r} not allowed in state {case.state.value if case.state else 'new'!r}",
-        )
+        raise _fail("invalid_transition", f"event {event!r} not allowed in state {case.state.value!r}")
     if case.odlozeny and event != "resume":
-        raise TransitionError("case_postponed", "case is postponed; resume it first")
+        raise _fail("case_postponed", "case is postponed; resume it first")
     if actor not in rule.roles:
-        raise TransitionError("forbidden_role", f"role {actor.value!r} may not {event!r}")
+        raise _fail("forbidden_role", f"role {actor.value!r} may not {event!r}")
     problem = rule.guard(case, ctx, now) if rule.guard else None
     if problem:
-        raise TransitionError("guard_failed", problem)
+        raise _fail("guard_failed", problem)
 
     changes: dict[str, object] = dict(rule.set_)
     if rule.to is not None:
         changes["state"] = rule.to
     if event == "postpone":
-        changes.update(odlozeny=True, resume_baton=case.baton, baton=Baton.EXTERNAL)
+        changes.update(odlozeny=True, resume_baton_role=case.baton_role)
+        _with_baton(case, changes, Role.EXTERNAL_WORKPLACE)
     elif event == "resume":
-        changes.update(odlozeny=False, baton=case.resume_baton or case.baton, resume_baton=None)
+        changes.update(odlozeny=False, resume_baton_role=None)
+        _with_baton(case, changes, case.resume_baton_role or case.baton_role)
     elif rule.baton is not None:
-        changes["baton"] = rule.baton
-    new = replace(case, **changes)  # type: ignore[arg-type]
-
-    payload: dict[str, object] = {
-        "case_id": case.id,
-        "event": event,
-        "from": case.state.value if case.state else None,
-        "to": new.state.value if new.state else None,
-        "baton": new.baton.value,
-        "bucket": new.bucket.value if new.bucket else None,
-        "actor_role": actor.value,
-    }
-    if ctx.reason:
-        payload["reason"] = ctx.reason
-    if event == "mark_ready_mdt" and ctx.readiness:
-        payload["waived"] = [
-            {"item": w.item, "by": w.by, "reason": w.reason} for w in ctx.readiness.waived
-        ]
-    events = [DomainEvent(EventKind.AUDIT, rule.audit_action, now, payload)]
-    events += [
-        DomainEvent(EventKind.NOTIFICATION, tpl, now, {"case_id": case.id}, recipients)
-        for recipients, tpl in rule.notify
-    ]
-    return TransitionResult(new, tuple(events))
+        _with_baton(case, changes, rule.baton)
+    elif rule.to is S.UZAVRENO:
+        _with_baton(case, changes, None)
+    new = case.model_copy(update=changes)
+    return TransitionResult(new, _events(rule, case, new, actor, ctx, now))

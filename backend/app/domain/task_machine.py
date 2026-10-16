@@ -9,57 +9,23 @@ date, and `completed` is impossible before the result has been delivered.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import date, datetime
-from enum import StrEnum
 
-from . import clock
-from .events import DomainEvent, EventKind, Role, TransitionError
+from app.domain import clock
+from app.domain.common import Role
+from app.domain.events import DomainEvent, EventKind, TransitionError
+from app.domain.task import Task, TaskBusinessStatus, TaskStatus
 
-
-class TaskStatus(StrEnum):
-    REQUESTED = "requested"
-    ACCEPTED = "accepted"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
+B = TaskBusinessStatus
 OPEN_STATUSES = frozenset({TaskStatus.REQUESTED, TaskStatus.ACCEPTED, TaskStatus.IN_PROGRESS})
 
 
-class BusinessStatus(StrEnum):
-    OBJEDNANO = "objednano"
-    POTVRZENO = "potvrzeno"
-    PROVEDENO = "provedeno"
-    VYSLEDEK_DORUCEN = "vysledek_dorucen"
-
-
 class _Owner:
-    """Sentinel: the actor must hold the task's `owner_role`."""
+    """Sentinel: the actor must hold the task's owner role."""
 
 
 OWNER = _Owner()
-
-
-@dataclass(frozen=True)
-class Task:
-    id: str
-    case_id: str
-    code: str
-    title: str
-    owner_role: Role
-    place: str | None
-    due: date
-    depends_on: tuple[str, ...] = ()
-    status: TaskStatus = TaskStatus.REQUESTED
-    business_status: BusinessStatus = BusinessStatus.OBJEDNANO
-    scheduled_at: datetime | None = None
-    result_doc_id: str | None = None
-    sla_due: date | None = None  # contractual/agreed deadline, may be earlier than `due`
-    escalated_at: datetime | None = None
-    demo_assumption: bool = False  # due dates are demo assumptions, not clinical guidance
 
 
 @dataclass(frozen=True)
@@ -90,14 +56,23 @@ class _Rule:
     notify: tuple[tuple[Role, str], ...] = ()
 
 
+def _business(t: Task) -> TaskBusinessStatus:
+    """A task without a business status has not been ordered yet."""
+    return t.business_status or B.OBJEDNANO
+
+
+def _owner_role(t: Task) -> Role | None:
+    return t.owner.role if t.owner else t.owner_role
+
+
 def _reason(_t: Task, ctx: TaskContext) -> str | None:
     return None if ctx.reason and ctx.reason.strip() else "reason is required"
 
 
 def _confirm_guard(t: Task, ctx: TaskContext) -> str | None:
-    if t.business_status is not BusinessStatus.OBJEDNANO:
+    if _business(t) is not B.OBJEDNANO:
         return "order already confirmed"
-    if not (ctx.place or t.place):
+    if not (ctx.place or t.location):
         return "confirmed place is required"
     if ctx.scheduled_at is None:
         return "confirmed date/time is required"
@@ -105,7 +80,7 @@ def _confirm_guard(t: Task, ctx: TaskContext) -> str | None:
 
 
 def _accept_guard(t: Task, _c: TaskContext) -> str | None:
-    if t.business_status is not BusinessStatus.POTVRZENO:
+    if _business(t) is not B.POTVRZENO:
         return "order must be confirmed (place and date) before acceptance"
     return None
 
@@ -116,19 +91,19 @@ def _start_guard(t: Task, ctx: TaskContext) -> str | None:
 
 
 def _performed_guard(t: Task, _c: TaskContext) -> str | None:
-    return None if t.business_status is BusinessStatus.POTVRZENO else "examination is not confirmed"
+    return None if _business(t) is B.POTVRZENO else "examination is not confirmed"
 
 
 def _result_guard(t: Task, ctx: TaskContext) -> str | None:
-    if t.business_status is not BusinessStatus.PROVEDENO:
+    if _business(t) is not B.PROVEDENO:
         return "examination has not been performed"
     return None if ctx.result_doc_id else "result document is required"
 
 
-_OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORD})
+_OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORDINATOR})
 _OWNER_ONLY: frozenset[Role | _Owner] = frozenset({OWNER})
 _OWNER_SYSTEM: frozenset[Role | _Owner] = frozenset({OWNER, Role.SYSTEM})
-_COORD_ONLY: frozenset[Role | _Owner] = frozenset({Role.COORD})
+_COORD_ONLY: frozenset[Role | _Owner] = frozenset({Role.COORDINATOR})
 
 _RULES: tuple[_Rule, ...] = (
     _Rule(
@@ -136,11 +111,12 @@ _RULES: tuple[_Rule, ...] = (
         TaskStatus.REQUESTED,
         _OC,
         _confirm_guard,
-        lambda t, c: replace(
-            t,
-            business_status=BusinessStatus.POTVRZENO,
-            place=c.place or t.place,
-            scheduled_at=c.scheduled_at,
+        lambda t, c: t.model_copy(
+            update={
+                "business_status": B.POTVRZENO,
+                "location": c.place or t.location,
+                "scheduled_at": c.scheduled_at,
+            }
         ),
     ),
     _Rule(
@@ -148,32 +124,33 @@ _RULES: tuple[_Rule, ...] = (
         TaskStatus.REQUESTED,
         _OC,
         _accept_guard,
-        lambda t, _c: replace(t, status=TaskStatus.ACCEPTED),
+        lambda t, _c: t.model_copy(update={"status": TaskStatus.ACCEPTED}),
     ),
     _Rule(
         "start",
         TaskStatus.ACCEPTED,
         _OWNER_ONLY,
         _start_guard,
-        lambda t, _c: replace(t, status=TaskStatus.IN_PROGRESS),
+        lambda t, _c: t.model_copy(update={"status": TaskStatus.IN_PROGRESS}),
     ),
     _Rule(
         "performed",
         TaskStatus.IN_PROGRESS,
         _OWNER_ONLY,
         _performed_guard,
-        lambda t, _c: replace(t, business_status=BusinessStatus.PROVEDENO),
+        lambda t, _c: t.model_copy(update={"business_status": B.PROVEDENO}),
     ),
     _Rule(
         "result_delivered",
         TaskStatus.IN_PROGRESS,
         _OWNER_SYSTEM,
         _result_guard,
-        lambda t, c: replace(
-            t,
-            status=TaskStatus.COMPLETED,
-            business_status=BusinessStatus.VYSLEDEK_DORUCEN,
-            result_doc_id=c.result_doc_id,
+        lambda t, c: t.model_copy(
+            update={
+                "status": TaskStatus.COMPLETED,
+                "business_status": B.VYSLEDEK_DORUCEN,
+                "result_doc_id": c.result_doc_id,
+            }
         ),
     ),
     *(
@@ -182,8 +159,8 @@ _RULES: tuple[_Rule, ...] = (
             s,
             _OC,
             _reason,
-            lambda t, _c: replace(t, status=TaskStatus.FAILED),
-            notify=((Role.COORD, "task.failed"),),
+            lambda t, _c: t.model_copy(update={"status": TaskStatus.FAILED}),
+            notify=((Role.COORDINATOR, "task.failed"),),
         )
         for s in (TaskStatus.ACCEPTED, TaskStatus.IN_PROGRESS)
     ),
@@ -193,7 +170,7 @@ _RULES: tuple[_Rule, ...] = (
             s,
             _COORD_ONLY,
             _reason,
-            lambda t, _c: replace(t, status=TaskStatus.CANCELLED),
+            lambda t, _c: t.model_copy(update={"status": TaskStatus.CANCELLED}),
         )
         for s in OPEN_STATUSES
     ),
@@ -214,10 +191,8 @@ def transition(
     at = at or clock.now()
     rule = _BY_KEY.get((event, task.status))
     if rule is None:
-        raise TransitionError(
-            "invalid_transition", f"event {event!r} not allowed in status {task.status.value!r}"
-        )
-    if actor not in rule.roles and not (OWNER in rule.roles and actor == task.owner_role):
+        raise TransitionError("invalid_transition", f"event {event!r} not allowed in status {task.status.value!r}")
+    if actor not in rule.roles and not (OWNER in rule.roles and actor == _owner_role(task)):
         raise TransitionError("forbidden_role", f"role {actor.value!r} may not {event!r}")
     problem = rule.guard(task, ctx) if rule.guard else None
     if problem:
@@ -233,22 +208,21 @@ def transition(
             "event": event,
             "from": task.status.value,
             "to": new.status.value,
-            "business_status": new.business_status.value,
+            "business_status": _business(new).value,
             "actor_role": actor.value,
         },
     )
-    notes = tuple(
-        DomainEvent(EventKind.NOTIFICATION, tpl, at, {"task_id": task.id}, (r,))
-        for r, tpl in rule.notify
-    )
+    notes = tuple(DomainEvent(EventKind.NOTIFICATION, tpl, at, {"task_id": task.id}, (r,)) for r, tpl in rule.notify)
     return TaskResult(new, (audit, *notes))
 
 
 # --- overdue detection -----------------------------------------------------------------------
 
 
-def effective_deadline(task: Task) -> date:
-    return min(task.due, task.sla_due) if task.sla_due else task.due
+def effective_deadline(task: Task) -> date | None:
+    """Earliest of `due` and `sla_due`, as a Prague calendar day; None if the task has no deadline."""
+    candidates = [d for d in (task.due, task.sla_due) if d is not None]
+    return min(candidates).astimezone(clock.TZ).date() if candidates else None
 
 
 def check_overdue(task: Task, now: datetime | None = None) -> list[DomainEvent]:
@@ -262,8 +236,9 @@ def check_overdue(task: Task, now: datetime | None = None) -> list[DomainEvent]:
         return []
     deadline = effective_deadline(task)
     today = now.astimezone(clock.TZ).date()
-    if today <= deadline:
+    if deadline is None or today <= deadline:
         return []
+    sla_first = task.sla_due is not None and (task.due is None or task.sla_due <= task.due)
     return [
         DomainEvent(
             EventKind.ESCALATION,
@@ -274,10 +249,10 @@ def check_overdue(task: Task, now: datetime | None = None) -> list[DomainEvent]:
                 "case_id": task.case_id,
                 "code": task.code,
                 "deadline": deadline.isoformat(),
-                "basis": "sla" if task.sla_due and task.sla_due <= task.due else "due",
+                "basis": "sla" if sla_first else "due",
                 "overdue_workdays": clock.workdays_between(deadline, today),
             },
-            (Role.COORD,),
+            (Role.COORDINATOR,),
         )
     ]
 
@@ -286,4 +261,4 @@ def escalate_if_overdue(task: Task, now: datetime | None = None) -> TaskResult:
     """Like `check_overdue` but also stamps `escalated_at` so the escalation fires once."""
     now = now or clock.now()
     events = check_overdue(task, now)
-    return TaskResult(replace(task, escalated_at=now) if events else task, tuple(events))
+    return TaskResult(task.model_copy(update={"escalated_at": now}) if events else task, tuple(events))

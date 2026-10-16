@@ -469,7 +469,7 @@
             "coding": [
               {
                 "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
-                "code": "koc_doctor"
+                "code": "koc_physician"
               }
             ]
           }
@@ -499,7 +499,7 @@
         },
         {
           "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
-          "valueString": "koc_doctor"
+          "valueString": "koc_physician"
         }
       ],
       "relatedAction": [

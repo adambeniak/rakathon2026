@@ -1,4 +1,4 @@
-"""Shared vocabulary: roles and the events that state machines return as side effects.
+"""Shared vocabulary: the events that state machines return as side effects.
 
 Events are plain data. Persisting them (AuditEvent, notifications) is the caller's job.
 Payloads carry ids and states only — never patient names or clinical content.
@@ -12,14 +12,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-
-class Role(StrEnum):
-    GP = "gp"  # praktický lékař
-    COORD = "coordinator"  # koordinátor/ka KOC
-    KOC_DOC = "koc_doctor"  # lékař KOC
-    MDT = "mdt"  # člen / předseda MDT
-    REVIEWER = "reviewer"  # revizní lékař ZP
-    SYSTEM = "system"
+from app.domain.common import Role
+from app.domain.errors import ConflictError
 
 
 class EventKind(StrEnum):
@@ -37,7 +31,7 @@ class DomainEvent:
     recipients: tuple[Role, ...] = ()
 
 
-class TransitionError(Exception):
+class TransitionError(ConflictError):
     """Forbidden transition. `code` + `detail` map 1:1 to an RFC 7807 problem later."""
 
     def __init__(self, code: str, detail: str) -> None:

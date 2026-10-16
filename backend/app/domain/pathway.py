@@ -1,24 +1,21 @@
 """Diagnostic pathway template (FHIR R4 PlanDefinition JSON) → Tasks, and the MDT readiness gate.
 
 All due-date offsets in the template are DEMO ASSUMPTIONS, not clinical guidelines.
-The PlanDefinition is read as plain data; no FHIR library is used here.
+The PlanDefinition is passed in as a parsed JSON mapping (loading the file is the caller's job; the domain does no
+I/O) and read as plain data; no FHIR library is used here.
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from datetime import date, datetime, time, timedelta
+from typing import Any
 
-from . import clock
-from .events import Role
-from .task_machine import Task
-
-if TYPE_CHECKING:
-    from .case_machine import Case
+from app.domain import clock
+from app.domain.case import Case
+from app.domain.common import Role
+from app.domain.task import Task, TaskBusinessStatus, TaskStatus
 
 EXT = "https://stafeta.example/fhir/StructureDefinition/"
 EXT_DUE = EXT + "due-rule"
@@ -26,14 +23,6 @@ EXT_SLA = EXT + "sla-rule"
 EXT_PLACE = EXT + "place"
 EXT_OWNER = EXT + "owner-role"
 EXT_READINESS = EXT + "mdt-required-items"
-
-
-def load_plan(path: str | Path) -> dict[str, Any]:
-    with open(path, encoding="utf-8") as fh:
-        plan: dict[str, Any] = json.load(fh)
-    if plan.get("resourceType") != "PlanDefinition":
-        raise ValueError("not a PlanDefinition")
-    return plan
 
 
 def _ext(node: Mapping[str, Any], url: str) -> Mapping[str, Any] | None:
@@ -68,9 +57,7 @@ def required_items(plan: Mapping[str, Any]) -> list[str]:
     return [sub["valueString"] for sub in e["extension"]]
 
 
-def _resolve(
-    rule: Mapping[str, Any], start: date, mdt: date | None, resolved: Mapping[str, date]
-) -> date:
+def _resolve(rule: Mapping[str, Any], start: date, mdt: date | None, resolved: Mapping[str, date]) -> date:
     anchor = rule["anchor"]
     if anchor == "start":
         base = start
@@ -87,6 +74,11 @@ def _resolve(
         raise ValueError(f"unknown anchor {anchor!r}")
     days = int(rule["days"])
     return clock.add_workdays(base, days) if rule.get("workdays") else base + timedelta(days=days)
+
+
+def _end_of_day(d: date) -> datetime:
+    """Deadlines are calendar days; store them as the last second of that day (Prague)."""
+    return datetime.combine(d, time(23, 59, 59), tzinfo=clock.TZ)
 
 
 def instantiate(plan: Mapping[str, Any], case: Case, start_date: date) -> list[Task]:
@@ -130,15 +122,17 @@ def instantiate(plan: Mapping[str, Any], case: Case, start_date: date) -> list[T
         owner = _ext_str(a, EXT_OWNER)
         tasks.append(
             Task(
-                id=f"{case.id}:{aid}",
+                id=f"{case.id}.{aid}",
                 case_id=case.id,
                 code=a["code"][0]["coding"][0]["code"],
                 title=a["title"],
-                owner_role=Role(owner) if owner else Role.COORD,
-                place=_ext_str(a, EXT_PLACE),
-                due=due[aid],
-                depends_on=tuple(f"{case.id}:{d}" for d in deps[aid]),
-                sla_due=sla,
+                status=TaskStatus.REQUESTED,
+                business_status=TaskBusinessStatus.OBJEDNANO,
+                owner_role=Role(owner) if owner else Role.COORDINATOR,
+                location=_ext_str(a, EXT_PLACE),
+                due=_end_of_day(due[aid]),
+                depends_on=[f"{case.id}.{d}" for d in deps[aid]],
+                sla_due=_end_of_day(sla) if sla else None,
                 demo_assumption=True,
             )
         )
@@ -169,9 +163,7 @@ class Readiness:
     warnings: tuple[str, ...] = ()  # items present but partial/stale/conflicting
 
 
-def readiness_gate(
-    statuses: Mapping[str, str], required: Sequence[str], waivers: Sequence[Waiver] = ()
-) -> Readiness:
+def readiness_gate(statuses: Mapping[str, str], required: Sequence[str], waivers: Sequence[Waiver] = ()) -> Readiness:
     """Gate for `pripraveno_mdt`. Items absent from `statuses` count as missing.
 
     Waivers are valid only from a physician (KOC_DOC) with a non-empty reason; anything else
@@ -180,7 +172,7 @@ def readiness_gate(
     for w in waivers:
         if w.item not in required:
             raise ValueError(f"waiver for unknown item {w.item!r}")
-        if w.by_role is not Role.KOC_DOC:
+        if w.by_role is not Role.KOC_PHYSICIAN:
             raise ValueError("only a physician may waive a readiness item")
         if not w.reason.strip():
             raise ValueError("waiver needs a reason")

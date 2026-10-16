@@ -2,7 +2,7 @@ from datetime import date, datetime
 
 import pytest
 
-from domain import clock
+from app.domain import clock
 
 
 def test_env_pins_clock(monkeypatch):
@@ -18,7 +18,7 @@ def test_naive_value_is_prague(monkeypatch):
 
 def test_invalid_value_raises(monkeypatch):
     monkeypatch.setenv(clock.ENV_VAR, "tomorrow")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="valid ISO"):
         clock.now()
 
 

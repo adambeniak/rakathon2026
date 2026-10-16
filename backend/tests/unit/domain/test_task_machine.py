@@ -3,48 +3,46 @@ from datetime import date, datetime
 
 import pytest
 
-from domain import clock
-from domain.events import EventKind, Role, TransitionError
-from domain.task_machine import (
-    TASK_EVENTS,
-    Task,
-    TaskContext,
-    check_overdue,
-    escalate_if_overdue,
-    transition,
-)
-from domain.task_machine import (
-    BusinessStatus as B,
-)
-from domain.task_machine import (
-    TaskStatus as T,
-)
+from app.domain import clock
+from app.domain.common import Role
+from app.domain.events import EventKind, TransitionError
+from app.domain.task import Task
+from app.domain.task import TaskBusinessStatus as B
+from app.domain.task import TaskStatus as T
+from app.domain.task_machine import TASK_EVENTS, TaskContext, check_overdue, escalate_if_overdue, transition
 
 R = Role
 SLOT = datetime(2026, 10, 12, 9, 0, tzinfo=clock.TZ)
 NOW = datetime(2026, 10, 12, 12, 0, tzinfo=clock.TZ)
 CTX = TaskContext(place="KOC 2", scheduled_at=SLOT, result_doc_id="doc-11", reason="důvod",
-                  completed_task_ids=frozenset({"c1:ct"}))  # fmt: skip
+                  completed_task_ids=frozenset({"c1.ct"}))  # fmt: skip
+
+
+def eod(d):
+    return datetime(d.year, d.month, d.day, 23, 59, 59, tzinfo=clock.TZ)
 
 
 def task(status=T.REQUESTED, business=B.OBJEDNANO, **kw):
-    base = dict(id="c1:eus", case_id="c1", code="eus-fnb", title="EUS-FNB", owner_role=R.COORD,
-                place="KOC 2", due=date(2026, 10, 12), depends_on=("c1:ct",))  # fmt: skip
+    for k in ("due", "sla_due"):
+        if isinstance(kw.get(k), date):
+            kw[k] = eod(kw[k])
+    base = dict(id="c1.eus", case_id="c1", code="eus-fnb", title="EUS-FNB", owner_role=R.COORDINATOR,
+                location="KOC 2", due=eod(date(2026, 10, 12)), depends_on=["c1.ct"])  # fmt: skip
     return Task(**{**base, **kw}, status=status, business_status=business)
 
 
 # (event, from status, from business, roles allowed, to status, to business)
 ALLOWED = [
-    ("order_confirmed", T.REQUESTED, B.OBJEDNANO, {R.COORD}, T.REQUESTED, B.POTVRZENO),
-    ("accept", T.REQUESTED, B.POTVRZENO, {R.COORD}, T.ACCEPTED, B.POTVRZENO),
-    ("start", T.ACCEPTED, B.POTVRZENO, {R.COORD}, T.IN_PROGRESS, B.POTVRZENO),
-    ("performed", T.IN_PROGRESS, B.POTVRZENO, {R.COORD}, T.IN_PROGRESS, B.PROVEDENO),
-    ("result_delivered", T.IN_PROGRESS, B.PROVEDENO, {R.COORD, R.SYSTEM}, T.COMPLETED, B.VYSLEDEK_DORUCEN),
-    ("fail", T.ACCEPTED, B.POTVRZENO, {R.COORD}, T.FAILED, B.POTVRZENO),
-    ("fail", T.IN_PROGRESS, B.POTVRZENO, {R.COORD}, T.FAILED, B.POTVRZENO),
-    ("cancel", T.REQUESTED, B.OBJEDNANO, {R.COORD}, T.CANCELLED, B.OBJEDNANO),
-    ("cancel", T.ACCEPTED, B.POTVRZENO, {R.COORD}, T.CANCELLED, B.POTVRZENO),
-    ("cancel", T.IN_PROGRESS, B.POTVRZENO, {R.COORD}, T.CANCELLED, B.POTVRZENO),
+    ("order_confirmed", T.REQUESTED, B.OBJEDNANO, {R.COORDINATOR}, T.REQUESTED, B.POTVRZENO),
+    ("accept", T.REQUESTED, B.POTVRZENO, {R.COORDINATOR}, T.ACCEPTED, B.POTVRZENO),
+    ("start", T.ACCEPTED, B.POTVRZENO, {R.COORDINATOR}, T.IN_PROGRESS, B.POTVRZENO),
+    ("performed", T.IN_PROGRESS, B.POTVRZENO, {R.COORDINATOR}, T.IN_PROGRESS, B.PROVEDENO),
+    ("result_delivered", T.IN_PROGRESS, B.PROVEDENO, {R.COORDINATOR, R.SYSTEM}, T.COMPLETED, B.VYSLEDEK_DORUCEN),
+    ("fail", T.ACCEPTED, B.POTVRZENO, {R.COORDINATOR}, T.FAILED, B.POTVRZENO),
+    ("fail", T.IN_PROGRESS, B.POTVRZENO, {R.COORDINATOR}, T.FAILED, B.POTVRZENO),
+    ("cancel", T.REQUESTED, B.OBJEDNANO, {R.COORDINATOR}, T.CANCELLED, B.OBJEDNANO),
+    ("cancel", T.ACCEPTED, B.POTVRZENO, {R.COORDINATOR}, T.CANCELLED, B.POTVRZENO),
+    ("cancel", T.IN_PROGRESS, B.POTVRZENO, {R.COORDINATOR}, T.CANCELLED, B.POTVRZENO),
 ]  # fmt: skip
 # owner is COORD; the roles above are the only ones allowed (owner ∪ explicit), i.e. COORD (+SYSTEM)
 
@@ -81,10 +79,10 @@ def test_all_other_status_event_pairs_forbidden():
 
 
 def test_owner_may_act_when_not_coordinator():
-    t = task(T.ACCEPTED, B.POTVRZENO, owner_role=R.KOC_DOC)
-    assert transition(t, "start", R.KOC_DOC, CTX, NOW).task.status is T.IN_PROGRESS
+    t = task(T.ACCEPTED, B.POTVRZENO, owner_role=R.KOC_PHYSICIAN)
+    assert transition(t, "start", R.KOC_PHYSICIAN, CTX, NOW).task.status is T.IN_PROGRESS
     with pytest.raises(TransitionError):
-        transition(t, "start", R.COORD, CTX, NOW)  # start is owner-only
+        transition(t, "start", R.COORDINATOR, CTX, NOW)  # start is owner-only
 
 
 GUARDS = [
@@ -104,28 +102,30 @@ GUARDS = [
 def test_guards(row):
     event, st, bs, ctx_kw = row
     with pytest.raises(TransitionError) as e:
-        transition(task(st, bs, place=None) if event == "order_confirmed" and not ctx_kw else task(st, bs),
-                   event, R.COORD, replace(CTX, **ctx_kw), NOW)  # fmt: skip
+        transition(task(st, bs),
+                   event, R.COORDINATOR, replace(CTX, **ctx_kw), NOW)  # fmt: skip
     assert e.value.code == "guard_failed"
 
 
 def test_order_needs_place():
     with pytest.raises(TransitionError):
-        transition(task(place=None), "order_confirmed", R.COORD, replace(CTX, place=None), NOW)
+        transition(task(location=None), "order_confirmed", R.COORDINATOR, replace(CTX, place=None), NOW)
 
 
 def test_full_happy_path_cannot_skip_result():
     t = task()
-    for ev, role in [("order_confirmed", R.COORD), ("accept", R.COORD), ("start", R.COORD),
-                     ("performed", R.COORD), ("result_delivered", R.SYSTEM)]:  # fmt: skip
+    for ev, role in [("order_confirmed", R.COORDINATOR), ("accept", R.COORDINATOR), ("start", R.COORDINATOR),
+                     ("performed", R.COORDINATOR), ("result_delivered", R.SYSTEM)]:  # fmt: skip
         t = transition(t, ev, role, CTX, NOW).task
-    assert t.status is T.COMPLETED and t.business_status is B.VYSLEDEK_DORUCEN
-    assert t.result_doc_id == "doc-11" and t.scheduled_at == SLOT
+    assert t.status is T.COMPLETED
+    assert t.business_status is B.VYSLEDEK_DORUCEN
+    assert t.result_doc_id == "doc-11"
+    assert t.scheduled_at == SLOT
 
 
 def test_fail_notifies_coordinator():
-    res = transition(task(T.IN_PROGRESS, B.POTVRZENO), "fail", R.COORD, CTX, NOW)
-    assert res.events[1].recipients == (R.COORD,)
+    res = transition(task(T.IN_PROGRESS, B.POTVRZENO), "fail", R.COORDINATOR, CTX, NOW)
+    assert res.events[1].recipients == (R.COORDINATOR,)
 
 
 # --- overdue -----------------------------------------------------------------------------------
@@ -144,8 +144,10 @@ def test_overdue_next_day_escalates_to_coordinator_once():
     t = task(T.IN_PROGRESS, due=date(2026, 10, 15))
     res = escalate_if_overdue(t, at(16))
     (ev,) = res.events
-    assert ev.kind is EventKind.ESCALATION and ev.recipients == (R.COORD,)
-    assert ev.payload["overdue_workdays"] == 1 and ev.payload["deadline"] == "2026-10-15"
+    assert ev.kind is EventKind.ESCALATION
+    assert ev.recipients == (R.COORDINATOR,)
+    assert ev.payload["overdue_workdays"] == 1
+    assert ev.payload["deadline"] == "2026-10-15"
     assert res.task.escalated_at == at(16)
     assert escalate_if_overdue(res.task, at(19)).events == ()  # idempotent
 

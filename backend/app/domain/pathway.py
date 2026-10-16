@@ -1,8 +1,7 @@
-"""Diagnostic pathway template (FHIR R4 PlanDefinition JSON) → Tasks, and the MDT readiness gate.
+"""Diagnostic pathway template → Tasks, and the MDT readiness gate.
 
-All due-date offsets in the template are DEMO ASSUMPTIONS, not clinical guidelines.
-The PlanDefinition is passed in as a parsed JSON mapping (loading the file is the caller's job; the domain does no
-I/O) and read as plain data; no FHIR library is used here.
+All due-date offsets in a template are DEMO ASSUMPTIONS, not clinical guidelines. The template is a typed,
+FHIR-independent structure; parsing the FHIR PlanDefinition into it is `app.fhir.mappers.plan_definition`.
 """
 
 from __future__ import annotations
@@ -10,70 +9,60 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
-from typing import Any
+from enum import StrEnum
 
 from app.domain import clock
 from app.domain.case import Case
 from app.domain.common import Role
 from app.domain.task import Task, TaskBusinessStatus, TaskStatus
 
-EXT = "https://stafeta.example/fhir/StructureDefinition/"
-EXT_DUE = EXT + "due-rule"
-EXT_SLA = EXT + "sla-rule"
-EXT_PLACE = EXT + "place"
-EXT_OWNER = EXT + "owner-role"
-EXT_READINESS = EXT + "mdt-required-items"
+
+class Anchor(StrEnum):
+    START = "start"  # pathway start date
+    MDT = "mdt"  # case.mdt_start
+    STEP = "step"  # the resolved due date of another step
 
 
-def _ext(node: Mapping[str, Any], url: str) -> Mapping[str, Any] | None:
-    for e in node.get("extension", []):
-        if e.get("url") == url:
-            found: Mapping[str, Any] = e
-            return found
-    return None
+@dataclass(frozen=True)
+class DueRule:
+    anchor: Anchor
+    days: int
+    workdays: bool = False
+    step_id: str | None = None  # required when anchor is STEP
 
 
-def _ext_str(node: Mapping[str, Any], url: str) -> str | None:
-    e = _ext(node, url)
-    return e.get("valueString") if e else None
+@dataclass(frozen=True)
+class PathwayStep:
+    id: str
+    code: str
+    title: str
+    owner_role: Role
+    location: str | None
+    due: DueRule
+    after: tuple[str, ...] = ()  # step ids that must be completed first
+    sla: DueRule | None = None  # agreed deadline, may be earlier than `due`
 
 
-def _rule(node: Mapping[str, Any], url: str) -> dict[str, Any] | None:
-    """A rule extension stores sub-extensions: anchor (string), days (integer), workdays (bool)."""
-    e = _ext(node, url)
-    if e is None:
-        return None
-    out: dict[str, Any] = {}
-    for sub in e.get("extension", []):
-        key = sub["url"]
-        out[key] = next(v for k, v in sub.items() if k.startswith("value"))
-    return out
+@dataclass(frozen=True)
+class PathwayTemplate:
+    id: str
+    title: str
+    steps: tuple[PathwayStep, ...]
+    mdt_required_items: tuple[str, ...]
 
 
-def required_items(plan: Mapping[str, Any]) -> list[str]:
-    e = _ext(plan, EXT_READINESS)
-    if e is None:
-        raise ValueError("plan has no MDT readiness items")
-    return [sub["valueString"] for sub in e["extension"]]
-
-
-def _resolve(rule: Mapping[str, Any], start: date, mdt: date | None, resolved: Mapping[str, date]) -> date:
-    anchor = rule["anchor"]
-    if anchor == "start":
+def _resolve(rule: DueRule, start: date, mdt: date | None, resolved: Mapping[str, date]) -> date:
+    if rule.anchor is Anchor.START:
         base = start
-    elif anchor == "mdt":
+    elif rule.anchor is Anchor.MDT:
         if mdt is None:
             raise ValueError("pathway needs case.mdt_start")
         base = mdt
-    elif anchor.startswith("action:"):
-        ref = anchor.removeprefix("action:")
-        if ref not in resolved:
-            raise ValueError(f"anchor {ref!r} unresolved (cycle or unknown action)")
-        base = resolved[ref]
     else:
-        raise ValueError(f"unknown anchor {anchor!r}")
-    days = int(rule["days"])
-    return clock.add_workdays(base, days) if rule.get("workdays") else base + timedelta(days=days)
+        if rule.step_id is None or rule.step_id not in resolved:
+            raise ValueError(f"anchor {rule.step_id!r} unresolved (cycle or unknown step)")
+        base = resolved[rule.step_id]
+    return clock.add_workdays(base, rule.days) if rule.workdays else base + timedelta(days=rule.days)
 
 
 def _end_of_day(d: date) -> datetime:
@@ -81,57 +70,44 @@ def _end_of_day(d: date) -> datetime:
     return datetime.combine(d, time(23, 59, 59), tzinfo=clock.TZ)
 
 
-def instantiate(plan: Mapping[str, Any], case: Case, start_date: date) -> list[Task]:
+def instantiate(template: PathwayTemplate, case: Case, start_date: date) -> list[Task]:
     """Tasks for `case` in dependency order (every task comes after all it depends on)."""
-    actions: list[Mapping[str, Any]] = list(plan["action"])
-    ids = {a["id"] for a in actions}
-    deps: dict[str, list[str]] = {}
-    for a in actions:
-        deps[a["id"]] = []
-        for rel in a.get("relatedAction", []):
-            ref = rel["actionId"]
-            if ref not in ids:
-                raise ValueError(f"action {a['id']!r} references unknown action {ref!r}")
-            if rel["relationship"] != "after-end":
-                raise ValueError(f"unsupported relationship {rel['relationship']!r}")
-            deps[a["id"]].append(ref)
+    by_id = {st.id: st for st in template.steps}
+    for st in template.steps:
+        for ref in st.after:
+            if ref not in by_id:
+                raise ValueError(f"step {st.id!r} references unknown step {ref!r}")
 
     mdt = case.mdt_start.astimezone(clock.TZ).date() if case.mdt_start else None
     order: list[str] = []
-    pending = {a["id"]: a for a in actions}
+    pending = dict(by_id)
     while pending:
-        ready = [i for i in pending if all(d in order for d in deps[i])]
+        ready = [i for i, st in pending.items() if all(d in order for d in st.after)]
         if not ready:
-            raise ValueError(f"dependency cycle among actions: {sorted(pending)}")
+            raise ValueError(f"dependency cycle among steps: {sorted(pending)}")
         for i in ready:  # stable: follows template order
             order.append(i)
             del pending[i]
 
-    by_id = {a["id"]: a for a in actions}
     due: dict[str, date] = {}
     tasks: list[Task] = []
-    for aid in order:
-        a = by_id[aid]
-        due_rule = _rule(a, EXT_DUE)
-        if due_rule is None:
-            raise ValueError(f"action {aid!r} has no due-rule")
-        # anchors may point to any already-ordered action, even without relatedAction
-        due[aid] = _resolve(due_rule, start_date, mdt, due)
-        sla_rule = _rule(a, EXT_SLA)
-        sla = _resolve(sla_rule, start_date, mdt, due) if sla_rule else None
-        owner = _ext_str(a, EXT_OWNER)
+    for sid in order:
+        st = by_id[sid]
+        # anchors may point to any already-ordered step, even without an `after` link
+        due[sid] = _resolve(st.due, start_date, mdt, due)
+        sla = _resolve(st.sla, start_date, mdt, due) if st.sla else None
         tasks.append(
             Task(
-                id=f"{case.id}.{aid}",
+                id=f"{case.id}.{sid}",
                 case_id=case.id,
-                code=a["code"][0]["coding"][0]["code"],
-                title=a["title"],
+                code=st.code,
+                title=st.title,
                 status=TaskStatus.REQUESTED,
                 business_status=TaskBusinessStatus.OBJEDNANO,
-                owner_role=Role(owner) if owner else Role.COORDINATOR,
-                location=_ext_str(a, EXT_PLACE),
-                due=_end_of_day(due[aid]),
-                depends_on=[f"{case.id}.{d}" for d in deps[aid]],
+                owner_role=st.owner_role,
+                location=st.location,
+                due=_end_of_day(due[sid]),
+                depends_on=[f"{case.id}.{d}" for d in st.after],
                 sla_due=_end_of_day(sla) if sla else None,
                 demo_assumption=True,
             )
@@ -166,7 +142,7 @@ class Readiness:
 def readiness_gate(statuses: Mapping[str, str], required: Sequence[str], waivers: Sequence[Waiver] = ()) -> Readiness:
     """Gate for `pripraveno_mdt`. Items absent from `statuses` count as missing.
 
-    Waivers are valid only from a physician (KOC_DOC) with a non-empty reason; anything else
+    Waivers are valid only from a physician (KOC_PHYSICIAN) with a clinician id and a non-empty reason; anything else
     raises ValueError. A waiver for an item that is not blocking is ignored.
     """
     for w in waivers:
@@ -174,6 +150,8 @@ def readiness_gate(statuses: Mapping[str, str], required: Sequence[str], waivers
             raise ValueError(f"waiver for unknown item {w.item!r}")
         if w.by_role is not Role.KOC_PHYSICIAN:
             raise ValueError("only a physician may waive a readiness item")
+        if not w.by.strip():
+            raise ValueError("waiver needs the clinician id")
         if not w.reason.strip():
             raise ValueError("waiver needs a reason")
     blocking = [i for i in required if statuses.get(i, "missing") in BLOCKING]

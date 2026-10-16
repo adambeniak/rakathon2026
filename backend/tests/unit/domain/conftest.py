@@ -7,7 +7,9 @@ import pytest
 
 from app.domain import clock
 from app.domain.case import Case, CaseState
+from app.domain.pathway import PathwayTemplate
 from app.domain.patient import Patient, Sex
+from app.fhir.mappers.plan_definition import plan_definition_to_template
 
 PLAN_PATH = Path(__file__).resolve().parents[4] / "iris" / "fhir" / "plandefinition-pancreas-dx.json"
 MDT = datetime(2026, 10, 21, 8, 0, tzinfo=clock.TZ)
@@ -28,6 +30,10 @@ def make_case(state: CaseState = CaseState.ODESLANO, **kw: Any) -> Case:
 def load_plan() -> dict[str, Any]:
     plan: dict[str, Any] = json.loads(PLAN_PATH.read_text(encoding="utf-8"))
     return plan
+
+
+def load_template() -> PathwayTemplate:
+    return plan_definition_to_template(load_plan())
 
 
 @pytest.fixture(autouse=True)

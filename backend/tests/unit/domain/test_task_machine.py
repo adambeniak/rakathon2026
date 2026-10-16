@@ -167,3 +167,21 @@ def test_closed_tasks_never_escalate(st):
 def test_overdue_uses_demo_clock(monkeypatch):
     monkeypatch.setenv(clock.ENV_VAR, "2026-10-16T09:00:00+02:00")
     assert len(check_overdue(task(T.ACCEPTED, due=date(2026, 10, 15)))) == 1
+
+
+def test_naive_appointment_rejected():
+    naive = datetime(2026, 10, 12, 9, 0)  # noqa: DTZ001
+    with pytest.raises(TransitionError, match="timezone") as e:
+        transition(task(), "order_confirmed", R.COORDINATOR, replace(CTX, scheduled_at=naive), NOW)
+    assert e.value.code == "guard_failed"
+
+
+@pytest.mark.parametrize(("event", "status"), [("fail", T.IN_PROGRESS), ("cancel", T.REQUESTED)])
+def test_termination_reason_is_audited(event, status):
+    res = transition(task(status, B.POTVRZENO), event, R.COORDINATOR, CTX, NOW)
+    assert res.events[0].payload["reason"] == "důvod"
+
+
+def test_other_events_do_not_carry_reason():
+    res = transition(task(), "order_confirmed", R.COORDINATOR, CTX, NOW)
+    assert "reason" not in res.events[0].payload

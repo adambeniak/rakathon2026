@@ -46,6 +46,7 @@ class Case(DomainModel):
     baton_role: Role | None = Field(None, description="Role that must act next; `baton_holder` is the concrete person.")
     odlozeny: bool = Field(False, description="Postponed: waiting for an external step (queue bucket Odložený).")
     resume_baton_role: Role | None = Field(None, description="Baton role to restore when a postponed case resumes.")
+    resume_on: str | None = Field(None, description="While postponed: date or external step the case waits for.")
     mdt_start: AwareDatetime | None = Field(None, description="Start of the MDT meeting; also the as-of instant.")
     conclusion_confirmed: bool = Field(False, description="A clinician signed off the MDT conclusion.")
     delivery_receipt: bool = Field(False, description="Delivery of the feedback to the GP has been confirmed.")

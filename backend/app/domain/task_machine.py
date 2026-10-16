@@ -76,6 +76,8 @@ def _confirm_guard(t: Task, ctx: TaskContext) -> str | None:
         return "confirmed place is required"
     if ctx.scheduled_at is None:
         return "confirmed date/time is required"
+    if ctx.scheduled_at.utcoffset() is None:
+        return "confirmed date/time must include a timezone"
     return None
 
 
@@ -210,6 +212,7 @@ def transition(
             "to": new.status.value,
             "business_status": _business(new).value,
             "actor_role": actor.value,
+            **({"reason": ctx.reason} if event in {"fail", "cancel"} else {}),
         },
     )
     notes = tuple(DomainEvent(EventKind.NOTIFICATION, tpl, at, {"task_id": task.id}, (r,)) for r, tpl in rule.notify)

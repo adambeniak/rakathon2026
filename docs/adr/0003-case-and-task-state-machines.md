@@ -20,8 +20,8 @@
 - Tasks: acceptance requires `order_confirmed` with place and date; `completed` requires a delivered result; start requires
   finished dependencies. Deadline = min(`due`, `sla_due`); escalation fires once, on the first day after the deadline.
 - `clock.py` is the only place that reads the time (`STAFETA_DEMO_NOW`); working-day arithmetic lives there too.
-- The pathway template is a FHIR `PlanDefinition` (`iris/fhir/plandefinition-pancreas-dx.json`) read as parsed JSON by
-  `pathway.instantiate`; all offsets are labelled DEMO ASSUMPTION. The readiness gate (`pathway.readiness_gate`) blocks only
+- The pathway template is stored as a FHIR `PlanDefinition` (`iris/fhir/plandefinition-pancreas-dx.json`). FHIR parsing lives
+  only in `app/fhir/mappers/plan_definition.py`, which produces the typed `PathwayTemplate` that `pathway.instantiate` consumes; all offsets are labelled DEMO ASSUMPTION. The readiness gate (`pathway.readiness_gate`) blocks only
   on `missing`; partial/stale/conflicting items are warnings. Waivers: physician + non-empty reason.
 
 ## Consequences

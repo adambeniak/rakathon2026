@@ -1,4 +1,4 @@
-import copy
+import dataclasses
 from datetime import date
 
 import pytest
@@ -6,17 +6,17 @@ import pytest
 from app.domain import clock
 from app.domain.case import CaseState
 from app.domain.common import Role
-from app.domain.pathway import Waiver, instantiate, readiness_gate, required_items
+from app.domain.pathway import PathwayTemplate, Waiver, instantiate, readiness_gate
 from app.domain.task_machine import check_overdue, escalate_if_overdue
-from tests.unit.domain.conftest import load_plan, make_case
+from tests.unit.domain.conftest import load_plan, load_template, make_case
 
 START = date(2026, 10, 2)
 CASE = make_case(CaseState.TRIAGE)
 
 
 @pytest.fixture(scope="module")
-def plan():
-    return load_plan()
+def plan() -> PathwayTemplate:
+    return load_template()
 
 
 @pytest.fixture(scope="module")
@@ -53,11 +53,12 @@ def test_dependencies_and_order(plan):
     assert "mdt" not in {d for v in deps.values() for d in v}  # nothing waits for the MDT
 
 
-def test_plan_labels_demo_assumptions(plan):
-    assert "DEMO ASSUMPTION" in plan["description"]
-    assert all("DEMO ASSUMPTION" in a["description"] for a in plan["action"])
-    assert plan["resourceType"] == "PlanDefinition"
-    assert plan["status"] == "draft"
+def test_plan_labels_demo_assumptions():
+    raw = load_plan()
+    assert "DEMO ASSUMPTION" in raw["description"]
+    assert all("DEMO ASSUMPTION" in a["description"] for a in raw["action"])
+    assert raw["resourceType"] == "PlanDefinition"
+    assert raw["status"] == "draft"
 
 
 def test_histology_sla_resolves_thursday_and_escalates_on_friday(tasks):
@@ -76,15 +77,15 @@ def test_histology_sla_resolves_thursday_and_escalates_on_friday(tasks):
 
 
 def test_cycle_and_unknown_reference_rejected(plan):
-    bad = copy.deepcopy(plan)
-    ct = next(a for a in bad["action"] if a["id"] == "ct")
-    ct["relatedAction"] = [{"actionId": "mdt", "relationship": "after-end"}]
+    steps = list(plan.steps)
+    ct = steps[0]
+    assert ct.id == "ct"
+    cyclic = dataclasses.replace(plan, steps=(dataclasses.replace(ct, after=("mdt",)), *steps[1:]))
     with pytest.raises(ValueError, match="cycle"):
-        instantiate(bad, CASE, START)
-    bad = copy.deepcopy(plan)
-    bad["action"][0]["relatedAction"] = [{"actionId": "nope", "relationship": "after-end"}]
+        instantiate(cyclic, CASE, START)
+    unknown = dataclasses.replace(plan, steps=(dataclasses.replace(ct, after=("nope",)), *steps[1:]))
     with pytest.raises(ValueError, match="unknown"):
-        instantiate(bad, CASE, START)
+        instantiate(unknown, CASE, START)
 
 
 def test_mdt_anchor_needs_case_mdt_start(plan):
@@ -97,7 +98,7 @@ def test_mdt_anchor_needs_case_mdt_start(plan):
 
 @pytest.fixture(scope="module")
 def required(plan):
-    return required_items(plan)
+    return list(plan.mdt_required_items)
 
 
 def statuses(required, **over):
@@ -140,6 +141,8 @@ def test_physician_waiver_makes_ready_and_is_listed(required):
 @pytest.mark.parametrize(
     "waiver",
     [
+        Waiver("performance_status", Role.KOC_PHYSICIAN, "", "důvod"),
+        Waiver("performance_status", Role.KOC_PHYSICIAN, "  ", "důvod"),
         Waiver("performance_status", Role.COORDINATOR, "u2", "důvod"),
         Waiver("performance_status", Role.KOC_PHYSICIAN, "u1", "  "),
         Waiver("nonsense", Role.KOC_PHYSICIAN, "u1", "důvod"),

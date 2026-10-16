@@ -262,3 +262,29 @@ def test_clock_default_uses_demo_now(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("STAFETA_DEMO_NOW", "2026-10-21T09:00:00+02:00")
     res = transition(make_case(S.PRIPRAVENO_MDT), "record_mdt_conclusion", R.KOC_PHYSICIAN, CTX_OK)
     assert res.events[0].at.hour == 9
+
+
+def test_delivery_audit_keeps_receipt_id() -> None:
+    res = transition(make_case(S.ZPETNA_VAZBA_ODESLANA), "delivery_confirmed", R.SYSTEM, CTX_OK, NOW)
+    assert res.events[0].payload["receipt_id"] == "r1"
+
+
+def test_postpone_resume_round_trip_keeps_target() -> None:
+    c = make_case(S.KOMPLETNI, baton_role=R.KOC_PHYSICIAN)
+    res = transition(c, "postpone", R.COORDINATOR, CTX_OK, NOW)
+    assert res.case.resume_on == "2026-10-20"
+    assert res.events[0].payload["resume_on"] == "2026-10-20"
+    back = transition(res.case, "resume", R.COORDINATOR, CTX_OK, NOW).case
+    assert back.resume_on is None
+    assert not back.odlozeny
+
+
+@pytest.mark.parametrize("by", ["", "  "])
+def test_blank_clinician_id_in_waiver_rejected_by_gate_and_guard(by: str) -> None:
+    w = Waiver("performance_status", R.KOC_PHYSICIAN, by, "důvod")
+    with pytest.raises(ValueError, match="clinician id"):
+        readiness_gate(STATUSES, REQUIRED, [w])
+    forged = Readiness(True, (), (w,))  # defence in depth: the machine re-checks
+    with pytest.raises(TransitionError) as e:
+        transition(make_case(S.KOMPLETNI), "mark_ready_mdt", R.KOC_PHYSICIAN, CaseContext(readiness=forged), NOW)
+    assert e.value.code == "guard_failed"

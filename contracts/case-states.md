@@ -45,15 +45,15 @@ ids, states and actor role only) and returns notifications as events; persisting
 | `triage` | `mark_complete` | coordinator | no missing blockers | `kompletni` | koc_physician | audit |
 | `ceka_na_podklady` | `docs_received` | coordinator, system | no open document-request tasks | `kompletni` | koc_physician | audit |
 | `kompletni` | `missing_found` | coordinator, koc_physician | reason | `ceka_na_podklady` | coordinator | audit |
-| `kompletni` | `mark_ready_mdt` | koc_physician | readiness gate passed, or every missing item waived by a physician with a non-empty reason | `pripraveno_mdt` | koc_physician | audit incl. waivers (item, by, reason); notify `case.ready_for_mdt` |
+| `kompletni` | `mark_ready_mdt` | koc_physician | readiness gate passed, or every missing item waived by a physician (non-blank clinician id) with a non-empty reason | `pripraveno_mdt` | koc_physician | audit incl. waivers (item, by, reason); notify `case.ready_for_mdt` |
 | `pripraveno_mdt` | `reopen` | koc_physician | reason | `kompletni` | koc_physician | audit |
 | `pripraveno_mdt` | `record_mdt_conclusion` | koc_physician | `now ≥ mdt_start`; conclusion non-empty; **`confirmed_by` (clinician id) set** | `zaver_mdt` | coordinator | audit incl. `confirmed_by`; sets `conclusion_confirmed` |
 | `zaver_mdt` | `send_feedback` | coordinator | `conclusion_confirmed`; GP recipient | `zpetna_vazba_odeslana` | gp | audit; notify GP `feedback.sent`, reviewer `feedback.sent_reviewer` |
-| `zpetna_vazba_odeslana` | `delivery_confirmed` | system | receipt id | same | coordinator | audit; sets `delivery_receipt` |
+| `zpetna_vazba_odeslana` | `delivery_confirmed` | system | receipt id | same | coordinator | audit incl. `receipt_id`; sets `delivery_receipt` |
 | `zpetna_vazba_odeslana` | `gp_opened` | gp, system | — | same | unchanged | audit with action `read` (audited read receipt) |
 | `zpetna_vazba_odeslana` | `close` | coordinator | `delivery_receipt` | `uzavreno` | — | audit |
-| `triage`, `ceka_na_podklady`, `kompletni`, `pripraveno_mdt` | `postpone` | coordinator | reason; `resume_on` / external step | same, `odlozeny=true` | external_workplace | audit |
-| same four | `resume` | coordinator | case is postponed | same, `odlozeny=false` | role before postponing | audit |
+| `triage`, `ceka_na_podklady`, `kompletni`, `pripraveno_mdt` | `postpone` | coordinator | reason; `resume_on` / external step | same, `odlozeny=true`, `resume_on` stored | external_workplace | audit incl. reason and `resume_on` |
+| same four | `resume` | coordinator | case is postponed | same, `odlozeny=false`, `resume_on` cleared | role before postponing | audit |
 
 While `odlozeny` is true every event except `resume` fails with `case_postponed`. Every transition not listed is
 forbidden: `TransitionError` (a `ConflictError`) with `code` ∈ `invalid_transition | forbidden_role | guard_failed |
@@ -65,13 +65,13 @@ case_postponed` → `409 problem+json` (`https://stafeta.example/problems/confli
 
 | Event | From status | Roles | Guard | Result |
 | --- | --- | --- | --- | --- |
-| `order_confirmed` | requested | owner, coordinator | **place and date/time** confirmed | business `potvrzeno`, `scheduled_at` set |
+| `order_confirmed` | requested | owner, coordinator | **place and timezone-aware date/time** confirmed | business `potvrzeno`, `scheduled_at` set |
 | `accept` | requested | owner, coordinator | business `potvrzeno` (a sent request ≠ an ordered examination) | `accepted` |
 | `start` | accepted | owner | all `depends_on` tasks completed | `in_progress` |
 | `performed` | in_progress | owner | business `potvrzeno` | business `provedeno` |
 | `result_delivered` | in_progress | owner, system | business `provedeno`; result document id | `completed`, `vysledek_dorucen` |
-| `fail` | accepted, in_progress | owner, coordinator | reason | `failed`; notify coordinator |
-| `cancel` | requested, accepted, in_progress | coordinator | reason | `cancelled` |
+| `fail` | accepted, in_progress | owner, coordinator | reason | `failed`; reason in audit; notify coordinator |
+| `cancel` | requested, accepted, in_progress | coordinator | reason | `cancelled`; reason in audit |
 
 **Overdue / escalation:** deadline = earlier of `due` and `sla_due`. Once the deadline *day* is over (Prague), an open
 task yields one `escalation` event to the coordinator (`escalated_at` makes it fire once). Histology in the demo:

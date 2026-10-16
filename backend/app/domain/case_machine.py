@@ -101,7 +101,7 @@ def _g_ready(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
     if not r.ready:
         return f"readiness gate not passed, missing: {', '.join(r.missing)}"
     for w in r.waived:  # defence in depth; readiness_gate already validates
-        if w.by_role is not Role.KOC_PHYSICIAN or not _nonblank(w.reason):
+        if w.by_role is not Role.KOC_PHYSICIAN or not _nonblank(w.reason) or not _nonblank(w.by):
             return "invalid waiver"
     return None
 
@@ -230,6 +230,10 @@ def _events(
         payload["waived"] = [{"item": w.item, "by": w.by, "reason": w.reason} for w in ctx.readiness.waived]
     if rule.event == "record_mdt_conclusion":
         payload["confirmed_by"] = ctx.confirmed_by
+    if rule.event == "delivery_confirmed":
+        payload["receipt_id"] = ctx.receipt_id
+    if rule.event == "postpone":
+        payload["resume_on"] = ctx.resume_on
     audit = DomainEvent(EventKind.AUDIT, rule.audit_action, now, payload)
     notes = tuple(
         DomainEvent(EventKind.NOTIFICATION, tpl, now, {"case_id": new.id}, recipients)
@@ -292,10 +296,10 @@ def transition(
     if rule.to is not None:
         changes["state"] = rule.to
     if event == "postpone":
-        changes.update(odlozeny=True, resume_baton_role=case.baton_role)
+        changes.update(odlozeny=True, resume_baton_role=case.baton_role, resume_on=ctx.resume_on)
         _with_baton(case, changes, Role.EXTERNAL_WORKPLACE)
     elif event == "resume":
-        changes.update(odlozeny=False, resume_baton_role=None)
+        changes.update(odlozeny=False, resume_baton_role=None, resume_on=None)
         _with_baton(case, changes, case.resume_baton_role or case.baton_role)
     elif rule.baton is not None:
         _with_baton(case, changes, rule.baton)

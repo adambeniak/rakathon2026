@@ -1,0 +1,50 @@
+name: Task (human or AI agent)
+description: A small, well-scoped unit of work that a person or an AI agent (Claude Code, Copilot cloud agent) can finish in under ~1 hour.
+title: "[area] short imperative title"
+labels: ["task"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [be, ai, fe, wf, iris, qa, infra, docs]
+    validations: { required: true }
+  - type: dropdown
+    id: assignee_type
+    attributes:
+      label: Who should do it
+      options: ["Human", "Claude Code (worktree)", "Copilot cloud agent", "Either"]
+    validations: { required: true }
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this matters, links to docs/ADR/screens. Assume the agent knows only AGENTS.md.
+    validations: { required: true }
+  - type: textarea
+    id: allowed_files
+    attributes:
+      label: Allowed files / folders
+      description: The agent may only change these paths. Anything else → comment instead of editing.
+      placeholder: |
+        backend/app/consistency/rules/date_order.py
+        backend/tests/unit/consistency/
+    validations: { required: true }
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Testable bullet points. Include the command that proves it.
+      placeholder: |
+        - [ ] Rule raises finding C1 for document 09 with both quotes
+        - [ ] `uv run --project backend pytest backend/tests/unit/consistency -q` passes
+    validations: { required: true }
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+  - type: input
+    id: model
+    attributes:
+      label: Suggested model
+      placeholder: "GPT-6.1 Sol / GPT-6 Astra (long autonomous) / GPT-6 Luna (simple) / Sonnet / Opus"

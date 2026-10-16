@@ -1,0 +1,76 @@
+name: CI
+# Steps are guarded so the workflow is green while backend/ or frontend/ do not exist yet
+# (F1-1 and F1-2 are developed in parallel and must not block each other).
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+  merge_group: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v6
+      - name: Detect backend
+        id: has
+        working-directory: .
+        run: echo "be=$([ -f backend/pyproject.toml ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v6
+        if: steps.has.outputs.be == 'yes'
+      - if: steps.has.outputs.be == 'yes'
+        run: uv sync --frozen
+      - if: steps.has.outputs.be == 'yes'
+        run: uv run ruff check .
+      - if: steps.has.outputs.be == 'yes'
+        run: uv run ruff format --check .
+      - if: steps.has.outputs.be == 'yes'
+        run: uv run mypy app
+      - if: steps.has.outputs.be == 'yes'
+        run: uv run pytest -m "not iris" -q
+        env:
+          STAFETA_LLM_CACHE: "1"
+      - name: Contract is up to date
+        if: steps.has.outputs.be == 'yes' && hashFiles('contracts/openapi.json') != ''
+        run: |
+          uv run python -m app.export_openapi > /tmp/openapi.json
+          diff -q /tmp/openapi.json ../contracts/openapi.json
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+      - name: Detect frontend
+        id: has
+        working-directory: .
+        run: echo "fe=$([ -f frontend/package.json ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@v4
+        if: steps.has.outputs.fe == 'yes'
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v7
+        if: steps.has.outputs.fe == 'yes'
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - if: steps.has.outputs.fe == 'yes'
+        run: pnpm install --frozen-lockfile
+      - if: steps.has.outputs.fe == 'yes'
+        run: pnpm lint
+      - if: steps.has.outputs.fe == 'yes'
+        run: pnpm typecheck
+      - if: steps.has.outputs.fe == 'yes'
+        run: pnpm test --run
+      - if: steps.has.outputs.fe == 'yes'
+        run: pnpm build

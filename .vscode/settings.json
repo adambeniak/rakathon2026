@@ -1,0 +1,18 @@
+{
+  // AGENTS.md is the single source of rules. CLAUDE.md only imports it, so we skip it in Copilot to avoid loading rules twice.
+  "chat.useAgentsMdFile": true,
+  "chat.useClaudeMdFile": false,
+  // Worktree sessions in the Agents window: copy env + reuse node_modules.
+  "git.worktreeIncludeFiles": [".env"],
+  "chat.tools.terminal.autoApprove": {
+    "/^make (check|eval|test|up|seed|e2e|contract)$/": true,
+    "/^uv run (--directory backend )?(pytest|ruff|mypy)/": true,
+    "/^pnpm (lint|typecheck|test|build|exec playwright test)/": true,
+    "/^git (status|log|diff|show)/": true,
+    "/--force/": false,
+    "/^git push/": false,
+    "rm": false
+  },
+  "python.defaultInterpreterPath": "backend/.venv/bin/python",
+  "editor.formatOnSave": true
+}

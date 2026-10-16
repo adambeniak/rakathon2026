@@ -1,0 +1,21 @@
+# Replace @P1-handle … @P4-handle with real GitHub usernames. Last matching pattern wins.
+*                                   @P1-handle
+/contracts/                         @P1-handle
+/iris/                              @P1-handle
+/scripts/                           @P1-handle
+/docker-compose.yml                 @P1-handle
+/backend/app/fhir/                  @P1-handle
+/backend/app/iris/                  @P1-handle
+/backend/app/documents/             @P2-handle
+/backend/app/extraction/            @P2-handle
+/backend/app/consistency/           @P2-handle
+/backend/app/timeline/              @P2-handle
+/data/golden/                       @P2-handle
+/frontend/                          @P3-handle
+/backend/app/domain/                @P4-handle
+/backend/app/api/                   @P4-handle
+/backend/app/outputs/               @P4-handle
+/backend/app/notify/                @P4-handle
+/backend/app/security/              @P4-handle
+/frontend/e2e/                      @P4-handle
+/docs/                              @P4-handle @P1-handle

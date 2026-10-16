@@ -79,9 +79,14 @@ class LLMClient:
         self.use_temperature = True
 
     @classmethod
-    def from_settings(cls, settings: Settings, *, cache_dir: Path = DEFAULT_CACHE_DIR) -> LLMClient:
+    def from_settings(
+        cls, settings: Settings, *, cache_dir: Path = DEFAULT_CACHE_DIR, prompt_version: str = PROMPT_VERSION
+    ) -> LLMClient:
+        """`prompt_version` is part of the cache key: each prompt (extraction, epicrisis) uses its own."""
         model = settings.llm_model_extract or CACHE_MODEL
-        client = cls(model=model, cache_only=settings.stafeta_llm_cache, cache_dir=cache_dir)
+        client = cls(
+            model=model, prompt_version=prompt_version, cache_only=settings.stafeta_llm_cache, cache_dir=cache_dir
+        )
         if not settings.stafeta_llm_cache:
             client._transport = apim_transport(client, settings.apim_base_url, settings.apim_api_key)
         return client

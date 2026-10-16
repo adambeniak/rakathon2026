@@ -18,8 +18,11 @@ Roles are switched with the role switcher in the header (mock login). Demo date 
 
 ## Commands
 ```bash
-make demo-reset      # wipes case data in IRIS, re-seeds directory (KOC 1, KOC 2, practices) and users
-make seed            # loads documents in "received" order with the demo timestamps
+make demo-reset      # = python -m app.seed --reset --scenario demo-start: deletes everything tagged stafeta-demo
+                     #   (AuditEvents are kept), then seeds directory (KOC 1, KOC 2, practices), users and the
+                     #   patient only — NO case, NO documents: the GP creates the case live in step 1 (state odeslano)
+make seed            # = scenario "story" (idempotent): full case in state pripraveno_mdt with all 13 documents and
+                     #   their simulated received times (12–13 after the MDT start) — for development, not step 1
 make e2e             # Playwright runs all 6 steps, records video to frontend/e2e/artifacts/
 ```
 

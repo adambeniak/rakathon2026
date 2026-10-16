@@ -1,0 +1,21 @@
+# Opt-in local IRIS for Health (demo fallback when Azure is down): `make up-local`.
+# Same image digest as the team ACI so behaviour matches. Storage is intentionally NOT persistent (like ACI).
+# Apple Silicon: this digest is amd64 and runs emulated (slow); use the "-arm64" repository or the team ACI.
+services:
+  iris:
+    image: intersystems/irishealth-community@sha256:aad59884bdd89ee21c8cb059937c6b9b26947457641e5e04adecb68754376c6c
+    command: --password-file /iris-secrets/password
+    ports:
+      - "127.0.0.1:1972:1972"
+      - "127.0.0.1:52773:52773"
+    volumes:
+      - ./.iris:/iris-secrets
+    mem_limit: 2g
+
+  backend:
+    # Inside docker `localhost` is the container itself: point the backend at the iris service.
+    environment:
+      IRIS_HOST: iris
+      FHIR_BASE_URL: http://iris:52773/fhir/r4
+    depends_on:
+      - iris

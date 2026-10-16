@@ -1,0 +1,72 @@
+[project]
+name = "stafeta-backend"
+version = "0.1.0"
+description = "Štafeta backend: shared oncology patient case (Rakathon 2026, VZP challenge)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.143.3",
+    "httpx==0.28.1",
+    "intersystems-irispython==5.4.1",
+    "openai==3.31.0",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.0",
+    "python-docx==1.2.0",
+    "structlog==26.1.0",
+    "tenacity==9.2.1",
+    "uvicorn[standard]==0.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy==2.4.0",
+    "pytest==9.1.1",
+    "pytest-asyncio==1.4.0",
+    "respx==0.23.1",
+    "ruff==0.17.1",
+]
+
+[tool.uv]
+# The backend is an application, not a library: run it from this directory (`python -m app.…`).
+package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "BLE", "ASYNC", "S", "SIM", "RUF", "PT", "T20", "DTZ"]
+# Czech clinical text legitimately contains en dashes, non-breaking spaces and similar characters.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+# CLI entry points write their result to stdout by design.
+"app/export_openapi.py" = ["T201"]
+"app/export_schemas.py" = ["T201"]
+"app/seed/__main__.py" = ["T201"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["app"]
+
+[[tool.mypy.overrides]]
+# intersystems-irispython and python-docx ship without type information.
+module = ["iris", "iris.*", "docx", "docx.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-ra --strict-markers"
+markers = [
+    "iris: needs a live IRIS for Health (FHIR + SQL); run with `uv run --env-file ../.env pytest -m iris`",
+]

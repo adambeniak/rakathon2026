@@ -11,6 +11,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     runs-on: ubuntu-latest
@@ -41,7 +44,12 @@ jobs:
         if: steps.has.outputs.be == 'yes' && hashFiles('contracts/openapi.json') != ''
         run: |
           uv run python -m app.export_openapi > /tmp/openapi.json
-          diff -q /tmp/openapi.json ../contracts/openapi.json
+          diff -q /tmp/openapi.json ../contracts/openapi.json || { echo "contracts/openapi.json is stale: run make contract"; exit 1; }
+      - name: Handover schema is up to date
+        if: steps.has.outputs.be == 'yes' && hashFiles('contracts/handover.schema.json') != ''
+        run: |
+          uv run python -m app.export_schemas > /tmp/handover.schema.json
+          diff -q /tmp/handover.schema.json ../contracts/handover.schema.json || { echo "contracts/handover.schema.json is stale: run make contract"; exit 1; }
 
   frontend:
     runs-on: ubuntu-latest

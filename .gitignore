@@ -26,7 +26,7 @@ CLAUDE.local.md
 
 # outputs
 **/eval/report*.json
-outputs/
+/outputs/
 *.log
 .DS_Store
 ._*

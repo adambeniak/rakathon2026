@@ -23,9 +23,13 @@ Copilot picks up `.claude/skills/` on its own. Playwright MCP is in `.vscode/mcp
 IRIS_PASSWORD='…' bash scripts/aci_up.sh     # team ACI with DNS label stafeta-team73, takes a few minutes
 bash scripts/aci_status.sh                    # FQDN → IRIS_HOST and FHIR_BASE_URL in .env (both!)
 make iris-bootstrap                           # namespace + FHIR /fhir/r4 + vector table (re-run after every restart)
+make seed                                     # idempotent demo case (13 documents); `make demo-reset` = empty start for demo step 1
+make up                                       # backend (localhost:8000) + mailpit (localhost:8025) against the IRIS in .env
+curl -s localhost:8000/api/health             # {"status":"ok", …}
 ```
 Local alternative (same image): `mkdir -p .iris && echo 'pw' > .iris/password.txt`, put the same value into `.env` as
-`IRIS_PASSWORD`, then `make up && make iris-bootstrap && make seed`. Local storage is not persistent (like ACI).
+`IRIS_PASSWORD`, then `make up-local`; for `make iris-bootstrap` / `make seed` point `IRIS_HOST`/`FHIR_BASE_URL` in `.env`
+at `localhost`. Local storage is not persistent (like ACI).
 Apple Silicon: the pinned digest is amd64 and runs emulated; use the arm64 image variant or the team ACI.
 
 ## 3. Work

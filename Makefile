@@ -4,20 +4,23 @@
 # export secrets to every command). Env vars are passed to uv with --env-file instead.
 SHELL := /bin/bash
 
-.PHONY: up down iris-bootstrap seed check eval e2e demo-reset contract aci-up aci-status aci-down
+.PHONY: up up-local down iris-bootstrap seed check eval e2e demo-reset contract aci-up aci-status aci-down
 
-up:            ## start local stack (IRIS deletes its password file after reading it, so we copy it fresh each time)
+up:            ## start backend + mailpit against the IRIS configured in .env (team ACI)
+	docker compose up -d --build
+
+up-local:      ## same + local IRIS container (demo fallback; IRIS deletes its password file after reading it, so copy it fresh)
 	@test -s .iris/password.txt || { echo "Put the local IRIS password into .iris/password.txt AND into .env as IRIS_PASSWORD"; exit 1; }
 	@cp .iris/password.txt .iris/password && chmod 777 .iris && chmod 666 .iris/password
-	docker compose up -d
+	docker compose -f docker-compose.yml -f docker-compose.local-iris.yml up -d --build
 
 down:
-	docker compose down
+	docker compose -f docker-compose.yml -f docker-compose.local-iris.yml down --remove-orphans
 
 iris-bootstrap: ## idempotent: namespace, FHIR endpoint, vector table (re-run after every ACI restart)
 	uv run --env-file .env --with intersystems-irispython==5.4.1 python scripts/bootstrap_iris.py
 
-seed:          ## load demo directory, users and documents (implemented in F1)
+seed:          ## idempotent: directory, users, patient, the case and its 13 documents (scenario "story")
 	cd backend && uv run --env-file ../.env python -m app.seed
 
 check:         ## lint + types + unit tests (skips parts that do not exist yet)
@@ -30,12 +33,13 @@ eval:          ## extraction + consistency vs data/golden; report -> eval/report
 e2e:           ## Playwright full demo flow with video
 	cd frontend && pnpm exec playwright test
 
-demo-reset:    ## wipe case data and re-seed
-	cd backend && uv run --env-file ../.env python -m app.seed --reset
+demo-reset:    ## delete everything tagged stafeta-demo, then seed directory, users and patient only (demo step 1 starts empty)
+	cd backend && uv run --env-file ../.env python -m app.seed --reset --scenario demo-start
 
-contract:      ## export OpenAPI (via temp file, so a failed export never truncates the contract) and regenerate the TS client
+contract:      ## export OpenAPI + handover JSON Schema (via temp files, so a failed export never truncates a contract), regenerate the TS client
 	cd backend && uv run python -m app.export_openapi > /tmp/stafeta-openapi.json && mv /tmp/stafeta-openapi.json ../contracts/openapi.json
-	cd frontend && pnpm gen:api
+	cd backend && uv run python -m app.export_schemas > /tmp/stafeta-handover.json && mv /tmp/stafeta-handover.json ../contracts/handover.schema.json
+	@if [ -f frontend/package.json ]; then cd frontend && pnpm gen:api; else echo "frontend/ not created yet - TS client skipped"; fi
 
 aci-up:
 	bash scripts/aci_up.sh

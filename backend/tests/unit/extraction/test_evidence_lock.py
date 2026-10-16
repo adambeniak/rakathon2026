@@ -322,9 +322,10 @@ def test_date_in_quote_kept_as_written(doc) -> None:  # type: ignore[no-untyped-
 
 
 def test_table_row_date_from_header(doc) -> None:  # type: ignore[no-untyped-def]
-    accepted(
+    h = accepted(
         evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-15"), doc("10_"))
     )
+    assert h.fact.clinical_date is not None  # clinical_date may still use header dates (an unsupported one is dropped)
     a = accepted(
         evidence_lock(lab("CRP", 18, "mg/l", "CRP | 18 H | mg/l | 0–5", "H", clinical_date="2026-10-16"), doc("10_"))
     )
@@ -349,6 +350,17 @@ def test_czech_date_literal_in_date_value_converted(doc) -> None:  # type: ignor
     g = raw(type="patient_identity", handover_field=1, value={"kind": "date", "label": "Datum narození",
             "date": "23. 7. 1963"}, quote=q)  # fmt: skip
     rejected(evidence_lock(g, doc("07_")), "date_unsupported")
+
+
+def test_date_value_cannot_use_document_header_date(doc) -> None:  # type: ignore[no-untyped-def]
+    for iso in ("2026-10-02", "2026-10"):  # month precision must not borrow the header date either
+        f = raw(
+            type="patient_identity",
+            handover_field=1,
+            value={"kind": "date", "label": "Datum narození", "date": iso},
+            quote="Datum narození: 22. 7. 1963 (63 let)",
+        )
+        rejected(evidence_lock(f, doc("07_")), "date_unsupported")
 
 
 def test_number_repeated_across_fields_ok(doc) -> None:  # type: ignore[no-untyped-def]

@@ -1,7 +1,8 @@
 import type { RouteObject } from 'react-router-dom'
 import { CaseLayout } from './components/CaseLayout'
 import { Overview } from './components/Overview'
-import { AuditTab, DocumentsTab, MessagesTab, TasksTab, TimelineTab } from './components/Tabs'
+import { AuditTab, DocumentsTab, MessagesTab, TimelineTab } from './components/Tabs'
+import { TasksTab } from './components/TasksBoard'
 
 export const routes: RouteObject[] = [
   {

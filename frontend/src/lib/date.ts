@@ -40,11 +40,6 @@ export function formatRemaining(days: number): string {
   return `po termínu ${n} ${n === 1 ? 'den' : n < 5 ? 'dny' : 'dní'}`
 }
 
-/** True when `iso` is at or before `asOfIso` (both timestamps). */
-export function isOnOrBefore(iso: string, asOfIso: string): boolean {
-  return new Date(iso).getTime() <= new Date(asOfIso).getTime()
-}
-
 /** `2026-10-21T08:00` (Prague wall-clock) → ISO timestamp with the right Prague offset. */
 export function pragueLocalToIso(local: string): string {
   const withSeconds = local.length === 16 ? `${local}:00` : local

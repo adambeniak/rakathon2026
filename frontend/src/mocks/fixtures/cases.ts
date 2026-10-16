@@ -1,11 +1,38 @@
 // MOCK copy – replaced by API in F2/F3
-import type { CaseDetail, CaseState, CaseSummary } from '@/lib/domain'
+import type { CaseState, TaskPhase } from '@/lib/domain'
 import { daysUntil } from '@/lib/date'
 import { countFindings } from './findings'
 import { INTERVALS } from './timeline'
 import { nextDeadline } from './tasks'
 
+/** Rich fixture case (portal endpoints return it as is; /api/cases* converts it to the contract shape). */
+export interface MockCase {
+  id: string
+  patientName: string
+  birthDate: string
+  birthNumber: string
+  insurer: string
+  diagnosis: string
+  state: CaseState
+  subStatus: string
+  column: 'new' | 'active' | 'snoozed'
+  baton: { name: string; action: string; due: string | null }
+  counts: { missing: number; conflict: number; stale: number }
+  koc: string
+  gp: string
+  urgent: boolean
+  referredAt: string
+  t: { t1: number | null; t2: number | null; t3: number | null }
+}
+
 export const ALENA_ID = 'rakathon-2026-prochazkova'
+
+export interface RowEdit {
+  value: string
+  reason: string
+  by: string
+  at: string
+}
 
 export interface MockStore {
   claimed: string[]
@@ -13,47 +40,68 @@ export interface MockStore {
   feedbackSent: boolean
   mdtGeneratedAt: string | null
   confirmed: Record<string, string>
-  extraCases: CaseDetail[]
+  extraCases: MockCase[]
+  /** ids of document requests the coordinator has sent. */
+  requested: string[]
+  setStarted: boolean
+  taskPhase: Record<string, TaskPhase>
+  /** Clinician edits by section key and row index; every correction keeps its own reason, author and time. */
+  edits: Record<string, Record<number, RowEdit>>
 }
 
 export function newStore(): MockStore {
-  return { claimed: [], acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] }
+  return {
+    claimed: [],
+    acknowledged: [],
+    feedbackSent: false,
+    mdtGeneratedAt: null,
+    confirmed: {},
+    extraCases: [],
+    requested: [],
+    setStarted: false,
+    taskPhase: {},
+    edits: {},
+  }
 }
 
 const COORD = 'Bc. Dvořáková'
 
-function alena(today: string, s: MockStore): CaseDetail | null {
+function alena(today: string, s: MockStore): MockCase | null {
   if (today < '2026-10-02') return null
   let state: CaseState
   let subStatus: string
-  let baton: CaseSummary['baton']
+  let baton: MockCase['baton']
   if (s.feedbackSent && s.acknowledged.includes(ALENA_ID)) {
-    state = 'closed'
+    state = 'uzavreno'
     subStatus = 'Uzavřeno – převzetí potvrzeno PL'
     baton = { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null }
   } else if (s.feedbackSent) {
-    state = 'feedback_sent'
+    state = 'zpetna_vazba_odeslana'
     subStatus = 'Závěr MDT odeslán PL, čeká na potvrzení přijetí'
     baton = { name: 'MUDr. Řezníček (PL)', action: 'Potvrdit přijetí závěru MDT', due: '2026-10-23' }
   } else if (today === '2026-10-21') {
-    state = 'ready_for_mdt'
+    state = 'pripraveno_mdt'
     subStatus = 'MDT dnes 8:00 – handover k as-of 21. 10. 2026'
     baton = { name: 'MDT KOC 2', action: 'Projednat případ', due: '2026-10-21' }
   } else if (today >= '2026-10-19') {
-    state = 'complete'
+    state = 'kompletni'
     subStatus = 'Kompletní – čeká na potvrzení sekcí lékařem'
     baton = { name: 'MUDr. Havelka (lékař KOC 2)', action: 'Potvrdit handover', due: '2026-10-21' }
   } else if (today === '2026-10-02' && !s.claimed.includes(ALENA_ID)) {
-    state = 'sent'
+    state = 'odeslano'
     subStatus = 'Nová žádost od PL – čeká na převzetí'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Převzít případ', due: '2026-10-05' }
+  } else if (today === '2026-10-02' && s.requested.length > 0) {
+    state = 'ceka_na_podklady'
+    subStatus = 'Čeká na podklady – vyžádány výsledky 01–06'
+    baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Doplnit chybějící podklady', due: '2026-10-09' }
   } else if (today === '2026-10-02') {
     state = 'triage'
     subStatus = 'V triage → Čeká na podklady (výsledky 01–06 nejsou přiloženy)'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Vyžádat výsledky 01–06', due: '2026-10-06' }
   } else {
-    const nd = nextDeadline(today)
-    state = 'awaiting_docs'
+    const nd = nextDeadline(today, s.taskPhase)
+    state = 'ceka_na_podklady'
     subStatus = nd ? `Čeká na podklady – další krok: ${nd.title}` : 'Čeká na podklady'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: nd?.title ?? 'Doplnit podklady', due: nd?.due ?? null }
   }
@@ -67,7 +115,7 @@ function alena(today: string, s: MockStore): CaseDetail | null {
     diagnosis: 'C25.0 – suspektní tumor hlavy pankreatu',
     state,
     subStatus,
-    column: state === 'sent' || state === 'triage' ? 'new' : 'active',
+    column: state === 'odeslano' || state === 'triage' ? 'new' : 'active',
     baton,
     counts: countFindings(today),
     koc: 'KOC 2 – Nemocnice Lipová',
@@ -78,32 +126,32 @@ function alena(today: string, s: MockStore): CaseDetail | null {
   }
 }
 
-const OTHERS: CaseDetail[] = [
-  { id: 'c-kralova', patientName: 'Marie Králová', birthDate: '1971-03-09', birthNumber: '715309/2204', insurer: '111 – VZP ČR', diagnosis: 'C18.9 – suspektní tumor tlustého střeva', state: 'sent', subStatus: 'Nová žádost od PL – čeká na převzetí', column: 'new', baton: { name: 'Koordinátorka KOC 2', action: 'Převzít případ', due: '2026-10-19' }, counts: { missing: 2, conflict: 0, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-10-16', t: { t1: 12, t2: 0, t3: null } },
+const OTHERS: MockCase[] = [
+  { id: 'c-kralova', patientName: 'Marie Králová', birthDate: '1971-03-09', birthNumber: '715309/2204', insurer: '111 – VZP ČR', diagnosis: 'C18.9 – suspektní tumor tlustého střeva', state: 'odeslano', subStatus: 'Nová žádost od PL – čeká na převzetí', column: 'new', baton: { name: 'Koordinátorka KOC 2', action: 'Převzít případ', due: '2026-10-19' }, counts: { missing: 2, conflict: 0, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-10-16', t: { t1: 12, t2: 0, t3: null } },
   { id: 'c-svoboda', patientName: 'Petr Svoboda', birthDate: '1955-11-30', birthNumber: '551130/0987', insurer: '201 – VoZP ČR', diagnosis: 'C61 – suspektní nález prostaty', state: 'triage', subStatus: 'V triage – posuzuje koordinátorka', column: 'new', baton: { name: 'Bc. Dvořáková', action: 'Dokončit triage', due: '2026-10-20' }, counts: { missing: 1, conflict: 0, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Novotná', urgent: false, referredAt: '2026-10-15', t: { t1: 20, t2: 1, t3: null } },
-  { id: 'c-dvorak', patientName: 'Jan Dvořák', birthDate: '1960-05-14', birthNumber: '600514/1456', insurer: '205 – ČPZP', diagnosis: 'C34.9 – suspektní nález plic', state: 'complete', subStatus: 'Kompletní – čeká na lékaře KOC', column: 'active', baton: { name: 'MUDr. Havelka', action: 'Potvrdit handover', due: '2026-10-22' }, counts: { missing: 0, conflict: 1, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Novotná', urgent: false, referredAt: '2026-09-28', t: { t1: 25, t2: 18, t3: null } },
-  { id: 'c-maresova', patientName: 'Eva Marešová', birthDate: '1968-01-25', birthNumber: '685125/3310', insurer: '207 – OZP', diagnosis: 'C50.9 – suspektní nález prsu', state: 'awaiting_docs', subStatus: 'Odloženo do 30. 10. 2026 – čeká na pacientku', column: 'snoozed', baton: { name: 'Pacientka', action: 'Dodat zprávy z mamologie', due: '2026-10-30' }, counts: { missing: 2, conflict: 0, stale: 1 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-10-05', t: { t1: 9, t2: 11, t3: null } },
-  { id: 'c-horakova', patientName: 'Ludmila Horáková', birthDate: '1952-08-03', birthNumber: '525803/0612', insurer: '211 – ZP MV ČR', diagnosis: 'C20 – tumor rekta', state: 'feedback_sent', subStatus: 'Závěr MDT odeslán PL, čeká na potvrzení přijetí', column: 'active', baton: { name: 'MUDr. Řezníček (PL)', action: 'Potvrdit přijetí závěru MDT', due: '2026-10-19' }, counts: { missing: 0, conflict: 0, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-09-14', t: { t1: 18, t2: 19, t3: 12 } },
-  { id: 'c-benes', patientName: 'Karel Beneš', birthDate: '1949-12-12', birthNumber: '491212/0321', insurer: '211 – ZP MV ČR', diagnosis: 'C15.9 – tumor jícnu', state: 'closed', subStatus: 'Uzavřeno – převzetí potvrzeno PL', column: 'active', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno', due: null }, counts: { missing: 0, conflict: 0, stale: 0 }, koc: 'KOC 1 – Nemocnice Severní', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-08-10', t: { t1: 22, t2: 17, t3: 13 } },
+  { id: 'c-dvorak', patientName: 'Jan Dvořák', birthDate: '1960-05-14', birthNumber: '600514/1456', insurer: '205 – ČPZP', diagnosis: 'C34.9 – suspektní nález plic', state: 'kompletni', subStatus: 'Kompletní – čeká na lékaře KOC', column: 'active', baton: { name: 'MUDr. Havelka', action: 'Potvrdit handover', due: '2026-10-22' }, counts: { missing: 0, conflict: 1, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Novotná', urgent: false, referredAt: '2026-09-28', t: { t1: 25, t2: 18, t3: null } },
+  { id: 'c-maresova', patientName: 'Eva Marešová', birthDate: '1968-01-25', birthNumber: '685125/3310', insurer: '207 – OZP', diagnosis: 'C50.9 – suspektní nález prsu', state: 'ceka_na_podklady', subStatus: 'Odloženo do 30. 10. 2026 – čeká na pacientku', column: 'snoozed', baton: { name: 'Pacientka', action: 'Dodat zprávy z mamologie', due: '2026-10-30' }, counts: { missing: 2, conflict: 0, stale: 1 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-10-05', t: { t1: 9, t2: 11, t3: null } },
+  { id: 'c-horakova', patientName: 'Ludmila Horáková', birthDate: '1952-08-03', birthNumber: '525803/0612', insurer: '211 – ZP MV ČR', diagnosis: 'C20 – tumor rekta', state: 'zpetna_vazba_odeslana', subStatus: 'Závěr MDT odeslán PL, čeká na potvrzení přijetí', column: 'active', baton: { name: 'MUDr. Řezníček (PL)', action: 'Potvrdit přijetí závěru MDT', due: '2026-10-19' }, counts: { missing: 0, conflict: 0, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-09-14', t: { t1: 18, t2: 19, t3: 12 } },
+  { id: 'c-benes', patientName: 'Karel Beneš', birthDate: '1949-12-12', birthNumber: '491212/0321', insurer: '211 – ZP MV ČR', diagnosis: 'C15.9 – tumor jícnu', state: 'uzavreno', subStatus: 'Uzavřeno – převzetí potvrzeno PL', column: 'active', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno', due: null }, counts: { missing: 0, conflict: 0, stale: 0 }, koc: 'KOC 1 – Nemocnice Severní', gp: 'MUDr. Řezníček', urgent: false, referredAt: '2026-08-10', t: { t1: 22, t2: 17, t3: 13 } },
 ]
 
-export function allCases(today: string, s: MockStore): CaseDetail[] {
+export function allCases(today: string, s: MockStore): MockCase[] {
   const a = alena(today, s)
   const others = OTHERS.filter((c) => c.referredAt <= today).map((c) =>
-    c.state === 'sent' && s.claimed.includes(c.id)
+    c.state === 'odeslano' && s.claimed.includes(c.id)
       ? { ...c, state: 'triage' as const, subStatus: 'V triage – posuzuje koordinátorka', baton: { name: `${COORD} (koordinátorka KOC 2)`, action: 'Dokončit triage', due: c.baton.due } }
-      : c.state === 'feedback_sent' && s.acknowledged.includes(c.id)
-      ? { ...c, state: 'closed' as const, subStatus: 'Uzavřeno – převzetí potvrzeno PL', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null } }
+      : c.state === 'zpetna_vazba_odeslana' && s.acknowledged.includes(c.id)
+      ? { ...c, state: 'uzavreno' as const, subStatus: 'Uzavřeno – převzetí potvrzeno PL', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null } }
       : c,
   )
   return [...(a ? [a] : []), ...s.extraCases, ...others]
 }
 
-export function caseById(id: string, today: string, s: MockStore): CaseDetail | undefined {
+export function caseById(id: string, today: string, s: MockStore): MockCase | undefined {
   return allCases(today, s).find((c) => c.id === id)
 }
 
 /** Cases in the coordinator inbox (closed ones are archived). */
-export function inboxCases(today: string, s: MockStore): CaseDetail[] {
-  return allCases(today, s).filter((c) => c.state !== 'closed' && c.state !== 'feedback_sent')
+export function inboxCases(today: string, s: MockStore): MockCase[] {
+  return allCases(today, s).filter((c) => c.state !== 'uzavreno' && c.state !== 'zpetna_vazba_odeslana')
 }

@@ -4,11 +4,11 @@ import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
 import { useDemo } from '@/app/DemoContext'
-import { useDocuments, useFindings } from '@/features/cases/api'
+import { useCase, useDocuments, useFindings } from '@/features/cases/api'
 import { handover as t } from '@/i18n/cs/handover'
 import { formatDateTime } from '@/lib/date'
 import { SectionCard } from './components/SectionCard'
-import { useConfirmAll, useConfirmSection, useHandover } from './api'
+import { useConfirmAll, useConfirmSection, useEditSection, useHandover } from './api'
 
 export function Handover() {
   const { id = '' } = useParams()
@@ -17,8 +17,10 @@ export function Handover() {
   const q = useHandover(id)
   const docs = useDocuments(id)
   const findings = useFindings(id)
+  const caseQ = useCase(id)
   const confirm = useConfirmSection(id)
   const confirmAll = useConfirmAll(id)
+  const edit = useEditSection(id)
 
   if (q.isPending) return <LoadingBlock lines={8} />
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
@@ -26,6 +28,11 @@ export function Handover() {
 
   const confirmable = q.data.sections.filter((s) => s.status !== 'missing')
   const done = confirmable.filter((s) => s.confirmed).length
+  // The draft label stays until the server has recorded the last confirmation (confirm.isPending).
+  const allConfirmed = confirmable.length > 0 && done === confirmable.length && !confirm.isPending
+  const missingSections = q.data.sections.length - confirmable.length
+  // Same numbers as the case header; not computed / still loading shows "—", never 0.
+  const counts = { missing: caseQ.data?.counts.missing ?? null, conflict: caseQ.data?.counts.conflict ?? null }
 
   return (
     <div className="space-y-4">
@@ -38,25 +45,58 @@ export function Handover() {
           {!isPhysician && <p className="text-sm text-conflict">{t.physicianOnly}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" disabled={!isPhysician || confirmAll.isPending || done === confirmable.length}
+          <Button variant={allConfirmed ? 'secondary' : 'primary'} disabled={!isPhysician || confirmAll.isPending || allConfirmed}
             title={isPhysician ? undefined : t.physicianOnly} onClick={() => confirmAll.mutate()}>
             {t.confirmAll}
           </Button>
-          <Button asChild variant="primary">
+          {/* Primary only once every section is confirmed, so the primary action never invites skipping confirmation. */}
+          <Button asChild variant={allConfirmed ? 'primary' : 'secondary'}>
             <Link to={`/cases/${id}/mdt`}>{t.prepareMdt}</Link>
           </Button>
         </div>
+      </div>
+
+      <div
+        role="group"
+        aria-label={t.summary}
+        className="sticky top-0 z-30 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-hairline bg-card/95 px-4 py-2 shadow-sm backdrop-blur"
+      >
+        <span className="font-medium">{t.confirmedCount(done, confirmable.length)}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <StatusPill kind="missing" />
+          <span className="font-mono text-sm font-semibold">{counts.missing ?? '—'}</span>
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <StatusPill kind="conflict" />
+          <span className="font-mono text-sm font-semibold">{counts.conflict ?? '—'}</span>
+        </span>
+        <span className="ml-auto">
+          {confirm.isPending && (
+            <span role="status" className="mr-2 text-sm text-muted">
+              {t.saving}
+            </span>
+          )}
+          {allConfirmed ? (
+            <span role="status" className="text-sm font-medium text-verified">
+              {t.allConfirmed(missingSections)}
+            </span>
+          ) : (
+            <StatusPill kind="ai" label={t.draftLabel} />
+          )}
+        </span>
       </div>
 
       {q.data.sections.map((s) => (
         <SectionCard
           key={s.key}
           s={s}
+          editError={edit.isError}
+          onEdit={(sectionKey, rows, reason) => edit.mutateAsync({ sectionKey, rows, reason })}
           docs={docs.data ?? []}
           findings={(findings.data ?? []).filter((f) => s.findingIds.includes(f.id))}
           busy={confirm.isPending}
           canConfirm={isPhysician}
-          onConfirm={(key) => confirm.mutate(key)}
+          onConfirm={(section) => confirm.mutate(section)}
         />
       ))}
 
@@ -69,7 +109,8 @@ export function Handover() {
           <ul className="mt-2 space-y-1">
             {q.data.excluded.map((d) => (
               <li key={d.id}>
-                <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span> {d.title}
+                <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span>{' '}
+                {docs.data?.find((x) => x.id === d.id)?.title ?? d.id} <span className="text-sm text-muted">· {d.reason}</span>
               </li>
             ))}
           </ul>

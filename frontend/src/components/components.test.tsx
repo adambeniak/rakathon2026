@@ -33,7 +33,7 @@ describe('CaseStateBadge', () => {
     unmount()
   })
   it('marks the current step in the stepper', () => {
-    render(<CaseStateBadge state="awaiting_docs" variant="stepper" />)
+    render(<CaseStateBadge state="ceka_na_podklady" variant="stepper" />)
     expect(screen.getAllByText('Čeká na podklady').length).toBeGreaterThan(0)
     expect(document.querySelector('[aria-current="step"]')).not.toBeNull()
   })
@@ -49,6 +49,6 @@ describe('EvidenceChip', () => {
   it('says so when no quote is stored', async () => {
     render(<EvidenceChip docId="10_x" />)
     await userEvent.click(screen.getByRole('button'))
-    expect(await screen.findByText(/doslovná citace není/)).toBeInTheDocument()
+    expect(await screen.findByText(/Doslovná citace chybí/)).toBeInTheDocument()
   })
 })

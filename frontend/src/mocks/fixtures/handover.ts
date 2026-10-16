@@ -1,29 +1,13 @@
 // MOCK copy – replaced by API in F2/F3
 import type { HandoverSection, HandoverStatus } from '@/lib/domain'
 import { formatDate } from '@/lib/date'
+import { handover as t } from '@/i18n/cs/handover'
 import { AS_OF_DEFAULT, includedAt } from './documents'
+import type { RowEdit } from './cases'
 import { golden } from './golden'
 
 type Row = HandoverSection['rows'][number]
 type Gf = (typeof golden.fields)[string]
-
-const TITLES: Record<string, string> = {
-  '1_patient': 'Pacient',
-  '2_contacts': 'Kontakty',
-  '3_diagnosis': 'Diagnóza',
-  '4_epicrisis': 'Epikríza',
-  '5_mdt_question': 'Otázka pro MDT',
-  '6_comorbidities': 'Komorbidity',
-  '7_medications': 'Léková anamnéza',
-  '8_allergies': 'Alergie',
-  '9_performance_status': 'Stav výkonnosti',
-  '10_weight_height': 'Výška a hmotnost',
-  '11_symptoms': 'Symptomy',
-  '12_examinations': 'Provedená vyšetření',
-  '13_labs': 'Laboratoř',
-  '14_histology': 'Histologie',
-  '15_other': 'Jiná sdělení',
-}
 
 const FINDING_LINKS: Record<string, string[]> = {
   '2_contacts': ['M3'],
@@ -110,15 +94,14 @@ function rowsFor(key: string, f: Gf, inc: Set<string>): Row[] {
       ]
     }
     case '15_other':
-      return ((f.value as string[] | undefined) ?? []).map((i) => ({ value: i }))
+      return ((f.value as string[] | undefined) ?? []).map((i) => {
+        const ev = (f.evidence ?? []).find((e) => e.quote === i)
+        // The API marks consent / wishes of the patient: read-only, with their own source.
+        return /^Souhlas/.test(i) && ev ? { value: i, readOnly: true, evidence: [{ docId: ev.doc, quote: ev.quote }] } : { value: i }
+      })
     default:
       return []
   }
-}
-
-const MISSING_LABEL: Record<string, string> = {
-  patient_email: 'E-mail pacientky',
-  tnm_clinical_stage: 'Klinické TNM',
 }
 
 const DOC = {
@@ -192,10 +175,10 @@ export function buildSections(confirmed: Record<string, string>, asOf: string = 
     return {
       key,
       number,
-      title: TITLES[key] ?? key,
+      title: (t.sectionTitles as Record<string, string>)[key] ?? key,
       status,
       rows,
-      missing: (f.missing ?? []).map((m) => MISSING_LABEL[m] ?? m),
+      missing: (f.missing ?? []).map((m) => (t.missingItems as Record<string, string>)[m] ?? m),
       evidence,
       findingIds,
       confirmed: key in confirmed,
@@ -204,4 +187,35 @@ export function buildSections(confirmed: Record<string, string>, asOf: string = 
   })
 }
 
+/** Stand-in for the API's SHA-256 `value_hash`: changes whenever the displayed values change. */
+export function sectionHash(s: HandoverSection): string {
+  let h = 5381
+  for (const ch of JSON.stringify(s.rows.map((r) => [r.label, r.value]))) h = (h * 33) ^ ch.charCodeAt(0)
+  return (h >>> 0).toString(16).padStart(8, '0').repeat(8)
+}
+
 export const CONFIRMABLE = (s: HandoverSection): boolean => s.status !== 'missing'
+
+/** Overlays the clinician's corrections on the assembled sections; each row shows the note of its own edit. */
+export function applyEdits(sections: HandoverSection[], edits: Record<string, Record<number, RowEdit>>): HandoverSection[] {
+  return sections.map((s) => {
+    const rowEdits = edits[s.key]
+    if (!rowEdits) return s
+    return {
+      ...s,
+      rows: s.rows.map((r, i) => {
+        const e = rowEdits[i]
+        return e ? { ...r, value: e.value, note: t.editedNote(e.by, e.at, e.reason) } : r
+      }),
+    }
+  })
+}
+
+/** The one builder for handover and MDT: assembled sections with confirmations and edits applied. */
+export function buildReviewedSections(
+  confirmed: Record<string, string>,
+  edits: Record<string, Record<number, RowEdit>>,
+  asOf: string = AS_OF_DEFAULT,
+): HandoverSection[] {
+  return applyEdits(buildSections(confirmed, asOf), edits)
+}

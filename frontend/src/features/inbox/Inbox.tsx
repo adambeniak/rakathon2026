@@ -8,6 +8,13 @@ import { InboxCard } from './components/InboxCard'
 
 const COLUMNS = ['new', 'active', 'snoozed'] as const
 
+/** Earliest deadline first; cases without a deadline go last. */
+const byDeadline = (a: CaseSummary, b: CaseSummary) => {
+  const x = a.baton?.due ? new Date(a.baton.due).getTime() : Infinity
+  const y = b.baton?.due ? new Date(b.baton.due).getTime() : Infinity
+  return x - y
+}
+
 export function Inbox() {
   const { role } = useDemo()
   const q = useInbox()
@@ -18,14 +25,14 @@ export function Inbox() {
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
 
   // One primary action per view: only the first unclaimed case offers "Převzít" as a primary button.
-  const firstSent = q.data.find((c) => c.state === 'sent')?.id
+  const firstSent = q.data.find((c) => c.state === 'odeslano')?.id
 
   return (
     <div className="space-y-4">
       <h1 className="text-3xl">{t.title}</h1>
       <div className="grid gap-4 lg:grid-cols-3">
         {COLUMNS.map((col) => {
-          const items: CaseSummary[] = q.data.filter((c) => c.column === col)
+          const items: CaseSummary[] = q.data.filter((c) => c.column === col && c.state !== 'uzavreno').sort(byDeadline)
           return (
             <section key={col} aria-labelledby={`col-${col}`} className="space-y-3 rounded-lg bg-accent-soft/40 p-3">
               <h2 id={`col-${col}`} className="flex items-center justify-between text-xl">

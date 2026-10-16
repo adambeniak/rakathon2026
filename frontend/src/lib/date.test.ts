@@ -1,4 +1,4 @@
-import { daysUntil, formatDate, formatDateTime, formatRemaining, isOnOrBefore } from './date'
+import { daysUntil, formatDate, formatDateTime, formatRemaining } from './date'
 
 describe('date helpers', () => {
   it('formats Czech dates', () => {
@@ -15,10 +15,6 @@ describe('date helpers', () => {
     expect(formatRemaining(2)).toBe('za 2 dny')
     expect(formatRemaining(-1)).toBe('po termínu 1 den')
     expect(formatRemaining(0)).toBe('dnes')
-  })
-  it('applies the as-of rule on timestamps', () => {
-    expect(isOnOrBefore('2026-10-19T10:00:00+02:00', '2026-10-21T08:00:00+02:00')).toBe(true)
-    expect(isOnOrBefore('2026-10-26T10:00:00+02:00', '2026-10-21T08:00:00+02:00')).toBe(false)
   })
 })
 

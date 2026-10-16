@@ -15,10 +15,10 @@ export const handlers = [
     HttpResponse.json(allCases(todayOf(request), store).filter((c) => c.gp === 'MUDr. Řezníček')),
   ),
   http.get('/api/reviewer/cases', ({ request }) =>
-    HttpResponse.json(allCases(todayOf(request), store).filter((c) => c.insurer.startsWith('211'))),
+    HttpResponse.json(allCases(todayOf(request), store).filter((c) => c.insurer?.startsWith('211'))),
   ),
   http.get('/api/koc', () => HttpResponse.json(KOC_DIRECTORY)),
-  http.post('/api/referrals/parse', async ({ request }) => {
+  http.post('/api/referrals/prefill', async ({ request }) => {
     const body = (await request.json()) as { filename?: string }
     return HttpResponse.json({
       filename: body.filename ?? 'zadost.pdf',
@@ -38,5 +38,5 @@ export const handlers = [
       },
     })
   }),
-  http.post('/api/referrals', () => HttpResponse.json({ caseId: 'rakathon-2026-prochazkova', state: 'sent' }, { status: 201 })),
+  http.post('/api/referrals', () => HttpResponse.json({ caseId: 'rakathon-2026-prochazkova', state: 'odeslano' }, { status: 201 })),
 ]

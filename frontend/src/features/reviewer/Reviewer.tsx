@@ -42,14 +42,14 @@ export function Reviewer() {
                 <td className="px-3 py-3">
                   {initials(c.patientName)}, {c.birthDate.slice(0, 4)}
                 </td>
-                <td className="px-3 py-3">{c.diagnosis.split(' – ')[0]}</td>
+                <td className="px-3 py-3">{(c.diagnosis ?? '—').split(' – ')[0]}</td>
                 <td className="px-3 py-3">
                   <CaseStateBadge state={c.state} />
                 </td>
-                <td className="px-3 py-3">{formatDate(c.referredAt)}</td>
-                <td className="px-3 py-3 font-mono text-sm">{days(c.t.t1)}</td>
-                <td className="px-3 py-3 font-mono text-sm">{days(c.t.t2)}</td>
-                <td className="px-3 py-3 font-mono text-sm">{days(c.t.t3)}</td>
+                <td className="px-3 py-3">{c.referredAt ? formatDate(c.referredAt) : '—'}</td>
+                <td className="px-3 py-3 font-mono text-sm">{days(c.t?.t1 ?? null)}</td>
+                <td className="px-3 py-3 font-mono text-sm">{days(c.t?.t2 ?? null)}</td>
+                <td className="px-3 py-3 font-mono text-sm">{days(c.t?.t3 ?? null)}</td>
               </tr>
             ))}
           </tbody>

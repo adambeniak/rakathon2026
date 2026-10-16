@@ -11,7 +11,7 @@ import { Providers } from './app/providers'
 import { createRouter } from './app/router'
 
 async function bootstrap() {
-  // Mocks are on in dev unless VITE_MOCKS=0; set VITE_MOCKS=1 for preview builds / e2e.
+  // Keep mocks as the development default until the remaining workflows use the backend contract.
   const mocks = import.meta.env.VITE_MOCKS === '1' || (import.meta.env.DEV && import.meta.env.VITE_MOCKS !== '0')
   if (mocks) {
     const { worker } = await import('./mocks/browser')

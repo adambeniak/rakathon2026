@@ -51,13 +51,24 @@ class FactType(StrEnum):
     HISTOLOGY = "histology"
     PROCEDURE = "procedure"
     CONSENT_OR_WISH = "consent_or_wish"
-    RECOMMENDATION_OR_PLAN = "recommendation_or_plan"
+    # A plan or recommendation written by the document's author, never AI advice (clinical-safety review).
+    DOCUMENTED_PLAN = "documented_plan"
     REFERRAL_REQUEST = "referral_request"
     ADMIN_DATE = "admin_date"
 
 
+class DatePrecision(StrEnum):
+    DAY = "day"
+    MONTH = "month"
+    YEAR = "year"
+
+
 class Fact(DomainModel):
-    """One extracted statement. P2 may refine `value` typing per `type` in `app.extraction`."""
+    """One extracted statement. P2 may refine `value` typing per `type` in `app.extraction`.
+
+    Negation convention: a `negated` fact's value is the self-contained negative statement copied from the quote
+    ("Bez známek vzdálených metastáz", "AA: neguje"). Display it verbatim; never compose a negation from it.
+    """
 
     id: str = Field(description="Stable fact id used in citations, e.g. 'F12'.")
     doc_id: str = Field(pattern=BUSINESS_ID_PATTERN)
@@ -66,5 +77,23 @@ class Fact(DomainModel):
     value: JsonValue
     unit: str | None = None
     clinical_date: date | None = None
+    clinical_date_precision: DatePrecision | None = Field(
+        None,
+        description="month/year: clinical_date is the first day of that period "
+        "('od poloviny srpna 2026' -> 2026-08-01, month).",
+    )
+    specimen: str | None = Field(None, description="Material of a lab result, e.g. 'sérum', 'moč' (prompt v2).")
     certainty: Certainty
     evidence: list[Evidence] = Field(min_length=1)
+    quote_repaired: bool = Field(
+        False, description="Quote matched only after NFKC folding; the stored quote is the exact source span."
+    )
+    lock_notes: list[str] = Field(
+        default_factory=list, description="Evidence-lock notes, e.g. 'clinical_date_dropped:unsupported:2026-09-01'."
+    )
+
+    @model_validator(mode="after")
+    def _precision_needs_date(self) -> Fact:
+        if self.clinical_date_precision is not None and self.clinical_date is None:
+            raise ValueError("clinical_date_precision requires clinical_date")
+        return self

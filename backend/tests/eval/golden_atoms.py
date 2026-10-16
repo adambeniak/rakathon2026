@@ -18,8 +18,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from extraction import fold, numbers_in
-from schema import CodedValue, DateValue, Fact, MedicationValue, PersonValue, QuantityValue
+from app.domain.evidence import Fact
+from app.extraction.lock import clinical_date_text, fact_quote, fold, numbers_in
+from app.extraction.values import (
+    CodedValue,
+    DateValue,
+    FactValue,
+    MedicationValue,
+    PersonValue,
+    QuantityValue,
+    parse_value,
+)
 
 Matcher = Callable[[Sequence[Fact]], bool]
 
@@ -36,9 +45,13 @@ class Atom:
 # ---------------------------------------------------------------- fact text helpers
 
 
+def V(f: Fact) -> FactValue:  # noqa: N802 - short typed view used throughout the matchers
+    return parse_value(f.value)
+
+
 def value_strings(f: Fact) -> list[str]:
     out: list[str] = []
-    for k, v in f.value.model_dump().items():
+    for k, v in V(f).model_dump().items():
         if k != "kind" and isinstance(v, str):
             out.append(v)
     if f.unit:
@@ -55,14 +68,15 @@ def _num(x: float | int | str) -> Decimal:
 
 
 def _has(f: Fact, needle: str, *, in_quote: bool = False) -> bool:
-    hay = value_text(f) + (" " + fold(f.quote) if in_quote else "")
+    hay = value_text(f) + (" " + fold(fact_quote(f)) if in_quote else "")
     return fold(needle) in hay
 
 
 def _dates(f: Fact) -> set[str]:
-    out = {f.clinical_date} if f.clinical_date else set()
-    if isinstance(f.value, DateValue):
-        out.add(f.value.date)
+    text = clinical_date_text(f)
+    out = {text} if text else set()
+    if isinstance(v := V(f), DateValue):
+        out.add(v.date)
     return out
 
 
@@ -90,7 +104,7 @@ def text_coverage(expected: str, facts: Sequence[Fact]) -> float:
         return 1.0
     best = 0.0
     for f in facts:
-        have = stems(" ".join(value_strings(f)) + " " + f.quote)
+        have = stems(" ".join(value_strings(f)) + " " + fact_quote(f))
         best = max(best, len(want & have) / len(want))
     return best
 
@@ -112,7 +126,7 @@ def _any_date(iso: str, types: set[str], fields: set[int] | None = None, doc_pre
 
 def _insurer(code: str) -> Matcher:
     return lambda fs: any(
-        (isinstance(f.value, CodedValue) and f.value.code == code) or re.search(rf"\b{code}\b", value_text(f))
+        (isinstance(v := V(f), CodedValue) and v.code == code) or re.search(rf"\b{code}\b", value_text(f))
         for f in _of(fs, {"insurer"}, {1})
     )
 
@@ -153,8 +167,9 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
         "2.no_patient_email",
         "2_contacts",
         "no e-mail is documented",
-        lambda fs: any(isinstance(f.value, PersonValue) and f.value.email for f in fs)
-        or any("@" in f.quote for f in fs),
+        lambda fs: (
+            any(isinstance(v := V(f), PersonValue) and v.email for f in fs) or any("@" in fact_quote(f) for f in fs)
+        ),
         negative=True,
     )
 
@@ -169,8 +184,10 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
         "3.no_tnm",
         "3_diagnosis",
         "no TNM stage is documented",
-        lambda fs: any(re.search(r"\bc?T[0-4x][a-d]?\s*N[0-3x]", " ".join(value_strings(f))) for f in fs)
-        or any("TNM" in " ".join(value_strings(f)) for f in fs),
+        lambda fs: (
+            any(re.search(r"\bc?T[0-4x][a-d]?\s*N[0-3x]", " ".join(value_strings(f))) for f in fs)
+            or any("TNM" in " ".join(value_strings(f)) for f in fs)
+        ),
         negative=True,
     )
 
@@ -184,10 +201,10 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
         "6_comorbidities",
         "EF LK 60 %",
         lambda fs: any(
-            isinstance(f.value, QuantityValue)
-            and "ef" in fold(f.value.name)
-            and f.value.number is not None
-            and _num(f.value.number) == _num(60)
+            isinstance(v := V(f), QuantityValue)
+            and "ef" in fold(v.name)
+            and v.number is not None
+            and _num(v.number) == _num(60)
             for f in fs
         ),
     )
@@ -198,7 +215,7 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
 
         def med_match(fs: Sequence[Fact], drug: str = drug, dose: str = dose, sched: str = sched) -> bool:
             for f in fs:
-                v = f.value
+                v = V(f)
                 if not isinstance(v, MedicationValue) or fold(drug) not in fold(v.drug):
                     continue
                 if not v.dose or numbers_in(v.dose) != numbers_in(dose) or fold("mg") not in fold(v.dose):
@@ -239,10 +256,10 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
 
         def vital_match(fs: Sequence[Fact], number: Any = number, unit: str = unit, when: str = when) -> bool:
             return any(
-                isinstance(f.value, QuantityValue)
-                and f.value.number is not None
-                and _num(f.value.number) == _num(number)
-                and (fold(unit) == fold(f.unit or "") or fold(unit) in fold(f.quote))
+                isinstance(v := V(f), QuantityValue)
+                and v.number is not None
+                and _num(v.number) == _num(number)
+                and (fold(unit) == fold(f.unit or "") or fold(unit) in fold(fact_quote(f)))
                 and (when in _dates(f) or f.doc_id.endswith(when))
                 for f in _of(fs, {"vital_sign", "examination"}, {10})
             )
@@ -255,7 +272,8 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
         "11_symptoms",
         g["11_symptoms"]["value"]["onset"],
         lambda fs: any(
-            f.type == "symptom" and ("2026-08" in {x[:7] for x in _dates(f)} or "poloviny srpna 2026" in fold(f.quote))
+            f.type == "symptom"
+            and ("2026-08" in {x[:7] for x in _dates(f)} or "poloviny srpna 2026" in fold(fact_quote(f)))
             for f in fs
         ),
     )
@@ -271,7 +289,7 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
 
         def lab_match(fs: Sequence[Fact], lab: dict[str, Any] = lab) -> bool:
             for f in fs:
-                v = f.value
+                v = V(f)
                 if f.doc_id != lab["doc"] or not isinstance(v, QuantityValue) or v.number is None:
                     continue
                 if fold(v.name) != fold(lab["test"]) and not fold(v.name).startswith(fold(lab["test"])):
@@ -280,7 +298,7 @@ def build_atoms(golden: dict[str, Any]) -> list[Atom]:
                     continue
                 if lab.get("flag") != v.flag:
                     continue
-                if f.clinical_date not in (None, lab["date"]):
+                if clinical_date_text(f) not in (None, lab["date"]):
                     continue
                 return True
             return False

@@ -1,8 +1,11 @@
-"""OpenAI-compatible client for the Azure APIM gateway, with retry, concurrency limit and disk cache.
+"""The single LLM client: OpenAI-compatible SDK pointed at the Azure APIM gateway (owner: P2).
 
-STAFETA_LLM_CACHE=1 (default): cache only, a miss raises CacheMiss and nothing touches the network.
-STAFETA_LLM_CACHE=0: cache hit is used, a miss calls APIM and writes the cache.
-STAFETA_LLM_REFRESH=1 (with CACHE=0): ignore existing entries and overwrite them.
+Retry with exponential backoff on 429/5xx/timeouts (max 4, honouring Retry-After), at most 2 concurrent calls,
+JSON-schema output and a disk cache keyed by sha256(model, prompt version, system prompt, schema, user message).
+
+STAFETA_LLM_CACHE=1 (default): cache only; a miss raises CacheMissError and nothing touches the network.
+STAFETA_LLM_CACHE=0: a cache hit is used, a miss calls APIM and writes the cache.
+To re-record an entry, delete its file.
 The cache never stores headers or keys; entries contain only fictitious demo data.
 """
 
@@ -11,8 +14,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import logging
-import os
 import random
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -20,14 +21,22 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-log = logging.getLogger("stafeta.llm")
+import structlog
+from pydantic import SecretStr
 
-DEFAULT_CACHE_DIR = Path(__file__).parent / "tests" / "fixtures" / "llm_cache"
+from app.extraction.prompt import PROMPT_VERSION
+from app.settings import REPO_ROOT, Settings
+
+log = structlog.get_logger(__name__)
+
+DEFAULT_CACHE_DIR = REPO_ROOT / "backend" / "tests" / "fixtures" / "llm_cache"
+# Deployment the committed cache was recorded with; used when LLM_MODEL_EXTRACT is not set (offline CI).
+CACHE_MODEL = "gpt-6-1-sol-dz-eu"
 MAX_RETRIES = 4
 MAX_CONCURRENCY = 2
 
 
-class CacheMiss(RuntimeError):
+class CacheMissError(RuntimeError):
     pass
 
 
@@ -54,22 +63,28 @@ class LLMClient:
         self,
         *,
         model: str,
-        prompt_version: str,
+        prompt_version: str = PROMPT_VERSION,
+        cache_only: bool = True,
         transport: Transport | None = None,
         cache_dir: Path = DEFAULT_CACHE_DIR,
-        cache_only: bool | None = None,
-        refresh: bool | None = None,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self.model = model
         self.prompt_version = prompt_version
         self.cache_dir = cache_dir
-        self.cache_only = os.environ.get("STAFETA_LLM_CACHE", "1") != "0" if cache_only is None else cache_only
-        self.refresh = os.environ.get("STAFETA_LLM_REFRESH") == "1" if refresh is None else refresh
+        self.cache_only = cache_only
         self._transport = transport
         self._sem = asyncio.Semaphore(MAX_CONCURRENCY)
         self._sleep = sleep
         self.use_temperature = True
+
+    @classmethod
+    def from_settings(cls, settings: Settings, *, cache_dir: Path = DEFAULT_CACHE_DIR) -> LLMClient:
+        model = settings.llm_model_extract or CACHE_MODEL
+        client = cls(model=model, cache_only=settings.stafeta_llm_cache, cache_dir=cache_dir)
+        if not settings.stafeta_llm_cache:
+            client._transport = apim_transport(client, settings.apim_base_url, settings.apim_api_key)
+        return client
 
     def _path(self, key: str) -> Path:
         return self.cache_dir / f"{key}.json"
@@ -77,14 +92,16 @@ class LLMClient:
     async def complete_json(self, *, system: str, user: str, schema: dict[str, object], doc_id: str) -> str:
         key = cache_key(self.model, self.prompt_version, system, schema, user)
         path = self._path(key)
-        if path.exists() and not (self.refresh and not self.cache_only):
+        if path.exists():
             return str(json.loads(path.read_text(encoding="utf-8"))["response_text"])
         if self.cache_only:
-            raise CacheMiss(f"no cached response for {doc_id} ({key[:12]}); run with STAFETA_LLM_CACHE=0")
+            raise CacheMissError(
+                f"no cached response for {doc_id} ({key[:12]}); a human must run `STAFETA_LLM_CACHE=0 make eval`"
+            )
         if self._transport is None:
-            self._transport = apim_transport(self)
+            raise RuntimeError("no LLM transport configured (STAFETA_LLM_CACHE=0 needs APIM settings)")
         async with self._sem:
-            text, usage = await self._with_retry(system, user, schema, doc_id)
+            text, usage = await self._with_retry(self._transport, system, user, schema, doc_id)
         json.loads(text)  # fail loudly before caching garbage
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         entry = {
@@ -100,35 +117,31 @@ class LLMClient:
         return text
 
     async def _with_retry(
-        self, system: str, user: str, schema: dict[str, object], doc_id: str
+        self, transport: Transport, system: str, user: str, schema: dict[str, object], doc_id: str
     ) -> tuple[str, dict[str, Any]]:
-        assert self._transport is not None
         attempt = 0
         while True:
             try:
-                return await self._transport(system, user, schema, self.use_temperature)
+                return await transport(system, user, schema, self.use_temperature)
             except RetryableError as e:
                 if attempt >= MAX_RETRIES:
                     raise
                 delay = e.retry_after if e.retry_after is not None else 2.0 * 2**attempt
-                delay += random.uniform(0, 0.5)
-                log.warning("llm retry %s/%s for %s in %.1fs: %s", attempt + 1, MAX_RETRIES, doc_id, delay, e)
+                delay += random.uniform(0, 0.5)  # noqa: S311 - jitter, not cryptography
+                log.warning("llm_retry", doc_id=doc_id, attempt=attempt + 1, delay_s=round(delay, 1), error=str(e))
                 attempt += 1
                 await self._sleep(delay)
 
 
-def apim_transport(client: LLMClient) -> Transport:
+def apim_transport(client: LLMClient, base_url: str, api_key: SecretStr) -> Transport:
     """Real transport via the openai SDK pointed at APIM (header `api-key`)."""
-    import openai  # lazy: offline tests do not need the SDK
+    import openai
 
-    base_url = os.environ["APIM_BASE_URL"]
-    api_key = os.environ["APIM_API_KEY"]
+    if not base_url or not api_key.get_secret_value():
+        raise RuntimeError("APIM_BASE_URL and APIM_API_KEY must be set for live LLM calls")
+    key = api_key.get_secret_value()
     sdk = openai.AsyncOpenAI(
-        base_url=base_url,
-        api_key=api_key,
-        default_headers={"api-key": api_key},
-        max_retries=0,
-        timeout=240.0,
+        base_url=base_url, api_key=key, default_headers={"api-key": key}, max_retries=0, timeout=240.0
     )
 
     async def call(
@@ -149,7 +162,7 @@ def apim_transport(client: LLMClient) -> Transport:
             resp = await sdk.chat.completions.create(**kwargs)
         except openai.BadRequestError as e:
             if use_temperature and "temperature" in str(e).lower():
-                log.warning("deployment rejects temperature; retrying without it")
+                log.warning("llm_temperature_rejected", model=client.model)
                 client.use_temperature = False
                 return await call(system, user, schema, False)
             raise
@@ -161,9 +174,8 @@ def apim_transport(client: LLMClient) -> Transport:
         except (openai.APITimeoutError, openai.APIConnectionError) as e:
             if "Name or service not known" in repr(e.__cause__) or "nodename nor servname" in repr(e.__cause__):
                 # DNS failure: retrying cannot help; name the host (never the key) and stop.
-                raise RuntimeError(
-                    f"cannot resolve APIM host {urlsplit(base_url).hostname!r}; check APIM_BASE_URL"
-                ) from e
+                host = urlsplit(base_url).hostname
+                raise RuntimeError(f"cannot resolve APIM host {host!r}; check APIM_BASE_URL") from e
             raise RetryableError(f"{type(e).__name__}: {e.__cause__!r}"[:200]) from e
         choice = resp.choices[0]
         if choice.finish_reason == "length":

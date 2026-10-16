@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from conftest import GOLDEN_PATH
-
-from extraction import Accepted, evidence_lock
-from golden_atoms import build_atoms, stems, text_coverage
-from schema import Fact, RawFact
+from app.domain.evidence import Fact
+from app.extraction.lock import Accepted, evidence_lock
+from app.extraction.values import RawFact
+from tests.document_fixtures import GOLDEN_PATH
+from tests.eval.golden_atoms import build_atoms, stems, text_coverage
 
 
 def _golden() -> dict[str, Any]:

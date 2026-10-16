@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
-from conftest import GOLDEN_PATH
-
-from documents import match_key, normalize_text
+from app.documents.normalize import match_key, normalize_text
+from tests.document_fixtures import GOLDEN_PATH
 
 
 def _quotes() -> list[tuple[str, str, str]]:

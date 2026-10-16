@@ -1,7 +1,10 @@
-"""DOCX -> NormalizedDoc: body order, tables as pipe rows, stable char offsets.
+"""DOCX -> NormalizedDoc: body order, tables as pipe rows, stable char offsets (owner: P2).
 
 The same `normalize_text` is applied to document text and to every LLM quote, so a quote can be
 located with a plain substring search on `match_key`.
+
+FROZEN: the normalised text is part of the LLM cache key (`tests/fixtures/llm_cache`). Any change to the
+output of `normalize` invalidates the cache and needs a new live run by a human (`STAFETA_LLM_CACHE=0 make eval`).
 """
 
 from __future__ import annotations
@@ -9,13 +12,15 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Sequence
-from dataclasses import dataclass, field
-from datetime import date
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime
 from pathlib import Path
 
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
+
+from app.domain.document import SourceDocument
 
 # ---------------------------------------------------------------- text normalisation
 
@@ -174,7 +179,7 @@ class NormalizedDoc:
     blocks: tuple[Block, ...]
     authored_date: date | None
     header_dates: dict[str, list[date]] = field(default_factory=dict)
-    received_date: date | None = None
+    received_at: datetime | None = None  # from SourceDocument (seed/FHIR); raw files carry none
     warnings: tuple[str, ...] = ()
 
     def all_header_dates(self) -> set[date]:
@@ -255,12 +260,20 @@ def build_doc(
     return NormalizedDoc(doc_id, full, tuple(blocks), authored_date, header_dates, None, tuple(warnings))
 
 
-def normalize(path: Path) -> NormalizedDoc:
-    """Read a DOCX report into a NormalizedDoc. doc_id = file stem; authored date from the file name."""
+def normalize(path: Path, source: SourceDocument | None = None) -> NormalizedDoc:
+    """Read a DOCX report into a NormalizedDoc. doc_id = file stem; authored date from the file name.
+
+    With `source` (P1's document metadata), the received timestamp is attached for the as-of rule.
+    """
     stem = path.stem
     m = _STEM_DATE.search(stem)
     authored = date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
-    return build_doc(stem, _raw_blocks(path), authored)
+    doc = build_doc(stem, _raw_blocks(path), authored)
+    if source is None:
+        return doc
+    if source.doc_id != stem:
+        raise ValueError(f"source document {source.doc_id!r} does not match file {stem!r}")
+    return replace(doc, received_at=source.received_at)
 
 
 def doc_from_text(doc_id: str, text: str, authored_date: date | None = None) -> NormalizedDoc:

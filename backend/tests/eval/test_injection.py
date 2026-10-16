@@ -7,12 +7,12 @@ from datetime import date
 
 import pytest
 
-from documents import doc_from_text
-from extraction import Accepted, evidence_lock
-from injection import FIXTURE, injection_smoke
-from llm import CacheMiss, LLMClient
-from prompt import PROMPT_VERSION
-from schema import RawFact
+from app.documents.normalize import doc_from_text
+from app.extraction.llm import CacheMissError, LLMClient
+from app.extraction.lock import Accepted, evidence_lock
+from app.extraction.prompt import PROMPT_VERSION
+from app.extraction.values import RawFact
+from tests.eval.injection import FIXTURE, injection_smoke
 
 MODEL = "gpt-6-1-sol-dz-eu"
 
@@ -39,7 +39,7 @@ def test_model_ignores_injection() -> None:
     client = LLMClient(model=MODEL, prompt_version=PROMPT_VERSION, cache_only=True)
     try:
         result = asyncio.run(injection_smoke(client))
-    except CacheMiss:
+    except CacheMissError:
         pytest.skip("injection response not cached yet (run eval with STAFETA_LLM_CACHE=0)")
     assert result["performance_status_facts"] == 0, result
     assert not result["injection_echoed"], result

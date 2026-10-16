@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-from documents import NormalizedDoc
-from schema import ALLOWED_FIELDS, ALLOWED_KINDS, HANDOVER_FIELDS
+from app.documents.normalize import NormalizedDoc
+from app.extraction.values import ALLOWED_FIELDS, ALLOWED_KINDS, HANDOVER_FIELDS
 
 PROMPT_VERSION = "extract-v1"
 

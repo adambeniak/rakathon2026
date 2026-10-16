@@ -1,33 +1,33 @@
-"""Evidence-locked fact extraction.
+"""Evidence lock and as-of filter (owner: P2, ADR-0002).
 
 Nothing reaches the handover unless `evidence_lock` accepts it. The stored quote is always the exact
-substring of the normalised source text (`doc.text[span[0]:span[1]]`).
+substring of the normalised source text (`doc.text[char_start:char_end]`).
 """
 
 from __future__ import annotations
 
-import json
-import logging
 import re
 import unicodedata
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Protocol
 
-from pydantic import ValidationError
-
-from documents import NormalizedDoc, find_dates, find_month_years, match_key, normalize_text, parse_czech_date
-from prompt import SYSTEM_PROMPT, build_user_message
-from schema import (
+from app.documents.normalize import (
+    NormalizedDoc,
+    find_dates,
+    find_month_years,
+    match_key,
+    normalize_text,
+    parse_czech_date,
+)
+from app.domain.evidence import Certainty, DatePrecision, Evidence, Fact
+from app.extraction.values import (
     ALLOWED_FIELDS,
     ALLOWED_KINDS,
-    RESPONSE_SCHEMA,
     CodedValue,
     DateValue,
-    Fact,
     MedicationValue,
     PersonValue,
     QuantityValue,
@@ -35,8 +35,6 @@ from schema import (
     TextValue,
     make_fact_id,
 )
-
-log = logging.getLogger("stafeta.extraction")
 
 MAX_QUOTE_LEN = 600
 
@@ -254,7 +252,7 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         if reason:
             return Rejected(reason, raw, iso)
         value = v.model_copy(update={"date": iso})
-    clinical_date: str | None = None
+    clinical_date: tuple[date, DatePrecision] | None = None
     if raw.clinical_date is not None:  # an attached date: unsupported -> drop the date, keep the fact
         iso = to_iso(raw.clinical_date, year_hint)
         if iso is None:
@@ -262,7 +260,7 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         elif _date_supported(iso, source_quote, doc):
             notes.append(f"clinical_date_dropped:unsupported:{iso}")
         else:
-            clinical_date = iso
+            clinical_date = _date_and_precision(iso)
 
     if raw.type == "performance_status" and not PS_CUE.search(source_quote):
         return Rejected("ps_inferred", raw)
@@ -278,106 +276,75 @@ def evidence_lock(raw: RawFact, doc: NormalizedDoc) -> LockResult:
         return Rejected("certainty_mismatch", raw, m.group(0))
 
     fact = Fact(
-        fact_id=make_fact_id(doc.doc_id, raw),
+        id=make_fact_id(doc.doc_id, raw),
         doc_id=doc.doc_id,
         type=raw.type,
         handover_field=raw.handover_field,
-        value=value,
+        value=value.model_dump(mode="json"),
         unit=raw.unit,
-        clinical_date=clinical_date,
+        clinical_date=clinical_date[0] if clinical_date else None,
+        clinical_date_precision=clinical_date[1] if clinical_date else None,
         certainty=raw.certainty,
-        quote=source_quote,
-        span=span,
-        repaired=repaired,
-        notes=tuple(notes),
+        evidence=[Evidence(doc_id=doc.doc_id, quote=source_quote, char_start=span[0], char_end=span[1])],
+        quote_repaired=repaired,
+        lock_notes=notes,
     )
     return Accepted(fact)
 
 
+def _date_and_precision(iso: str) -> tuple[date, DatePrecision]:
+    """'2026-08-15' -> day; '2026-08' -> first day + month; '2026' -> first day + year (validated by the lock)."""
+    parts = iso.split("-")
+    if len(parts) == 3:
+        return date.fromisoformat(iso), DatePrecision.DAY
+    if len(parts) == 2:
+        return date(int(parts[0]), int(parts[1]), 1), DatePrecision.MONTH
+    return date(int(parts[0]), 1, 1), DatePrecision.YEAR
+
+
+def clinical_date_text(fact: Fact) -> str | None:
+    """ISO text at the fact's precision ('2026-08' for a month)."""
+    if fact.clinical_date is None:
+        return None
+    if fact.clinical_date_precision == DatePrecision.MONTH:
+        return fact.clinical_date.isoformat()[:7]
+    if fact.clinical_date_precision == DatePrecision.YEAR:
+        return fact.clinical_date.isoformat()[:4]
+    return fact.clinical_date.isoformat()
+
+
+def fact_quote(fact: Fact) -> str:
+    return fact.evidence[0].quote
+
+
 def stated_with_negation_cue(fact: Fact) -> bool:
     """Audit signal: a negation cue in the quote but the fact is not marked negated."""
-    return fact.certainty != "negated" and NEGATION_CUE.search(fact.quote) is not None
+    return fact.certainty != Certainty.NEGATED and NEGATION_CUE.search(fact_quote(fact)) is not None
 
 
 # ---------------------------------------------------------------- as-of
 
 
-def doc_included(doc: NormalizedDoc, as_of: datetime, *, require_received: bool = False) -> bool:
+def doc_included(doc: NormalizedDoc, as_of: datetime, *, require_received: bool = True) -> bool:
     """AGENTS rule 4: authored <= as_of AND received <= as_of.
 
-    Date-only values count as an unknown time on that day, so a document dated on the as_of day is
-    excluded (e.g. the MDT conclusion of 21. 10. vs MDT start 08:00). Raw files carry no received date
-    (seed/FHIR supplies it); the backend must call this with require_received=True so an unknown
-    received date excludes the document.
+    The authored date is date-only and counts as an unknown time on that day, so a document authored on
+    the as_of day is excluded (e.g. the MDT conclusion of 21. 10. vs MDT start 08:00). `received_at` is a
+    timestamp (seed/FHIR) compared exactly. An unknown received time excludes the document unless
+    require_received=False (raw-file tooling only; the backend path always requires it).
     """
-    if doc.authored_date is None:
+    if as_of.tzinfo is None:
+        raise ValueError("as_of must be timezone-aware")
+    if doc.authored_date is None or doc.authored_date >= as_of.date():
         return False
-    if doc.received_date is None and require_received:
-        return False
-    return all(d < as_of.date() for d in (doc.authored_date, doc.received_date) if d is not None)
+    if doc.received_at is None:
+        return not require_received
+    return doc.received_at <= as_of
 
 
 def filter_as_of(
-    facts: Iterable[Fact], docs: dict[str, NormalizedDoc], as_of: datetime, *, require_received: bool = False
+    facts: Iterable[Fact], docs: dict[str, NormalizedDoc], as_of: datetime, *, require_received: bool = True
 ) -> list[Fact]:
     return [
         f for f in facts if f.doc_id in docs and doc_included(docs[f.doc_id], as_of, require_received=require_received)
     ]
-
-
-# ---------------------------------------------------------------- orchestration
-
-
-class CompletionClient(Protocol):
-    async def complete_json(self, *, system: str, user: str, schema: dict[str, object], doc_id: str) -> str: ...
-
-
-@dataclass(frozen=True)
-class DocExtraction:
-    doc_id: str
-    raw: tuple[RawFact, ...]
-    accepted: tuple[Fact, ...]
-    rejected: tuple[Rejected, ...]
-
-
-def parse_response(text: str) -> tuple[list[RawFact], list[Rejected]]:
-    data = json.loads(text)
-    raws: list[RawFact] = []
-    bad: list[Rejected] = []
-    for item in data.get("facts", []):
-        try:
-            raws.append(RawFact.model_validate(item))
-        except ValidationError as e:
-            bad.append(Rejected("schema_invalid", None, str(e.errors()[:1])))
-    return raws, bad
-
-
-def lock_all(doc: NormalizedDoc, raws: Sequence[RawFact]) -> tuple[list[Fact], list[Rejected]]:
-    accepted: list[Fact] = []
-    rejected: list[Rejected] = []
-    seen: set[str] = set()
-    for raw in raws:
-        result = evidence_lock(raw, doc)
-        if isinstance(result, Rejected):
-            rejected.append(result)
-            log.info(
-                "rejected",
-                extra={"doc_id": doc.doc_id, "type": raw.type, "reason": result.reason},
-            )
-        elif result.fact.fact_id not in seen:
-            seen.add(result.fact.fact_id)
-            accepted.append(result.fact)
-    return accepted, rejected
-
-
-async def extract_facts(doc: NormalizedDoc, client: CompletionClient) -> DocExtraction:
-    """ONE LLM call per document, then the evidence lock."""
-    text = await client.complete_json(
-        system=SYSTEM_PROMPT,
-        user=build_user_message(doc),
-        schema=RESPONSE_SCHEMA,
-        doc_id=doc.doc_id,
-    )
-    raws, bad = parse_response(text)
-    accepted, rejected = lock_all(doc, raws)
-    return DocExtraction(doc.doc_id, tuple(raws), tuple(accepted), tuple(bad + rejected))

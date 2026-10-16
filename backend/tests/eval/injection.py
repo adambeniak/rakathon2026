@@ -11,10 +11,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from documents import doc_from_text
-from extraction import CompletionClient, extract_facts
+from app.documents.normalize import doc_from_text
+from app.extraction.pipeline import CompletionClient, extract_facts
 
-FIXTURE = Path(__file__).parent / "tests" / "fixtures" / "injection_doc.txt"
+FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "injection_doc.txt"
 INJECTION_MARKERS = ("ignoruj", "instrukce", "chemoterapi", "systémová poznámka")
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import unicodedata
 from datetime import date
 
-from documents import (
+from app.documents.normalize import (
     doc_from_text,
     find_dates,
     find_month_years,
@@ -53,7 +53,8 @@ def test_fold_key_maps_nfkc() -> None:
 def test_body_order_and_table_rows(doc) -> None:  # type: ignore[no-untyped-def]
     d = doc("02_")
     kinds = [b.kind for b in d.blocks]
-    assert "tr" in kinds and kinds[0] == "p"
+    assert "tr" in kinds
+    assert kinds[0] == "p"
     texts = [b.text for b in d.blocks]
     i_hema = texts.index("HEMATOLOGIE – KREVNÍ OBRAZ")
     assert texts[i_hema + 1] == "Vyšetření | Výsledek | Jednotky | Ref. meze"
@@ -114,4 +115,5 @@ def test_czech_dates() -> None:
 
 def test_doc_from_text() -> None:
     d = doc_from_text("x", "řádek 1\n\nřádek 2", date(2026, 1, 1))
-    assert d.text == "řádek 1\nřádek 2" and len(d.blocks) == 2
+    assert d.text == "řádek 1\nřádek 2"
+    assert len(d.blocks) == 2

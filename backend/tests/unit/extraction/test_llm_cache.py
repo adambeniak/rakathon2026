@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from llm import MAX_RETRIES, CacheMiss, LLMClient, RetryableError, cache_key
+from app.extraction.llm import MAX_RETRIES, CacheMissError, LLMClient, RetryableError, cache_key
 
 SCHEMA: dict[str, object] = {"type": "object", "b": 1, "a": 2}
 
@@ -33,7 +33,7 @@ def test_cache_only_miss_raises(tmp_path: Path) -> None:
         raise AssertionError("network must not be touched")
 
     c = LLMClient(model="m", prompt_version="v", transport=transport, cache_dir=tmp_path, cache_only=True)
-    with pytest.raises(CacheMiss):
+    with pytest.raises(CacheMissError):
         _run(c.complete_json(system="s", user="u", schema=SCHEMA, doc_id="d"))
 
 
@@ -49,7 +49,8 @@ def test_miss_calls_and_writes_then_cache_only_hits(tmp_path: Path) -> None:
     assert _run(live.complete_json(system="s", user="u", schema=SCHEMA, doc_id="d")) == '{"facts": []}'
     (entry,) = tmp_path.glob("*.json")
     stored = json.loads(entry.read_text())
-    assert stored["doc_id"] == "d" and "api" not in json.dumps(stored).lower().replace("api_", "")
+    assert stored["doc_id"] == "d"
+    assert "api" not in json.dumps(stored).lower().replace("api_", "")
     offline = LLMClient(model="m", prompt_version="v", cache_dir=tmp_path, cache_only=True)
     assert _run(offline.complete_json(system="s", user="u", schema=SCHEMA, doc_id="d")) == '{"facts": []}'
     assert calls == 1
@@ -71,7 +72,8 @@ def test_retry_then_success(tmp_path: Path) -> None:
     c = LLMClient(model="m", prompt_version="v", transport=transport, cache_dir=tmp_path, cache_only=False, sleep=sleep)
     _run(c.complete_json(system="s", user="u", schema=SCHEMA, doc_id="d"))
     assert len(attempts) == 3
-    assert 2.0 <= delays[0] < 2.6 and 4.0 <= delays[1] < 4.6  # exponential backoff + jitter
+    assert 2.0 <= delays[0] < 2.6
+    assert 4.0 <= delays[1] < 4.6
 
 
 def test_retry_gives_up_after_max(tmp_path: Path) -> None:

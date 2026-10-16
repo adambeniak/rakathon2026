@@ -1,4 +1,9 @@
-"""Fact model: strict JSON schema for the LLM + Pydantic models for parsing and the accepted fact."""
+"""Typed fact values and the strict JSON schema for the LLM (owner: P2).
+
+`RawFact` is the LLM output before the evidence lock. Accepted facts are P1's `app.domain.evidence.Fact`
+(value stored as JSON); `parse_value` gives the typed view back. The schema text is part of the LLM cache
+key: keep `RESPONSE_SCHEMA` and the type rules byte-stable or the cache misses.
+"""
 
 from __future__ import annotations
 
@@ -6,30 +11,11 @@ import hashlib
 import json
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
-FactType = Literal[
-    "patient_identity",
-    "contact",
-    "insurer",
-    "diagnosis",
-    "comorbidity",
-    "medication",
-    "allergy",
-    "performance_status",
-    "vital_sign",
-    "symptom",
-    "examination",
-    "lab_result",
-    "histology",
-    "procedure",
-    "consent_or_wish",
-    "documented_plan",
-    "referral_request",
-    "admin_date",
-]
-FACT_TYPES: tuple[str, ...] = FactType.__args__  # type: ignore[attr-defined]
-Certainty = Literal["stated", "suspected", "negated", "planned"]
+from app.domain.evidence import Certainty, FactType
+
+FACT_TYPES: tuple[str, ...] = tuple(t.value for t in FactType)
 
 
 class _Strict(BaseModel):
@@ -98,23 +84,6 @@ class RawFact(_Strict):
     quote: str
 
 
-class Fact(_Strict):
-    """A fact that passed the evidence lock. `quote` is always the exact source substring."""
-
-    fact_id: str
-    doc_id: str
-    type: FactType
-    handover_field: int
-    value: FactValue
-    unit: str | None
-    clinical_date: str | None
-    certainty: Certainty
-    quote: str
-    span: tuple[int, int]
-    repaired: bool = False
-    notes: tuple[str, ...] = ()  # e.g. "clinical_date_dropped:unsupported:2026-09-01"
-
-
 def make_fact_id(doc_id: str, raw: RawFact) -> str:
     """Includes the canonical value: five drugs quoting one FA line stay five facts."""
     payload = json.dumps(
@@ -123,6 +92,14 @@ def make_fact_id(doc_id: str, raw: RawFact) -> str:
         ensure_ascii=False,
     )
     return hashlib.sha256(payload.encode()).hexdigest()[:16]
+
+
+_VALUE_ADAPTER: TypeAdapter[FactValue] = TypeAdapter(FactValue)
+
+
+def parse_value(value: JsonValue) -> FactValue:
+    """Typed view of `Fact.value` (stored as JSON in the domain model)."""
+    return _VALUE_ADAPTER.validate_python(value)
 
 
 # ---------------------------------------------------------------- type rules

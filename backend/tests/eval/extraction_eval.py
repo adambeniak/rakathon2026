@@ -1,54 +1,72 @@
-# /// script
-# requires-python = ">=3.12"
-# dependencies = ["python-docx==1.2.0", "pydantic==2.11.7", "openai==1.99.9"]
-# ///
-"""Extraction eval vs the golden set.
-
-    uv run spikes/extraction/eval.py                     # cache only (STAFETA_LLM_CACHE=1 default)
-    STAFETA_LLM_CACHE=0 uv run --env-file .env spikes/extraction/eval.py   # fill the cache via APIM
+"""Extraction eval vs the golden set (used by `make eval` via test_extraction_eval.py).
 
 Writes eval/report.json (repo root); the very first run is also kept as eval/report_first_run.json.
-Exit code 1 when a hard gate fails (evidence validity 100 %, hallucinations 0, as-of leakage 0).
+Hard gates: evidence validity 100 %, hallucinations 0, as-of leakage 0. Documents carry the seed's
+received_at, and the as-of filter runs with require_received=True (backend path).
 """
 
 from __future__ import annotations
 
-import argparse
-import asyncio
 import json
-import os
 import re
 import shutil
 import subprocess
-import sys
 import unicodedata
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).parent))
+from app.documents.normalize import NormalizedDoc, match_key, normalize, normalize_text
+from app.domain.document import SourceDocument
+from app.domain.evidence import Fact
+from app.extraction.lock import PS_CUE, fact_quote, filter_as_of, stated_with_negation_cue
+from app.extraction.pipeline import CompletionClient, DocExtraction, extract_facts
+from app.extraction.prompt import PROMPT_VERSION
+from app.extraction.values import DateValue, QuantityValue, parse_value
+from app.seed.demo_case import DOCUMENTS, MDT_START
+from app.settings import REPO_ROOT
+from tests.eval.golden_atoms import build_atoms, coverage_items, text_coverage
+from tests.eval.injection import injection_smoke
 
-from documents import NormalizedDoc, match_key, normalize, normalize_text  # noqa: E402
-from extraction import PS_CUE, DocExtraction, extract_facts, filter_as_of, stated_with_negation_cue  # noqa: E402
-from golden_atoms import build_atoms, coverage_items, text_coverage  # noqa: E402
-from injection import injection_smoke  # noqa: E402
-from llm import LLMClient  # noqa: E402
-from prompt import PROMPT_VERSION  # noqa: E402
-from schema import DateValue, Fact, QuantityValue  # noqa: E402
-
-REPO = Path(__file__).resolve().parents[2]
+REPO = REPO_ROOT
 GOLDEN = REPO / "data" / "golden" / "expected_handover_2026-10-21.json"
 DOCS_DIR = REPO / "data" / "raw" / "Pacient"
-DEFAULT_AS_OF = "2026-10-21T08:00:00+02:00"
+AS_OF = MDT_START  # 2026-10-21T08:00:00+02:00
 RECALL_TARGET = 0.90
+REPORT = REPO / "eval" / "report.json"
+
+
+def source_documents() -> dict[str, SourceDocument]:
+    """P1's seed metadata: authored + received timestamps for the as-of rule (demo assumptions)."""
+    return {
+        d.doc_id: SourceDocument(
+            doc_id=d.doc_id,
+            title=d.title,
+            type_code=d.loinc,
+            authored_at=d.authored_at,
+            received_at=d.received_at,
+            file_name=d.file_name,
+        )
+        for d in DOCUMENTS
+    }
+
+
+def load_docs() -> dict[str, NormalizedDoc]:
+    sources = source_documents()
+    return {p.stem: normalize(p, sources.get(p.stem)) for p in sorted(DOCS_DIR.glob("*.docx"))}
 
 
 def _git_commit() -> str:
     try:
-        return subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=REPO, capture_output=True, text=True, check=True
-        ).stdout.strip()
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],  # noqa: S607 - fixed argv, report metadata only
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
 
@@ -57,16 +75,17 @@ def _git_commit() -> str:
 
 
 def _independent_quote_ok(fact: Fact, fresh: NormalizedDoc) -> bool:
-    if fresh.text[fact.span[0] : fact.span[1]] != fact.quote:
+    ev = fact.evidence[0]
+    if ev.char_start is None or ev.char_end is None or fresh.text[ev.char_start : ev.char_end] != ev.quote:
         return False
-    return " ".join(fact.quote.split()) in " ".join(fresh.text.split())
+    return " ".join(ev.quote.split()) in " ".join(fresh.text.split())
 
 
 def _value_tokens_ok(fact: Fact) -> list[str]:
     """Every digit run in the value must occur in the quote (NFKC, comma/point agnostic)."""
-    quote = unicodedata.normalize("NFKC", fact.quote).replace(",", ".")
+    quote = unicodedata.normalize("NFKC", fact_quote(fact)).replace(",", ".")
     problems: list[str] = []
-    v = fact.value
+    v = parse_value(fact.value)
     texts: list[str] = []
     for k, item in v.model_dump().items():
         if k in {"kind", "system", "flag", "comparator", "number"} or isinstance(v, DateValue):
@@ -90,12 +109,12 @@ def _value_tokens_ok(fact: Fact) -> list[str]:
 # ---------------------------------------------------------------- main
 
 
-async def run(as_of: datetime, model: str) -> dict[str, Any]:
+async def run(client: CompletionClient, model: str, as_of: datetime = AS_OF) -> dict[str, Any]:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
     paths = sorted(DOCS_DIR.glob("*.docx"))
-    docs = {p.stem: normalize(p) for p in paths}
-    client = LLMClient(model=model, prompt_version=PROMPT_VERSION)
-    results: list[DocExtraction] = await asyncio.gather(*(extract_facts(d, client) for d in docs.values()))
+    docs = load_docs()
+    # sequential gather is fine: the client limits concurrency itself
+    results: list[DocExtraction] = [await extract_facts(d, client) for d in docs.values()]
     injection = await injection_smoke(client)
 
     raw_total = sum(len(r.raw) for r in results)
@@ -104,13 +123,13 @@ async def run(as_of: datetime, model: str) -> dict[str, Any]:
         key = match_key(docs[r.doc_id].text).key
         raw_exact += sum(1 for f in r.raw if match_key(normalize_text(f.quote)).key in key)
     accepted_all = [f for r in results for f in r.accepted]
-    final = filter_as_of(accepted_all, docs, as_of)
+    final = filter_as_of(accepted_all, docs, as_of, require_received=True)
     excluded = {e["doc"] for e in golden["excluded_documents"]}
     included_golden = set(golden["included_documents"])
     included_run = {d for d in docs if any(f.doc_id == d for f in final)} | {d for d in docs if d in included_golden}
 
     # evidence validity: re-normalise from DOCX independently
-    fresh = {p.stem: normalize(p) for p in paths}
+    fresh = {p.stem: normalize(p) for p in paths}  # without seed metadata: text only
     invalid = [f for f in final if not _independent_quote_ok(f, fresh[f.doc_id])]
 
     # hallucination audit
@@ -118,9 +137,9 @@ async def run(as_of: datetime, model: str) -> dict[str, Any]:
     for f in final:
         probs = _value_tokens_ok(f)
         if probs:
-            halluc.append({"fact_id": f.fact_id, "doc": f.doc_id, "why": f"value numbers not in quote: {probs}"})
-        if f.type == "performance_status" and not PS_CUE.search(f.quote):
-            halluc.append({"fact_id": f.fact_id, "doc": f.doc_id, "why": "PS without ECOG/Karnofsky"})
+            halluc.append({"fact_id": f.id, "doc": f.doc_id, "why": f"value numbers not in quote: {probs}"})
+        if f.type == "performance_status" and not PS_CUE.search(fact_quote(f)):
+            halluc.append({"fact_id": f.id, "doc": f.doc_id, "why": "PS without ECOG/Karnofsky"})
     atoms = build_atoms(golden)
     negative_hits = [a for a in atoms if a.negative and a.match(final)]
     for a in negative_hits:
@@ -179,14 +198,14 @@ async def run(as_of: datetime, model: str) -> dict[str, Any]:
             "raw_facts": raw_total,
             "raw_quote_validity": round(raw_exact / raw_total, 4) if raw_total else None,
             "accepted_facts": len(accepted_all),
-            "repaired_quotes": sum(1 for f in accepted_all if f.repaired),
-            "clinical_dates_dropped": sum(1 for f in final if f.notes),
+            "repaired_quotes": sum(1 for f in accepted_all if f.quote_repaired),
+            "clinical_dates_dropped": sum(1 for f in final if f.lock_notes),
             "facts_in_handover": len(final),
             "evidence_validity": round(1 - len(invalid) / len(final), 4) if final else None,
             "hallucinations": len(halluc),
             "as_of_leakage": len(leakage),
             "excluded_doc_facts_filtered": excluded_extracted,
-            "docs_received_unknown": sum(1 for d in docs.values() if d.received_date is None),
+            "docs_received_unknown": sum(1 for d in docs.values() if d.received_at is None),
             "key_value_recall": round(recall, 4),
             "key_values": f"{len(hits)}/{len(positive)}",
             "text_coverage_mean": round(sum(c["coverage"] for c in cov) / len(cov), 3) if cov else None,
@@ -210,14 +229,16 @@ async def run(as_of: datetime, model: str) -> dict[str, Any]:
         "rejected": rejected_log,
         "text_coverage": cov,
         "stated_with_negation_cue_facts": [
-            {"doc": f.doc_id, "type": f.type, "quote": f.quote[:120]} for f in final if stated_with_negation_cue(f)
+            {"doc": f.doc_id, "type": f.type, "quote": fact_quote(f)[:120]}
+            for f in final
+            if stated_with_negation_cue(f)
         ],
         "per_document": per_doc,
         "facts": [f.model_dump(mode="json") for f in final],
     }
 
 
-def print_table(rep: dict[str, Any]) -> None:
+def format_table(rep: dict[str, Any]) -> str:
     m = rep["metrics"]
     rows = [
         ("Raw quote validity (model)", m["raw_quote_validity"], ""),
@@ -230,39 +251,24 @@ def print_table(rep: dict[str, Any]) -> None:
         ("Repaired quotes", m["repaired_quotes"], ""),
         ("Stated with negation cue", m["stated_with_negation_cue"], "audit"),
     ]
-    print(f"Štafeta extraction eval · {rep['model']} · {rep['prompt_version']} · commit {rep['commit']}")
-    for name, val, note in rows:
-        print(f"  {name:<34} {val!s:<22} {note}")
-    print("  Rejections:", rep["rejections_by_reason"] or "none")
+    lines = [f"Štafeta extraction eval · {rep['model']} · {rep['prompt_version']} · commit {rep['commit']}"]
+    lines += [f"  {name:<34} {val!s:<22} {note}" for name, val, note in rows]
+    lines.append(f"  Rejections: {rep['rejections_by_reason'] or 'none'}")
     if rep["misses"]:
-        print("  Misses:")
-        for miss in rep["misses"]:
-            print(f"    - {miss['atom']}: {miss['expected']}")
-    for h in rep["hallucination_details"]:
-        print(f"  HALLUCINATION: {h}")
+        lines.append("  Misses:")
+        lines += [f"    - {miss['atom']}: {miss['expected']}" for miss in rep["misses"]]
+    lines += [f"  HALLUCINATION: {h}" for h in rep["hallucination_details"]]
     inj = rep["injection_smoke"]
-    print(
-        f"  Injection smoke (synthetic doc): {'PASS' if inj['passed'] else 'FAIL'} {inj if not inj['passed'] else ''}"
+    lines.append(
+        f"  Injection smoke (synthetic doc): {'PASS' if inj['passed'] else 'FAIL'} {'' if inj['passed'] else inj}"
     )
-    print("  Gates:", ", ".join(f"{k}={'PASS' if v else 'FAIL'}" for k, v in rep["gates"].items()))
+    lines.append("  Gates: " + ", ".join(f"{k}={'PASS' if v else 'FAIL'}" for k, v in rep["gates"].items()))
+    return "\n".join(lines)
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--as-of", default=DEFAULT_AS_OF)
-    ap.add_argument("--model", default=os.environ.get("LLM_MODEL_EXTRACT", "gpt-6-1-sol-dz-eu"))
-    ap.add_argument("--out", default=str(REPO / "eval" / "report.json"))
-    args = ap.parse_args()
-    rep = asyncio.run(run(datetime.fromisoformat(args.as_of), args.model))
-    out = Path(args.out)
+def write_report(rep: dict[str, Any], out: Path = REPORT) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(rep, ensure_ascii=False, indent=1), encoding="utf-8")
     first = out.parent / "report_first_run.json"
     if not first.exists():
         shutil.copyfile(out, first)
-    print_table(rep)
-    return 0 if all(rep["gates"].values()) else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

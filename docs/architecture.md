@@ -13,6 +13,7 @@ of delivery. Fictitious data only. Decisions: [ADR-0001](adr/0001-iris-fhir-syst
    api/        HTTP only: routers (auto-discovered), schemas, RFC 7807 errors
    domain/     Pydantic models + pure logic (state machines, readiness gate) — no I/O
    documents/ extraction/ consistency/ timeline/   AI + data pipeline (evidence-locked)
+   retrieval/  embeddings, document indexing, hybrid search, "ask the case" (docs/vector-search.md)
    fhir/       FHIR R4 adapter: client, repository (demo tag + AuditEvent), mappers
    iris/       IRIS SQL via DB-API (≤ 3 pooled connections): vector search, analytics
    outputs/ notify/ security/   MDT record export, e-mail + delivery proof, actor/auth
@@ -20,7 +21,7 @@ of delivery. Fictitious data only. Decisions: [ADR-0001](adr/0001-iris-fhir-syst
    ▼                                ▼
  InterSystems IRIS for Health (namespace FHIRSERVER)        mailpit (demo inbox, SMTP 1025 / UI 8025)
    FHIR R4 repository /fhir/r4 (JsonAdvSQL) — system of record
-   Stafeta.DocChunk (VECTOR, HNSW) — document chunks for semantic search
+   Stafeta.DocChunk (VECTOR + HNSW, iFind) — document chunks for hybrid search (docs/vector-search.md)
    HL7 v2 → FHIR interoperability production (F3-5)
 ```
 
@@ -28,7 +29,9 @@ of delivery. Fictitious data only. Decisions: [ADR-0001](adr/0001-iris-fhir-syst
 1. **Ingest**: referral letter / reports arrive (upload or HL7 v2 MDM/ORU) → `DocumentReference`
    (`date` = received, `attachment.creation` = authored, base64 content), linked to the case `EpisodeOfCare`.
 2. **Extract**: `documents` normalises text → `extraction` produces `Fact`s with verbatim `Evidence` → evidence lock
-   rejects anything not found in the source (ADR-0002).
+   rejects anything not found in the source (ADR-0002). In parallel `retrieval` chunks and embeds each document into
+   `Stafeta.DocChunk`; `POST /api/cases/{id}/ask` answers questions from IRIS hybrid search with per-sentence
+   citations and no advice (ADR-0004, `docs/vector-search.md`).
 3. **Assemble**: the 15-field handover (`contracts/handover.schema.json`) is assembled for an **as-of** timestamp:
    a document counts only if authored ≤ as_of AND received ≤ as_of. `consistency` adds findings (conflicts,
    missing, stale, SLA breaches) in neutral wording.

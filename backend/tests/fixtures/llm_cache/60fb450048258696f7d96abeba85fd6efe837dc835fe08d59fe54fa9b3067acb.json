@@ -1,0 +1,37 @@
+{
+ "key": "60fb450048258696f7d96abeba85fd6efe837dc835fe08d59fe54fa9b3067acb",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "ask-v2",
+ "doc_id": "ask:rakathon-2026-prochazkova",
+ "created": "2026-10-16T19:50:58+00:00",
+ "usage": {
+  "completion_tokens": 519,
+  "prompt_tokens": 2618,
+  "total_tokens": 3137,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 153,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": null
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cache_write_tokens": 0,
+   "cached_tokens": 2615,
+   "image_tokens": null,
+   "text_tokens": null
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 21,
+   "engine_ttft_ms": 625,
+   "engine_ttlt_ms": 11522,
+   "pre_inference_ms": 110,
+   "service_tbt_ms": 21,
+   "service_ttft_ms": 960,
+   "service_ttlt_ms": 11763,
+   "user_visible_ttft_ms": 850
+  }
+ },
+ "response_text": "{\n  \"question_type\": \"factual\",\n  \"answer_found\": true,\n  \"sentences\": [\n    {\n      \"text\": \"V protokolu o výkonu z 12. 10. 2026 je uvedeno vysazení apixabanu 48 h před výkonem s poslední dávkou 18. 10. 2026 večer.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"09_Biopsie_vykon_KOC2_2026-10-12\",\n          \"quote\": \"Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer).\"\n        }\n      ]\n    },\n    {\n      \"text\": \"Nesoulad: V protokolu o výkonu z 12. 10. 2026 je uvedeno datum výkonu 12. 10. 2026, vysazení apixabanu 48 h před výkonem a poslední dávka 18. 10. 2026 večer.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"09_Biopsie_vykon_KOC2_2026-10-12\",\n          \"quote\": \"Datum výkonu: 12. 10. 2026\"\n        },\n        {\n          \"doc_id\": \"09_Biopsie_vykon_KOC2_2026-10-12\",\n          \"quote\": \"Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer).\"\n        }\n      ]\n    }\n  ]\n}"
+}

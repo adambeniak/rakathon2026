@@ -1,0 +1,37 @@
+{
+ "key": "b853b9194be0e448b4e6f047bee137d489ce6242acb1d1e360f817513b1e3a77",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "ask-v2",
+ "doc_id": "ask:rakathon-2026-prochazkova",
+ "created": "2026-10-16T19:51:38+00:00",
+ "usage": {
+  "completion_tokens": 248,
+  "prompt_tokens": 2566,
+  "total_tokens": 2814,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 125,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": null
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cache_write_tokens": 0,
+   "cached_tokens": 2563,
+   "image_tokens": null,
+   "text_tokens": null
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 25,
+   "engine_ttft_ms": 820,
+   "engine_ttlt_ms": 7159,
+   "pre_inference_ms": 103,
+   "service_tbt_ms": 25,
+   "service_ttft_ms": 1056,
+   "service_ttlt_ms": 7378,
+   "user_visible_ttft_ms": 953
+  }
+ },
+ "response_text": "{\n  \"question_type\": \"factual\",\n  \"answer_found\": true,\n  \"sentences\": [\n    {\n      \"text\": \"V epikríze praktického lékaře z 2. 10. 2026 je uvedeno, že pacientka alergie neguje.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"07_PL_zadost_KOC2_2026-10-02\",\n          \"quote\": \"AA: neguje\"\n        }\n      ]\n    }\n  ]\n}"
+}

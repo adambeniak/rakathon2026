@@ -1,0 +1,37 @@
+{
+ "key": "ae1520a5e9cfa33165a1929f5dce4d9b4d1915f34477975523d6ca93db0b641d",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "ask-v2",
+ "doc_id": "ask:rakathon-2026-prochazkova",
+ "created": "2026-10-16T19:51:17+00:00",
+ "usage": {
+  "completion_tokens": 639,
+  "prompt_tokens": 2514,
+  "total_tokens": 3153,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 150,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": null
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cache_write_tokens": 0,
+   "cached_tokens": 2511,
+   "image_tokens": null,
+   "text_tokens": null
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 24,
+   "engine_ttft_ms": 451,
+   "engine_ttlt_ms": 15922,
+   "pre_inference_ms": 109,
+   "service_tbt_ms": 24,
+   "service_ttft_ms": 698,
+   "service_ttlt_ms": 16163,
+   "user_visible_ttft_ms": 589
+  }
+ },
+ "response_text": "{\n  \"question_type\": \"advice\",\n  \"answer_found\": true,\n  \"sentences\": [\n    {\n      \"text\": \"V epikríze praktického lékaře z 4. 9. 2026 je uvedena terapie od 2. 9. 2026 ciprofloxacinem 500 mg 1-0-1 po dobu 7 dní, paracetamolem 500 mg při bolesti nebo teplotě maximálně 4× denně a dostatkem tekutin.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"04_PL_epikriza_2026-09-04\",\n          \"quote\": \"Terapie: od 2. 9. 2026 ciprofloxacin 500 mg 1-0-1 po dobu 7 dní, paracetamol 500 mg při bolesti nebo teplotě max. 4× denně, dostatek tekutin.\"\n        }\n      ]\n    },\n    {\n      \"text\": \"V kardiologické zprávě z 20. 7. 2026 je doporučeno před plánovaným invazivním výkonem s vysokým rizikem krvácení vysadit apixaban 48 hodin předem, bez nutnosti překlenovací léčby.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"01_Kardiologie_2026-07-20\",\n          \"quote\": \"Před plánovaným invazivním výkonem s vysokým rizikem krvácení vysadit apixaban 48 hodin předem, bez nutnosti překlenovací léčby.\"\n        }\n      ]\n    },\n    {\n      \"text\": \"V žádosti praktického lékaře o převzetí do péče KOC z 2. 10. 2026 je uvedena prosba o zvážení psychologické podpory vzhledem k výrazné úzkosti pacientky.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"07_PL_zadost_KOC2_2026-10-02\",\n          \"quote\": \"Vzhledem k výrazné úzkosti pacientky prosím o zvážení psychologické podpory.\"\n        }\n      ]\n    }\n  ]\n}"
+}

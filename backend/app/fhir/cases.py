@@ -80,6 +80,13 @@ class CaseReader:
             await self._repo.audit_read(_audit_entities(tasks), subtype="search-type")
         return result
 
+    async def case_patient(self, case_id: str) -> tuple[str, str]:
+        """(coordinating Task reference, Patient reference) of a case. Ids only: no clinical content is read."""
+        task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)
+        if task is None:
+            raise NotFoundError("case", case_id)
+        return f"Task/{task['id']}", _patient(task)
+
     async def get_case(self, case_id: str) -> CaseDetailView:
         task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)
         if task is None:

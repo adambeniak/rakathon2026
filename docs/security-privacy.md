@@ -22,6 +22,8 @@ pilot must add. Owner: P1 (infra) + P4 (auth, audit); reviewed by the `security-
 - The team IRIS runs on a **public Azure Container Instance over plain HTTP** with basic auth (ports 1972/52773).
   Acceptable only because all data is fictitious; ACI storage is wiped on restart.
 - No user authentication yet: the actor is `system` (issue #4); the API must stay on loopback until #4 lands.
+  `POST /api/cases/{id}/ask` returns retrieved chunk text (document excerpts). It is gated by case membership
+  (`authorize_case`, like triage: referring GP or staff of the managing KOC; a reviewer gets 403) and audited.
 - Write + AuditEvent are two calls, not atomic (#9); failed/denied reads are not audited yet (#8).
 - Identifiers (RČ) appear in FHIR search query strings between backend and IRIS, and inside the RelatedPerson and
   Coverage identifier values (#7).

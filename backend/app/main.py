@@ -26,7 +26,11 @@ from app.api.middleware import (
 from app.api.routes import API_PREFIX, discover_routers
 from app.api.routes.referrals import MAX_ATTACHMENTS
 from app.iris.db import IrisPool
+from app.iris.vector_store import VectorStore
 from app.logging_config import configure_logging
+from app.retrieval.ask import ask_llm_from_settings
+from app.retrieval.embeddings import embedder_from_settings
+from app.retrieval.search import HybridRetriever
 from app.security.actor import DEMO_ROLE_HEADER
 from app.settings import Settings, get_settings
 
@@ -35,7 +39,7 @@ HTTP_LIMITS = httpx.Limits(max_connections=4, max_keepalive_connections=4)
 
 OPENAPI_TAGS = [
     {"name": "health", "description": "Backend and IRIS status."},
-    {"name": "cases", "description": "Shared oncology case: state, baton holder, documents."},
+    {"name": "cases", "description": "Shared oncology case: state, baton holder, documents, ask the case."},
     {"name": "directory", "description": "Workplaces (KOC) and their coordinators."},
     {"name": "referrals", "description": "GP referral: prefill from the letter, confirm, create the case."},
     {"name": "handover", "description": "15-field MDT handover assembled from evidence-locked facts."},
@@ -58,6 +62,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             pool = IrisPool.from_settings(settings)
             app.state.http = http
             app.state.iris_pool = pool
+            # The embedding model loads lazily on the first question or index call, not at startup.
+            store = VectorStore(pool, dim=settings.embedding_dim)
+            embedder = embedder_from_settings(settings)
+            app.state.vector_store = store
+            app.state.embedder = embedder
+            app.state.retriever = HybridRetriever(store, embedder)
+            app.state.ask_llm = ask_llm_from_settings(settings)
             try:
                 yield
             finally:

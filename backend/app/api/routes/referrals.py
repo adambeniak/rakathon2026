@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, UploadFile
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
@@ -12,6 +12,7 @@ from app.api.deps import (
     ActorDep,
     CaseReaderDep,
     DirectoryProviderDep,
+    DocumentIndexerDep,
     LlmClientDep,
     ReferralWriterDep,
     RepositoryDep,
@@ -26,6 +27,7 @@ from app.domain.errors import ExtractionUnavailableError, InvalidInputError
 from app.domain.referral import ReferralPrefill, ReferralSubmission
 from app.extraction.referral_service import prefill_from_letter
 from app.fhir.referrals import enrich_prefill
+from app.retrieval.indexing import index_case_in_background
 
 MAX_ATTACHMENTS = 5
 
@@ -74,6 +76,8 @@ async def create_referral(
     llm: LlmClientDep,
     actor: ActorDep,
     settings: SettingsDep,
+    background: BackgroundTasks,
+    indexer: DocumentIndexerDep,
     attachments: Annotated[list[UploadFile] | None, File(description="Further reports sent along, optional.")] = None,
 ) -> ReferralCreated:
     try:
@@ -94,6 +98,8 @@ async def create_referral(
         prefill = None  # the GP's confirmation stands; Provenance records that the prefill was not compared
     now = settings.now()
     result = await writer.submit(submission, upload, extras, actor=actor, directory=directory, now=now, prefill=prefill)
+    # Vector index for "ask the case" (ADR-0004), after the response: the GP never waits for embeddings.
+    background.add_task(index_case_in_background, result.case_id, reader, repository, indexer)
     overview = await reader.overview(result.case_id)
     case = CaseSummary.model_validate(
         {**summary_fields(overview.case, now.date(), overview.extras), "document_count": overview.document_count}

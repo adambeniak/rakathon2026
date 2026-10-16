@@ -136,3 +136,13 @@ def test_invalid_json_not_cached(tmp_path: Path) -> None:
     with pytest.raises(json.JSONDecodeError):
         _run(c.complete_json(system="s", user="u", schema=SCHEMA, doc_id="d"))
     assert not list(tmp_path.glob("*.json"))
+
+
+def test_persist_false_answers_live_without_writing_the_cache(tmp_path: Path) -> None:
+    async def transport(*_: Any) -> tuple[str, dict[str, Any]]:
+        return '{"facts": []}', {}
+
+    api = LLMClient(model="m", prompt_version="v", transport=transport, cache_dir=tmp_path, cache_only=False,
+                    persist=False)  # fmt: skip
+    assert _run(api.complete_json(system="s", user="question", schema=SCHEMA, doc_id="ask")) == '{"facts": []}'
+    assert list(tmp_path.iterdir()) == []

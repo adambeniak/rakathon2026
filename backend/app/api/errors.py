@@ -21,6 +21,7 @@ from app.domain.errors import (
     InvalidInputError,
     NotFoundError,
     PayloadTooLargeError,
+    ServiceUnavailableError,
     UnauthenticatedError,
     UnsupportedMediaError,
 )
@@ -95,6 +96,8 @@ def _domain_status(exc: DomainError) -> tuple[int, str]:
         return 403, "forbidden"
     if isinstance(exc, ExtractionUnavailableError):
         return 503, "extraction-unavailable"
+    if isinstance(exc, ServiceUnavailableError):
+        return 503, exc.problem
     if isinstance(exc, PayloadTooLargeError):
         return 413, "payload-too-large"
     if isinstance(exc, UnsupportedMediaError):

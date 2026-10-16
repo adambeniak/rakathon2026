@@ -4,7 +4,7 @@
 # export secrets to every command). Env vars are passed to uv with --env-file instead.
 SHELL := /bin/bash
 
-.PHONY: up up-local down iris-bootstrap seed check eval e2e demo-reset contract aci-up aci-status aci-down
+.PHONY: up up-local down iris-bootstrap seed index check eval eval-ask-record vector-bench e2e demo-reset contract aci-up aci-status aci-down
 
 up:            ## start backend + mailpit against the IRIS configured in .env (team ACI)
 	docker compose up -d --build
@@ -20,15 +20,24 @@ down:
 iris-bootstrap: ## idempotent: namespace, FHIR endpoint, vector table (re-run after every ACI restart)
 	uv run --env-file .env --with intersystems-irispython==5.4.1 python scripts/bootstrap_iris.py
 
-seed:          ## idempotent: directory, users, patient, the case and its 13 documents (scenario "story")
+seed:          ## idempotent: directory, users, patient, the case and its 13 documents (scenario "story") + vector index
 	cd backend && uv run --env-file ../.env python -m app.seed
+
+index:         ## (re)build Stafeta.DocChunk from every DocumentReference; FORCE=1 re-embeds everything
+	cd backend && uv run --env-file ../.env python -m app.retrieval.reindex $(if $(FORCE),--force,)
 
 check:         ## lint + types + unit tests (skips parts that do not exist yet)
 	@if [ -f backend/pyproject.toml ]; then cd backend && uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run pytest -m "not iris" -q; else echo "backend/ not created yet - skipped"; fi
 	@if [ -f frontend/package.json ]; then cd frontend && pnpm lint && pnpm typecheck && pnpm test --run; else echo "frontend/ not created yet - skipped"; fi
 
-eval:          ## extraction + consistency vs data/golden; report -> eval/report.json (repo root)
+eval:          ## extraction + consistency vs data/golden, ask-the-case replay; report -> eval/report.json (repo root)
 	cd backend && STAFETA_LLM_CACHE=$${STAFETA_LLM_CACHE:-1} uv run --env-file ../.env pytest tests/eval -q
+
+eval-ask-record: ## live: re-record ask-the-case retrieval + LLM answers (needs seeded IRIS + APIM)
+	cd backend && STAFETA_LLM_CACHE=0 uv run --env-file ../.env python -m tests.eval.ask_record
+
+vector-bench:  ## live: latency of the IRIS retrieval layer (numbers for docs/vector-search.md)
+	cd backend && uv run --env-file ../.env python -m tests.eval.vector_bench
 
 e2e:           ## Playwright full demo flow with video
 	cd frontend && pnpm exec playwright test

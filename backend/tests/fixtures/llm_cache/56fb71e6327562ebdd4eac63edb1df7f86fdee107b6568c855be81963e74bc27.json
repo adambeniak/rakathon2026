@@ -1,0 +1,37 @@
+{
+ "key": "56fb71e6327562ebdd4eac63edb1df7f86fdee107b6568c855be81963e74bc27",
+ "model": "gpt-6-1-sol-dz-eu",
+ "prompt_version": "ask-v2",
+ "doc_id": "ask:rakathon-2026-prochazkova",
+ "created": "2026-10-16T19:51:28+00:00",
+ "usage": {
+  "completion_tokens": 468,
+  "prompt_tokens": 2489,
+  "total_tokens": 2957,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 115,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": null
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cache_write_tokens": 0,
+   "cached_tokens": 2486,
+   "image_tokens": null,
+   "text_tokens": null
+  },
+  "latency_checkpoint": {
+   "engine_tbt_ms": 20,
+   "engine_ttft_ms": 696,
+   "engine_ttlt_ms": 9842,
+   "pre_inference_ms": 99,
+   "service_tbt_ms": 20,
+   "service_ttft_ms": 927,
+   "service_ttlt_ms": 10068,
+   "user_visible_ttft_ms": 828
+  }
+ },
+ "response_text": "{\n  \"question_type\": \"factual\",\n  \"answer_found\": true,\n  \"sentences\": [\n    {\n      \"text\": \"V bioptickém nálezu z 19. 10. 2026 je uveden duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"11_Histologie_KOC2_2026-10-19\",\n          \"quote\": \"Duktální adenokarcinom pankreatu, středně až málo diferencovaný (G2–G3), s perineurální invazí.\"\n        }\n      ]\n    },\n    {\n      \"text\": \"Nesoulad: V bioptickém nálezu z 19. 10. 2026 je uveden odběr 20. 10. 2026 a datum vydání 19. 10. 2026.\",\n      \"citations\": [\n        {\n          \"doc_id\": \"11_Histologie_KOC2_2026-10-19\",\n          \"quote\": \"Materiál: ložisko hlavy pankreatu, EUS-FNB 22G (odběr 20. 10. 2026)\"\n        },\n        {\n          \"doc_id\": \"11_Histologie_KOC2_2026-10-19\",\n          \"quote\": \"Datum vydání: 19. 10. 2026\"\n        }\n      ]\n    }\n  ]\n}"
+}

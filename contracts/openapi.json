@@ -30,6 +30,319 @@
         "title": "Address",
         "type": "object"
       },
+      "AskCitation": {
+        "properties": {
+          "doc_id": {
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "quote": {
+            "description": "Verbatim span of the cited chunk (= of the normalised source document).",
+            "title": "Quote",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc_id",
+          "title",
+          "quote"
+        ],
+        "title": "AskCitation",
+        "type": "object"
+      },
+      "AskRequest": {
+        "examples": [
+          {
+            "as_of": "2026-10-21T08:00:00+02:00",
+            "question": "Kdy byla vysazena antikoagulace před biopsií?"
+          }
+        ],
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only documents authored before this day and received by this time. Default: demo now.",
+            "title": "As Of"
+          },
+          "question": {
+            "description": "Question in Czech. Never logged.",
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "AskRequest",
+        "type": "object"
+      },
+      "AskResponse": {
+        "examples": [
+          {
+            "answer_text": "V protokolu o výkonu z 12. 10. 2026 je uvedeno, že apixaban byl vysazen 48 h před výkonem. [09_Biopsie_vykon_KOC2_2026-10-12]",
+            "as_of": "2026-10-21T08:00:00+02:00",
+            "disclaimer": "Návrh AI – neověřeno lékařem, ověřte v citovaných dokumentech.",
+            "dropped_sentences": 0,
+            "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+            "label": "Návrh AI",
+            "model": "gpt-6-1-sol-dz-eu",
+            "prompt_version": "ask-v2",
+            "sentences": [
+              {
+                "citations": [
+                  {
+                    "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+                    "quote": "Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer).",
+                    "title": "EUS-FNB – protokol o výkonu (KOC 2)"
+                  }
+                ],
+                "text": "V protokolu o výkonu z 12. 10. 2026 je uvedeno, že apixaban byl vysazen 48 h před výkonem."
+              }
+            ],
+            "sources": [
+              {
+                "authored_at": "2026-10-12",
+                "char_end": 640,
+                "char_start": 312,
+                "cosine": 0.47,
+                "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+                "received_at": "2026-10-12T11:00:00Z",
+                "rrf_score": 0.0311,
+                "seq": 1,
+                "text": "… Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer). …",
+                "text_rank": 2,
+                "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+                "vector_rank": 7
+              }
+            ],
+            "status": "answered"
+          }
+        ],
+        "properties": {
+          "answer_text": {
+            "description": "Ready-to-show Czech text; every sentence ends with [doc_id].",
+            "title": "Answer Text",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "disclaimer": {
+            "description": "Fixed Czech disclaimer, always shown with the answer.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "dropped_sentences": {
+            "description": "Sentences removed by the evidence lock.",
+            "title": "Dropped Sentences",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "label": {
+            "const": "Návrh AI",
+            "description": "AI output is a draft until a clinician confirms it.",
+            "title": "Label",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fixed refusal prefix for advice questions.",
+            "title": "Prefix"
+          },
+          "prompt_version": {
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "sentences": {
+            "items": {
+              "$ref": "#/components/schemas/AskSentence"
+            },
+            "title": "Sentences",
+            "type": "array"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/AskSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AskStatus",
+            "description": "answered | not_documented | not_verified (the model answered but no sentence could be evidence-locked; the sources must be checked) | advice_declined (no advice, only cited documentation)."
+          }
+        },
+        "required": [
+          "label",
+          "disclaimer",
+          "status",
+          "as_of",
+          "answer_text",
+          "sentences",
+          "sources",
+          "dropped_sentences",
+          "model",
+          "prompt_version",
+          "embedding_model"
+        ],
+        "title": "AskResponse",
+        "type": "object"
+      },
+      "AskSentence": {
+        "properties": {
+          "citations": {
+            "description": "The UI must show these quotes next to the sentence: a word-level lock cannot catch a wrong meaning, the reader can.",
+            "items": {
+              "$ref": "#/components/schemas/AskCitation"
+            },
+            "minItems": 1,
+            "title": "Citations",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "citations"
+        ],
+        "title": "AskSentence",
+        "type": "object"
+      },
+      "AskSource": {
+        "description": "A retrieved chunk the answer was generated from (IRIS hybrid search), in retrieval order.",
+        "properties": {
+          "authored_at": {
+            "format": "date",
+            "title": "Authored At",
+            "type": "string"
+          },
+          "char_end": {
+            "title": "Char End",
+            "type": "integer"
+          },
+          "char_start": {
+            "title": "Char Start",
+            "type": "integer"
+          },
+          "cosine": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cosine similarity from the vector leg.",
+            "title": "Cosine"
+          },
+          "doc_id": {
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "rrf_score": {
+            "description": "Reciprocal-rank-fusion score of the vector and full-text legs.",
+            "title": "Rrf Score",
+            "type": "number"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "text_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rank in the IRIS iFind full-text leg (1 = best).",
+            "title": "Text Rank"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "vector_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rank in the IRIS VECTOR_COSINE leg (1 = best).",
+            "title": "Vector Rank"
+          }
+        },
+        "required": [
+          "doc_id",
+          "title",
+          "seq",
+          "authored_at",
+          "received_at",
+          "char_start",
+          "char_end",
+          "text",
+          "rrf_score"
+        ],
+        "title": "AskSource",
+        "type": "object"
+      },
+      "AskStatus": {
+        "enum": [
+          "answered",
+          "not_documented",
+          "not_verified",
+          "advice_declined"
+        ],
+        "title": "AskStatus",
+        "type": "string"
+      },
       "BatonHolder": {
         "properties": {
           "display": {
@@ -4756,7 +5069,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "List cases",
@@ -4860,10 +5173,135 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Case detail with its documents",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/ask": {
+      "post": {
+        "description": "Hybrid retrieval in IRIS (VECTOR_COSINE on HNSW + iFind full text, as-of filtered) and an LLM answer in Czech from the retrieved chunks only. Every sentence is evidence-locked to a verbatim quote; questions asking for treatment, dose or prognosis get only cited documentation. Only participants of the case (referring GP, staff of the managing KOC) may ask. Fictitious data only.",
+        "operationId": "cases-ask_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Ask the case (AI draft with citations, no advice)",
         "tags": [
           "cases"
         ]
@@ -4968,7 +5406,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Report requests of the case",
@@ -5091,7 +5529,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Request reports from workplaces (one click)",
@@ -5196,7 +5634,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Reports the referral letter lists but nobody attached (triage notice)",
@@ -5348,7 +5786,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Upload a received report (DOCX/PDF)",
@@ -5476,7 +5914,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Handover (15 fields) as of a timestamp",
@@ -5602,7 +6040,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Persist the handover for review (Composition preliminary + Provenance)",
@@ -5747,7 +6185,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Handover as copyable text (Markdown), one block per section",
@@ -5918,7 +6356,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "A KOC physician confirms, edits or accepts as missing one handover section",
@@ -6043,7 +6481,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Apply a case event (state machine)",
@@ -6127,7 +6565,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "List KOCs with their coordinator contact",
@@ -6289,7 +6727,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Confirm the referral: creates the case in ONE FHIR transaction",
@@ -6400,7 +6838,7 @@
                 }
               }
             },
-            "description": "IRIS unavailable (application/problem+json)"
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
           }
         },
         "summary": "Prefill the referral from the GP letter (DOCX/PDF); nothing is stored",
@@ -6416,7 +6854,7 @@
       "name": "health"
     },
     {
-      "description": "Shared oncology case: state, baton holder, documents.",
+      "description": "Shared oncology case: state, baton holder, documents, ask the case.",
       "name": "cases"
     },
     {

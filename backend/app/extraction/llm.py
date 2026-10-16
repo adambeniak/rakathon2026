@@ -68,8 +68,11 @@ class LLMClient:
         transport: Transport | None = None,
         cache_dir: Path = DEFAULT_CACHE_DIR,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+        persist: bool = True,
     ) -> None:
+        """`persist=False`: live responses are not written to the cache (the API serving user questions)."""
         self.model = model
+        self.persist = persist
         self.prompt_version = prompt_version
         self.cache_dir = cache_dir
         self.cache_only = cache_only
@@ -80,12 +83,22 @@ class LLMClient:
 
     @classmethod
     def from_settings(
-        cls, settings: Settings, *, cache_dir: Path = DEFAULT_CACHE_DIR, prompt_version: str = PROMPT_VERSION
+        cls,
+        settings: Settings,
+        *,
+        cache_dir: Path = DEFAULT_CACHE_DIR,
+        prompt_version: str = PROMPT_VERSION,
+        model: str | None = None,
+        persist: bool = True,
     ) -> LLMClient:
-        """`prompt_version` is part of the cache key: each prompt (extraction, epicrisis) uses its own."""
-        model = settings.llm_model_extract or CACHE_MODEL
+        """`prompt_version` is part of the cache key: each prompt (extraction, epicrisis, ask) uses its own."""
+        model = model or settings.llm_model_extract or CACHE_MODEL
         client = cls(
-            model=model, prompt_version=prompt_version, cache_only=settings.stafeta_llm_cache, cache_dir=cache_dir
+            model=model,
+            prompt_version=prompt_version,
+            cache_only=settings.stafeta_llm_cache,
+            cache_dir=cache_dir,
+            persist=persist,
         )
         if not settings.stafeta_llm_cache:
             client._transport = apim_transport(client, settings.apim_base_url, settings.apim_api_key)
@@ -108,6 +121,8 @@ class LLMClient:
         async with self._sem:
             text, usage = await self._with_retry(self._transport, system, user, schema, doc_id)
         json.loads(text)  # fail loudly before caching garbage
+        if not self.persist:
+            return text
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         entry = {
             "key": key,
@@ -133,7 +148,13 @@ class LLMClient:
                     raise
                 delay = e.retry_after if e.retry_after is not None else 2.0 * 2**attempt
                 delay += random.uniform(0, 0.5)  # noqa: S311 - jitter, not cryptography
-                log.warning("llm_retry", doc_id=doc_id, attempt=attempt + 1, delay_s=round(delay, 1), error=str(e))
+                log.warning(
+                    "llm_retry",
+                    doc_id=doc_id,
+                    attempt=attempt + 1,
+                    delay_s=round(delay, 1),
+                    error_type=type(e).__name__,
+                )
                 attempt += 1
                 await self._sleep(delay)
 

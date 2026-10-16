@@ -5,9 +5,17 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, Path, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, Path, UploadFile
 
-from app.api.deps import ActorDep, CaseReaderDep, DirectoryProviderDep, RequestWorkflowDep, SettingsDep
+from app.api.deps import (
+    ActorDep,
+    CaseReaderDep,
+    DirectoryProviderDep,
+    DocumentIndexerDep,
+    RepositoryDep,
+    RequestWorkflowDep,
+    SettingsDep,
+)
 from app.api.routes.cases import summary_fields
 from app.api.schemas.cases import CaseSummary, DocumentSummary
 from app.api.schemas.common import problem_responses
@@ -15,6 +23,7 @@ from app.api.schemas.workflow import DocumentReceived
 from app.api.uploads import read_upload
 from app.domain.common import BUSINESS_ID_PATTERN
 from app.domain.errors import InvalidInputError
+from app.retrieval.indexing import index_case_in_background
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -37,6 +46,9 @@ async def upload_document(
     provider: DirectoryProviderDep,
     actor: ActorDep,
     settings: SettingsDep,
+    background: BackgroundTasks,
+    indexer: DocumentIndexerDep,
+    repository: RepositoryDep,
     case_id: Annotated[str, Path(pattern=BUSINESS_ID_PATTERN, max_length=100)],
     request_id: Annotated[str | None, Form(pattern=BUSINESS_ID_PATTERN, max_length=140)] = None,
     authored_at: Annotated[date | None, Form(description="Date the report was written (ISO).")] = None,
@@ -55,6 +67,8 @@ async def upload_document(
         directory=await provider.get(),
         now=now,
     )
+    # Vector index for "ask the case" (ADR-0004), after the response: the upload never waits for embeddings.
+    background.add_task(index_case_in_background, case_id, reader, repository, indexer)
     overview = await reader.overview(case_id)
     case = CaseSummary.model_validate(
         {**summary_fields(overview.case, now.date(), overview.extras), "document_count": overview.document_count}

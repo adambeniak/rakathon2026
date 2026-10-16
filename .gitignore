@@ -33,3 +33,6 @@ CLAUDE.local.md
 
 # IRIS password files for local docker
 .iris/
+
+# local model + embedding caches
+backend/.cache/

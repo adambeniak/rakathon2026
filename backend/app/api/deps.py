@@ -18,13 +18,17 @@ from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
 from app.extraction.llm import LLMClient
 from app.extraction.pipeline import CompletionClient
 from app.fhir.cases import CaseReader
+from app.fhir.directory import DirectoryProvider
 from app.fhir.handover_store import HandoverStore
 from app.fhir.referrals import ReferralWriter
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
 from app.fhir.triage import TriageReader
-from app.fhir.workflow import CaseWorkflow, RequestWorkflow
+from app.fhir.workflow import CaseWorkflow, RequestWorkflow, authorize_case
 from app.iris.db import IrisPool
+from app.retrieval.ask import AskService
+from app.retrieval.indexing import DocumentIndexer
+from app.retrieval.search import HybridRetriever
 from app.security.actor import current_actor
 
 
@@ -115,3 +119,55 @@ def get_llm_clients(request: Request, settings: SettingsDep) -> LlmClients:
 
 
 LlmClientsDep = Annotated[LlmClients, Depends(get_llm_clients)]
+
+
+def get_retriever(request: Request) -> HybridRetriever:
+    retriever: HybridRetriever = request.app.state.retriever
+    return retriever
+
+
+def get_ask_llm(request: Request) -> LLMClient:
+    llm: LLMClient = request.app.state.ask_llm
+    return llm
+
+
+class ParticipantCaseLocator:
+    """Case -> (Task, Patient) for "ask the case", only for participants of the case.
+
+    `/ask` returns document excerpts, so it is gated like triage (`authorize_case`): the referring GP or staff of
+    the managing KOC; any other role (e.g. a reviewer) gets 403.
+    """
+
+    def __init__(self, reader: CaseReader, actor: PartyRef, directory: DirectoryProvider) -> None:
+        self._reader = reader
+        self._actor = actor
+        self._directory = directory
+
+    async def case_patient(self, case_id: str) -> tuple[str, str]:
+        loaded = await self._reader.load(case_id)
+        authorize_case(loaded, self._actor, await self._directory.get())
+        return f"Task/{loaded.task['id']}", str(loaded.task["for"]["reference"])
+
+
+def get_ask_service(
+    reader: CaseReaderDep,
+    repository: RepositoryDep,
+    retriever: Annotated[HybridRetriever, Depends(get_retriever)],
+    llm: Annotated[LLMClient, Depends(get_ask_llm)],
+    actor: ActorDep,
+    directory: DirectoryProviderDep,
+    settings: SettingsDep,
+) -> AskService:
+    locator = ParticipantCaseLocator(reader, actor, directory)
+    return AskService(locator, retriever, llm, repository, top_k=settings.ask_top_k, model=llm.model)
+
+
+AskServiceDep = Annotated[AskService, Depends(get_ask_service)]
+
+
+def get_document_indexer(request: Request, repository: RepositoryDep) -> DocumentIndexer:
+    """Indexes uploaded documents into Stafeta.DocChunk; derived writes are audited as the current actor."""
+    return DocumentIndexer(request.app.state.vector_store, request.app.state.embedder, repository)
+
+
+DocumentIndexerDep = Annotated[DocumentIndexer, Depends(get_document_indexer)]

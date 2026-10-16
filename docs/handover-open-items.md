@@ -50,7 +50,7 @@ Owners are roles from AGENTS.md.
 ## Open: persistence, FHIR, security
 | # | What | Owner |
 | --- | --- | --- |
-| O9 | `tests/integration/test_iris_handover.py` has never run against IRIS (needs `.env`). | human |
+| O9 | ~~Integration test never run against IRIS~~ — run by a human on 2026-10-16 against the team IRIS: `pytest -m iris` 4 passed (incl. `test_iris_handover.py`). `$validate` is still open (R11). | done |
 | O10 | Our CodeSystems and extensions (`handover-*`, `evidence-quote`, `previous-value-sha256`, …) are not loaded into IRIS, so validator warnings are possible. | P1 |
 | O11 | A physician's edit is stored on the Composition section only. The derived Condition/MedicationStatement/Observation keep the AI value. | P2 / P1 |
 | O12 | Provenance has no identifier. Two simultaneous first persists could both write Provenance; the Composition itself is conditional. | P1 |

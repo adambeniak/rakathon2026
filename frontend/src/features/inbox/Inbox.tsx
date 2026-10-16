@@ -18,7 +18,7 @@ export function Inbox() {
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
 
   // One primary action per view: only the first unclaimed case offers "Převzít" as a primary button.
-  const firstSent = q.data.find((c) => c.state === 'sent')?.id
+  const firstSent = q.data.find((c) => c.state === 'odeslano')?.id
 
   return (
     <div className="space-y-4">

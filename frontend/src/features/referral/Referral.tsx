@@ -37,7 +37,7 @@ export function Referral() {
       <section className="mx-auto max-w-xl space-y-3 rounded-lg border border-hairline bg-card p-8 text-center" role="status">
         <h1 className="text-3xl">{t.sentTitle}</h1>
         <div className="flex justify-center">
-          <CaseStateBadge state="sent" />
+          <CaseStateBadge state="odeslano" />
         </div>
         <p className="text-muted">{t.sentHint}</p>
         <Button asChild variant="primary">

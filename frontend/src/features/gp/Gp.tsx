@@ -15,7 +15,7 @@ export function Gp() {
   if (q.isPending) return <LoadingBlock lines={5} />
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
 
-  const toAck = q.data.filter((c) => c.state === 'feedback_sent')
+  const toAck = q.data.filter((c) => c.state === 'zpetna_vazba_odeslana')
   const primaryId = toAck[0]?.id
 
   return (
@@ -92,7 +92,7 @@ export function Gp() {
                     <CountBadge kind="missing" count={c.counts.missing} />
                     <CountBadge kind="conflict" count={c.counts.conflict} />
                     <CountBadge kind="stale" count={c.counts.stale} />
-                    {c.counts.missing + c.counts.conflict + c.counts.stale === 0 && (
+                    {(c.counts.missing ?? 0) + (c.counts.conflict ?? 0) + (c.counts.stale ?? 0) === 0 && (
                       <span className="text-sm text-muted">{t.nothingMissing}</span>
                     )}
                   </div>

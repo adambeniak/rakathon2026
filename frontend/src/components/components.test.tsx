@@ -33,7 +33,7 @@ describe('CaseStateBadge', () => {
     unmount()
   })
   it('marks the current step in the stepper', () => {
-    render(<CaseStateBadge state="awaiting_docs" variant="stepper" />)
+    render(<CaseStateBadge state="ceka_na_podklady" variant="stepper" />)
     expect(screen.getAllByText('Čeká na podklady').length).toBeGreaterThan(0)
     expect(document.querySelector('[aria-current="step"]')).not.toBeNull()
   })

@@ -6,6 +6,13 @@ from pydantic import SecretStr, ValidationError
 from app.settings import Settings
 
 
+@pytest.fixture(autouse=True)
+def _isolated_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The process environment overrides constructor defaults; keep these tests independent of a loaded env file."""
+    for name in ("STAFETA_ENV", "JWT_SECRET", "CORS_ORIGINS", "FHIR_BASE_URL"):
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_dev_defaults_are_accepted_locally() -> None:
     settings = Settings(_env_file=None, stafeta_env="local")
     assert settings.fhir_base_url == "http://localhost:52773/fhir/r4"

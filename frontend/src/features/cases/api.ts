@@ -6,6 +6,9 @@ import { useHandover } from '@/features/handover/api'
 import { adaptCase, adaptDetail } from './adapter'
 import type { AuditEntry, DocumentRequest, Finding, Message, TaskItem, TaskPhase, TimelineEvent } from '@/lib/domain'
 
+// The `api` (lib/api/http.ts) calls below are not in contracts/openapi.json yet.
+// TODO(#31) case reads (findings, timeline, messages, audit), claim and document requests -> generated client
+// TODO(#34) task hooks -> generated client, then move to features/coordination/api.ts
 function useCaseQuery<T>(id: string, part: string) {
   const { today } = useDemo()
   return useQuery({ queryKey: ['case', id, part, today], queryFn: () => api.get<T>(`/api/cases/${id}/${part}`) })

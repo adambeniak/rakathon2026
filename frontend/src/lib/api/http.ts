@@ -1,33 +1,29 @@
-import { getDemo } from '@/lib/demo'
+import { demoHeaders, withDemoDate } from './mode'
+import { readProblem } from './problem'
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message)
-  }
-}
+// Legacy name of `ApiProblem`: one class, so `instanceof ApiError` works for both clients.
+export { ApiProblem as ApiError } from './problem'
 
-// The only place that calls fetch. Replace with the generated openapi-fetch client (./client.ts)
-// once contracts/openapi.json exists.
+// Temporary client for the endpoints that are not in contracts/openapi.json yet. Same role mapping and demo-date
+// rule as ./client.ts. Remaining callers, to be moved to the generated client by their wiring issue; the last one
+// deletes this file:
+//   TODO(#31) features/referral/api.ts
+//   TODO(#33) features/handover/api.ts
+//   TODO(#40) features/mdt/api.ts
+//   TODO(#42) features/gp/api.ts
+//   TODO(#52) features/reviewer/api.ts
+//   TODO(#31) features/cases/api.ts (case reads, claim)   TODO(#34) features/cases/api.ts (task hooks)
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const url = new URL(path, window.location.origin)
-  if (!url.searchParams.has('today')) url.searchParams.set('today', getDemo().today)
+  const url = withDemoDate(new URL(path, window.location.origin))
   const res = await fetch(url, {
     method,
-    headers: { 'X-Demo-Role': getDemo().role, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+    headers: {
+      ...demoHeaders(),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
-  if (!res.ok) {
-    let title = 'Požadavek se nezdařil'
-    try {
-      title = ((await res.json()) as { title?: string }).title ?? title
-    } catch {
-      /* not JSON */
-    }
-    throw new ApiError(res.status, title)
-  }
+  if (!res.ok) throw await readProblem(res)
   return (await res.json()) as T
 }
 

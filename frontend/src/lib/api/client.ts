@@ -14,9 +14,12 @@ export const client = createClient<paths>({
 // The demo clock is a query parameter the MSW mocks honour and the real backend ignores (it has its own clock).
 client.use({
   onRequest({ request }) {
+    const demo = getDemo()
     const url = new URL(request.url)
-    if (!url.searchParams.has('today')) url.searchParams.set('today', getDemo().today)
-    return new Request(url, request)
+    if (!url.searchParams.has('today')) url.searchParams.set('today', demo.today)
+    const forwarded = new Request(url, request)
+    forwarded.headers.set('X-Demo-Role', demo.role === 'physician' ? 'koc_physician' : demo.role)
+    return forwarded
   },
 })
 

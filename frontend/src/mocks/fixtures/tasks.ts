@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { TaskItem } from '@/lib/domain'
 
 const BASE: Array<Omit<TaskItem, 'state'>> = [

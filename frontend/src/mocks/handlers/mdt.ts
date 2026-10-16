@@ -13,6 +13,11 @@ export const handlers = [
     const sections = buildSections(store.confirmed)
     return HttpResponse.json({ ...buildMdt(asOf, sections, store.mdtGeneratedAt), sections })
   }),
+  http.post('/api/cases/:id/send-feedback', () => {
+    if (!store.mdtGeneratedAt) return problem(409, 'Nejprve vygenerujte MDT zápis')
+    store.feedbackSent = true
+    return HttpResponse.json({ ok: true })
+  }),
   http.post('/api/cases/:id/mdt/generate', ({ request }) => {
     const asOf = new URL(request.url).searchParams.get('as_of') ?? AS_OF_DEFAULT
     const view = buildMdt(asOf, buildSections(store.confirmed), null)

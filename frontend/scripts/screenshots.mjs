@@ -9,7 +9,7 @@ const shots = [
   ['handover', `${A}/handover`, { role: 'physician', today: '2026-10-21' }],
   ['mdt', `${A}/mdt`, { role: 'physician', today: '2026-10-21' }],
   ['referral', '/referral/new', { role: 'gp', today: '2026-10-02' }],
-  ['gp', '/gp', { role: 'gp', today: '2026-10-22' }],
+  ['gp', '/gp', { role: 'gp', today: '2026-10-21' }],
   ['reviewer', '/reviewer', { role: 'reviewer', today: '2026-10-21' }],
 ]
 

@@ -1,9 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'vitest-axe'
+import { api } from '@/lib/api/http'
 import { renderRoute } from '@/test/render'
 
-const ALENA = '/cases/rakathon-2026-prochazkova'
+const ALENA_ID = 'rakathon-2026-prochazkova'
+const ALENA = `/cases/${ALENA_ID}`
 
 describe('route smoke + axe', () => {
   it('inbox: three columns with cards and a single primary claim action', async () => {
@@ -63,11 +65,24 @@ describe('route smoke + axe', () => {
     expect(await screen.findByRole('heading', { name: 'Odesláno' })).toBeInTheDocument()
   })
 
-  it('gp: lists referred patients and offers acknowledgement of the MDT result', async () => {
-    const { container } = renderRoute('/gp', { role: 'gp', today: '2026-10-22' })
+  it('gp: offers acknowledgement only for cases whose conclusion was sent (not by date)', async () => {
+    const { container } = renderRoute('/gp', { role: 'gp', today: '2026-10-21' })
     expect(await screen.findByRole('heading', { name: 'Moji odeslaní pacienti' })).toBeInTheDocument()
-    expect(await screen.findAllByRole('button', { name: /Potvrdit přijetí závěru MDT/ })).not.toHaveLength(0)
+    expect(await screen.findByRole('button', { name: 'Potvrdit přijetí závěru MDT: Ludmila Horáková' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Potvrdit přijetí závěru MDT: Alena/ })).toBeNull()
     expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('demo step 6 on 21. 10.: sending the conclusion makes the GP acknowledgement appear', async () => {
+    renderRoute('/', { today: '2026-10-21' })
+    await api.post(`/api/cases/${ALENA_ID}/handover/confirm-all`)
+    await api.post(`/api/cases/${ALENA_ID}/mdt/generate?as_of=${encodeURIComponent('2026-10-21T08:00:00+02:00')}`)
+    await api.post(`/api/cases/${ALENA_ID}/send-feedback`)
+    cleanup()
+    renderRoute('/gp', { role: 'gp', today: '2026-10-21', keepStore: true })
+    const ack = await screen.findByRole('button', { name: /Potvrdit přijetí závěru MDT: Alena/ })
+    await userEvent.click(ack)
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Potvrdit přijetí závěru MDT: Alena/ })).toBeNull())
   })
 
   it('reviewer: minimal summary without full patient names', async () => {

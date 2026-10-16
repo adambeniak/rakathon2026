@@ -9,6 +9,14 @@ export function useMdt(id: string, asOf: string) {
   })
 }
 
+export function useSendFeedback(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.post(`/api/cases/${id}/send-feedback`),
+    onSuccess: () => qc.invalidateQueries(),
+  })
+}
+
 export function useGenerateMdt(id: string, asOf: string) {
   const qc = useQueryClient()
   return useMutation({

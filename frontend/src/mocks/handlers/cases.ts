@@ -37,11 +37,12 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
   http.post('/api/cases/:id/acknowledge', ({ params }) => {
-    if (isAlena(params.id)) store.acknowledged = true
+    const id = String(params.id)
+    if (!store.acknowledged.includes(id)) store.acknowledged.push(id)
     return HttpResponse.json({ ok: true })
   }),
   http.post('/api/mock/reset', () => {
-    Object.assign(store, { claimed: false, acknowledged: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] })
+    Object.assign(store, { claimed: false, acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] })
     return HttpResponse.json({ ok: true, cases: allCases('2026-10-16', store).length })
   }),
 ]

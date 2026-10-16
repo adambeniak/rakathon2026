@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { Finding } from '@/lib/domain'
 import { golden } from './golden'
 

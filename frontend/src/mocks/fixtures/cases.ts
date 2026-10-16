@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { CaseDetail, CaseState, CaseSummary } from '@/lib/domain'
 import { daysUntil } from '@/lib/date'
 import { countFindings } from './findings'
@@ -8,14 +9,15 @@ export const ALENA_ID = 'rakathon-2026-prochazkova'
 
 export interface MockStore {
   claimed: boolean
-  acknowledged: boolean
+  acknowledged: string[]
+  feedbackSent: boolean
   mdtGeneratedAt: string | null
   confirmed: Record<string, string>
   extraCases: CaseDetail[]
 }
 
 export function newStore(): MockStore {
-  return { claimed: false, acknowledged: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] }
+  return { claimed: false, acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] }
 }
 
 const COORD = 'Bc. Dvořáková'
@@ -25,11 +27,11 @@ function alena(today: string, s: MockStore): CaseDetail | null {
   let state: CaseState
   let subStatus: string
   let baton: CaseSummary['baton']
-  if (s.acknowledged && today >= '2026-10-22') {
+  if (s.feedbackSent && s.acknowledged.includes(ALENA_ID)) {
     state = 'closed'
     subStatus = 'Uzavřeno – převzetí potvrzeno PL'
     baton = { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null }
-  } else if (today >= '2026-10-22') {
+  } else if (s.feedbackSent) {
     state = 'feedback_sent'
     subStatus = 'Závěr MDT odeslán PL, čeká na potvrzení přijetí'
     baton = { name: 'MUDr. Řezníček (PL)', action: 'Potvrdit přijetí závěru MDT', due: '2026-10-23' }
@@ -72,7 +74,7 @@ function alena(today: string, s: MockStore): CaseDetail | null {
     gp: 'MUDr. Řezníček',
     urgent: true,
     referredAt: '2026-10-02',
-    t: { t1: INTERVALS.t1, t2, t3: today >= '2026-10-22' ? INTERVALS.t3 : null },
+    t: { t1: INTERVALS.t1, t2, t3: s.feedbackSent ? INTERVALS.t3 : null },
   }
 }
 
@@ -87,7 +89,12 @@ const OTHERS: CaseDetail[] = [
 
 export function allCases(today: string, s: MockStore): CaseDetail[] {
   const a = alena(today, s)
-  return [...(a ? [a] : []), ...s.extraCases, ...OTHERS.filter((c) => c.referredAt <= today)]
+  const others = OTHERS.filter((c) => c.referredAt <= today).map((c) =>
+    c.state === 'feedback_sent' && s.acknowledged.includes(c.id)
+      ? { ...c, state: 'closed' as const, subStatus: 'Uzavřeno – převzetí potvrzeno PL', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null } }
+      : c,
+  )
+  return [...(a ? [a] : []), ...s.extraCases, ...others]
 }
 
 export function caseById(id: string, today: string, s: MockStore): CaseDetail | undefined {

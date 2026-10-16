@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { DocumentInfo } from '@/lib/domain'
 
 // Titles and places come from the golden file (examinations); received dates are fictitious demo values.

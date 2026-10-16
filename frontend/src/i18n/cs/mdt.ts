@@ -5,6 +5,8 @@ export const mdt = {
   gateTitle: 'Připravenost k MDT',
   gateLevels: { ok: 'Splněno', blocker: 'Blokuje', warning: 'K ověření', info: 'Informace' },
   generate: 'Vygenerovat MDT zápis',
+  sendFeedback: 'Odeslat závěr praktickému lékaři',
+  feedbackSent: 'Závěr byl odeslán praktickému lékaři. Čeká se na potvrzení přijetí.',
   generateBlocked: 'Zápis nelze vygenerovat, dokud některá podmínka blokuje.',
   generated: (when: string) => `MDT zápis byl vygenerován ke stavu ${when}.`,
   exportNote: 'Export DOCX/PDF v rozložení MDT_zapis zajistí backend po napojení.',

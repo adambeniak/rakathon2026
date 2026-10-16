@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { AuditEntry, Message } from '@/lib/domain'
 
 export const MESSAGES: Message[] = [

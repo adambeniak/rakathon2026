@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { DocumentInfo, HandoverSection } from '@/lib/domain'
 import { isOnOrBefore } from '@/lib/date'
 import { DOCUMENTS } from './documents'

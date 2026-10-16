@@ -9,7 +9,7 @@ import { ApiError } from '@/lib/api/http'
 import { mdt as t } from '@/i18n/cs/mdt'
 import { formatDate, formatDateTime, isoToPragueLocal, pragueLocalToIso } from '@/lib/date'
 import { cn } from '@/lib/cn'
-import { useGenerateMdt, useMdt } from './api'
+import { useGenerateMdt, useMdt, useSendFeedback } from './api'
 import type { GateItem } from './types'
 
 const AS_OF_DEFAULT = '2026-10-21T08:00:00+02:00'
@@ -48,6 +48,8 @@ export function Mdt() {
   const [asOf, setAsOf] = useState(AS_OF_DEFAULT)
   const q = useMdt(id, asOf)
   const gen = useGenerateMdt(id, asOf)
+  const send = useSendFeedback(id)
+  const generated = Boolean(q.data?.generatedAt) || gen.isSuccess
 
   return (
     <div className="space-y-5">
@@ -69,15 +71,17 @@ export function Mdt() {
           </label>
         </div>
         <div className="max-w-sm text-right">
-          <Button
-            variant="primary"
-            disabled={!q.data?.ready || gen.isPending}
-            aria-describedby="gate-h"
-            onClick={() => gen.mutate()}
-          >
-            {t.generate}
-          </Button>
-          {q.data && !q.data.ready && <p className="mt-1 text-xs text-missing">{t.generateBlocked}</p>}
+          {generated ? (
+            <Button variant="primary" disabled={send.isPending || send.isSuccess} onClick={() => send.mutate()}>
+              {t.sendFeedback}
+            </Button>
+          ) : (
+            <Button variant="primary" disabled={!q.data?.ready || gen.isPending} aria-describedby="gate-h" onClick={() => gen.mutate()}>
+              {t.generate}
+            </Button>
+          )}
+          {send.isSuccess && <p role="status" className="mt-1 text-xs text-verified">{t.feedbackSent}</p>}
+          {q.data && !generated && !q.data.ready && <p className="mt-1 text-xs text-missing">{t.generateBlocked}</p>}
         </div>
       </div>
 
@@ -91,7 +95,7 @@ export function Mdt() {
 
       {q.data && (
         <>
-          {(q.data.generatedAt || gen.isSuccess) && (
+          {generated && (
             <div role="status" className="rounded-lg border border-verified/40 bg-verified-bg p-3 text-verified">
               {t.generated(formatDateTime(q.data.generatedAt ?? asOf))} <span className="text-muted">{t.exportNote}</span>
             </div>

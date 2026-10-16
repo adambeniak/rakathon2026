@@ -1,3 +1,4 @@
+// MOCK copy – replaced by API in F2/F3
 import type { HandoverSection, HandoverStatus } from '@/lib/domain'
 import { formatDate } from '@/lib/date'
 import { golden } from './golden'
@@ -67,6 +68,7 @@ function rowsFor(key: string, f: Gf): Row[] {
       ]
     case '4_epicrisis':
       return [
+        // MOCK copy – replaced by API in F2/F3 (AI epikríza draft)
         {
           value:
             'V dokumentaci uvedeno: od poloviny srpna 2026 bolesti v epigastriu, v laboratoři cholestáza; UZ břicha 29. 9. 2026 – ložisko hlavy pankreatu suspektní z malignity; CT 8. 10. 2026 – tumor hlavy pankreatu 35 mm; EUS-FNB 12. 10. 2026; histologie vydána 19. 10. 2026 – duktální adenokarcinom; CA 19-9 312 kU/l (15. 10. 2026).',

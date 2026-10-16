@@ -56,6 +56,7 @@ export function SectionCard({
   }
 
   // "Chybí" only when a field is actually listed as missing; a partial section otherwise shows just "Neúplné".
+  const edited = s.rows.some((r) => r.note?.startsWith('Upraveno lékařem'))
   const pills = pillForHandover(s.status, s.confirmed).filter((p) => p !== 'missing' || s.status === 'missing' || s.missing.length > 0)
   const canConfirm = roleAllowed && s.status !== 'missing' && !s.confirmed
 
@@ -77,9 +78,9 @@ export function SectionCard({
           {s.title}
         </h2>
         <span className="flex flex-wrap gap-1">
-          {pills.map((p) => (
-            <StatusPill key={p} kind={p} />
-          ))}
+          {pills.map((p) =>
+            p === 'ai' && edited ? <StatusPill key={p} kind="clarify" label={t.editedPill} /> : <StatusPill key={p} kind={p} />,
+          )}
         </span>
         {s.confirmed && s.confirmedBy && <span className="text-xs text-muted">{t.confirmedBy(s.confirmedBy)}</span>}
       </header>

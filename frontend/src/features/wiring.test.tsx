@@ -83,8 +83,11 @@ describe('demo steps 2 and 4', () => {
     // EUS-FNB depends on the CT: its action is disabled until the CT is performed.
     expect(screen.getByRole('button', { name: /^Potvrdit objednání: EUS-FNB/ })).toBeDisabled()
     await userEvent.click(order)
-    const performed = await screen.findByRole('button', { name: /^Provedeno: CT hrudníku/ })
+    const performed = await screen.findByRole('button', { name: /^Označit jako provedené: CT hrudníku/ })
     await userEvent.click(performed)
+    // Performed is not done: the result must be delivered before the dependent task unblocks.
+    expect(screen.getByRole('button', { name: /^Potvrdit objednání: EUS-FNB/ })).toBeDisabled()
+    await userEvent.click(await screen.findByRole('button', { name: /^Potvrdit doručení výsledku: CT hrudníku/ }))
     await waitFor(() => expect(screen.getByRole('button', { name: /^Potvrdit objednání: EUS-FNB/ })).toBeEnabled())
   })
 })
@@ -108,11 +111,11 @@ describe('handover review', () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
     const bar = await screen.findByRole('group', { name: 'Souhrn handoveru' })
     expect(within(bar).getByText('Návrh AI – čeká na potvrzení lékařem')).toBeInTheDocument()
-    expect(within(bar).getByText('0 potvrzeno')).toBeInTheDocument()
+    expect(within(bar).getByText(/^Potvrzeno: 0 z /)).toBeInTheDocument()
     expect(within(bar).getByText('Chybí').nextElementSibling).toHaveTextContent('3')
     expect(within(bar).getByText('Nesouhlasí').nextElementSibling).toHaveTextContent('2')
     await userEvent.click(screen.getByRole('button', { name: 'Potvrdit všechny dostupné sekce' }))
-    await within(bar).findByText('Všechny dostupné sekce potvrdil lékař')
+    await within(bar).findByText(/Dostupné sekce potvrzeny lékařem · chybí údaje v sekcích: \d+/)
     expect(within(bar).queryByText('Návrh AI – čeká na potvrzení lékařem')).toBeNull()
   })
 
@@ -128,7 +131,7 @@ describe('handover review', () => {
     expect(within(section).getByRole('button', { name: 'Uložit změnu' })).toBeDisabled() // no reason yet
     await userEvent.type(within(section).getByLabelText('Důvod změny'), 'Upřesněno s pacientkou')
     await userEvent.click(within(section).getByRole('button', { name: 'Uložit změnu' }))
-    expect(await within(section).findByText(/Upraveno: Upřesněno s pacientkou/)).toBeInTheDocument()
+    expect(await within(section).findByText(/Upraveno lékařem .*důvod: Upřesněno s pacientkou/)).toBeInTheDocument()
     expect(within(section).queryByText('Potvrdil(a) MUDr. Havelka')).toBeNull()
   })
 
@@ -136,7 +139,7 @@ describe('handover review', () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
     const chips = await screen.findAllByRole('button', { name: /^Zdroj:/ })
     await userEvent.click(chips[0]!)
-    await userEvent.click(await screen.findByRole('button', { name: 'Otevřít dokument' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Zobrazit zdroj a citaci' }))
     const panel = await screen.findByRole('dialog')
     expect(within(panel).getByText('Citace z dokumentu')).toBeInTheDocument()
   })

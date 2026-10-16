@@ -4,7 +4,7 @@ import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
 import { useDemo } from '@/app/DemoContext'
-import { useDocuments, useFindings } from '@/features/cases/api'
+import { useCase, useDocuments, useFindings } from '@/features/cases/api'
 import { handover as t } from '@/i18n/cs/handover'
 import { formatDateTime } from '@/lib/date'
 import { SectionCard } from './components/SectionCard'
@@ -17,6 +17,7 @@ export function Handover() {
   const q = useHandover(id)
   const docs = useDocuments(id)
   const findings = useFindings(id)
+  const caseQ = useCase(id)
   const confirm = useConfirmSection(id)
   const confirmAll = useConfirmAll(id)
   const edit = useEditSection(id)
@@ -27,13 +28,11 @@ export function Handover() {
 
   const confirmable = q.data.sections.filter((s) => s.status !== 'missing')
   const done = confirmable.filter((s) => s.confirmed).length
-  const allConfirmed = confirmable.length > 0 && done === confirmable.length
-  const open = findings.data ?? []
-  // Same numbers as the case header; unknown (still loading / not computed) shows "—", never 0.
-  const counts = {
-    missing: findings.data ? open.filter((f) => f.bucket === 'missing').length : null,
-    conflict: findings.data ? open.filter((f) => f.bucket === 'conflict').length : null,
-  }
+  // The draft label stays until the server has recorded the last confirmation (confirm.isPending).
+  const allConfirmed = confirmable.length > 0 && done === confirmable.length && !confirm.isPending
+  const missingSections = q.data.sections.length - confirmable.length
+  // Same numbers as the case header; not computed / still loading shows "—", never 0.
+  const counts = { missing: caseQ.data?.counts.missing ?? null, conflict: caseQ.data?.counts.conflict ?? null }
 
   return (
     <div className="space-y-4">
@@ -62,7 +61,7 @@ export function Handover() {
         aria-label={t.summary}
         className="sticky top-0 z-30 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-hairline bg-card/95 px-4 py-2 shadow-sm backdrop-blur"
       >
-        <span className="font-medium">{t.confirmedCount(done)}</span>
+        <span className="font-medium">{t.confirmedCount(done, confirmable.length)}</span>
         <span className="inline-flex items-center gap-1.5">
           <StatusPill kind="missing" />
           <span className="font-mono text-sm font-semibold">{counts.missing ?? '—'}</span>
@@ -72,9 +71,14 @@ export function Handover() {
           <span className="font-mono text-sm font-semibold">{counts.conflict ?? '—'}</span>
         </span>
         <span className="ml-auto">
+          {confirm.isPending && (
+            <span role="status" className="mr-2 text-sm text-muted">
+              {t.saving}
+            </span>
+          )}
           {allConfirmed ? (
             <span role="status" className="text-sm font-medium text-verified">
-              {t.allConfirmed}
+              {t.allConfirmed(missingSections)}
             </span>
           ) : (
             <StatusPill kind="ai" label={t.draftLabel} />

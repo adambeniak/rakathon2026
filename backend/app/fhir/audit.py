@@ -6,9 +6,16 @@ from collections.abc import Sequence
 from datetime import datetime
 from typing import Literal
 
-from app.domain.common import PartyRef
+from app.domain.common import PartyRef, Role
 from app.fhir.client import Resource
-from app.fhir.systems import AUDIT_EVENT_TYPE, CS_WORKFLOW_ROLE, RESTFUL_INTERACTION, SECURITY_SOURCE_TYPE, SID_USER
+from app.fhir.systems import (
+    AUDIT_EVENT_TYPE,
+    CS_WORKFLOW_ROLE,
+    RESTFUL_INTERACTION,
+    SECURITY_SOURCE_TYPE,
+    SID_PRACTITIONER_ROLE,
+    SID_USER,
+)
 
 AuditAction = Literal["C", "R", "U", "D", "E"]
 # http://hl7.org/fhir/restful-interaction codes used by the backend.
@@ -39,7 +46,7 @@ def build_audit_event(
         "agent": [
             {
                 "type": {"coding": [{"system": CS_WORKFLOW_ROLE, "code": actor.role.value}]},
-                "who": {"identifier": {"system": SID_USER, "value": actor.id}, "display": actor.display},
+                "who": {"identifier": {"system": _actor_system(actor), "value": actor.id}, "display": actor.display},
                 "requestor": True,
             }
         ],
@@ -47,8 +54,14 @@ def build_audit_event(
             "observer": {"display": OBSERVER_DISPLAY},
             "type": [{"system": SECURITY_SOURCE_TYPE, "code": "4", "display": "Application Server"}],
         },
-        "entity": [{"what": {"reference": reference}} for reference in entities],
     }
+    if entities:  # FHIR JSON forbids empty arrays
+        event["entity"] = [{"what": {"reference": reference}} for reference in entities]
     if description:
         event["outcomeDesc"] = description
     return event
+
+
+def _actor_system(actor: PartyRef) -> str:
+    """People are identified like in `Task.owner` (PractitionerRole business id); technical actors as users."""
+    return SID_USER if actor.role is Role.SYSTEM else SID_PRACTITIONER_ROLE

@@ -182,7 +182,7 @@ async def test_audit_read_records_entities(repo: FhirRepository) -> None:
     await repo.audit_read(["Task/1", "Patient/2"], subtype="search-type")
 
     event = _body(audit.calls[0])
-    assert (event["action"], event["subtype"][0]["code"]) == ("R", "search-type")
+    assert (event["action"], event["subtype"][0]["code"]) == ("E", "search-type")
     assert len(event["entity"]) == 2
 
 

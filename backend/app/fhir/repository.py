@@ -83,8 +83,11 @@ class FhirRepository:
         return found[0] if found else None
 
     async def audit_read(self, entities: Sequence[str], *, subtype: AuditSubtype = "read") -> None:
-        """Record that the current actor read clinical content (AGENTS.md non-negotiable 6)."""
-        await self._audit("R", subtype, entities)
+        """Record that the current actor read clinical content (AGENTS.md non-negotiable 6).
+
+        FHIR R4 AuditEventAction: a search/query is `E` (execute), a read of identified resources is `R`.
+        """
+        await self._audit("E" if subtype == "search-type" else "R", subtype, entities)
 
     # --- writes ---
 

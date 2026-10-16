@@ -7,7 +7,14 @@ from typing import Any
 
 from app.domain.patient import Address, ContactPerson, Patient, Sex
 from app.fhir.client import Resource
-from app.fhir.systems import COVERAGE_TYPE, CZ_INSURER_CODE, SID_COVERAGE, SID_RC, SID_RELATED_PERSON, V3_ROLE_CODE
+from app.fhir.systems import (
+    COVERAGE_TYPE,
+    CZ_INSURER_CODE,
+    CZ_RODNE_CISLO,
+    SID_COVERAGE,
+    SID_RELATED_PERSON,
+    V3_ROLE_CODE,
+)
 
 # Czech relation words as written in documents -> v3-RoleCode.
 RELATION_CODES = {"dcera": "DAU", "syn": "SON", "manžel": "HUSB", "manželka": "WIFE", "matka": "MTH", "otec": "FTH"}
@@ -25,7 +32,7 @@ def format_rc(value: str) -> str:
 def patient_to_fhir(patient: Patient, *, general_practitioner: str | None = None) -> Resource:
     resource: Resource = {
         "resourceType": "Patient",
-        "identifier": [{"system": SID_RC, "value": rc_value(patient.birth_number)}],
+        "identifier": [{"use": "official", "system": CZ_RODNE_CISLO, "value": rc_value(patient.birth_number)}],
         "name": [{"use": "official", "family": patient.family, "given": [patient.given]}],
         "gender": patient.sex.value,
         "birthDate": patient.birth_date.isoformat(),
@@ -48,7 +55,7 @@ def patient_from_fhir(resource: Resource, *, insurer_code: str | None = None) ->
     if resource.get("resourceType") != "Patient":
         raise ValueError("expected a Patient resource")
     name = (resource.get("name") or [{}])[0]
-    rc = next((i["value"] for i in resource.get("identifier", []) if i.get("system") == SID_RC), None)
+    rc = next((i["value"] for i in resource.get("identifier", []) if i.get("system") == CZ_RODNE_CISLO), None)
     if rc is None:
         raise ValueError("Patient has no rodné číslo identifier")
     telecom = resource.get("telecom", [])
@@ -67,21 +74,21 @@ def patient_from_fhir(resource: Resource, *, insurer_code: str | None = None) ->
 
 
 def related_person_to_fhir(contact: ContactPerson, *, patient_reference: str, patient: Patient) -> Resource:
+    # FHIR JSON forbids empty arrays: optional lists are left out instead.
     given, _, family = contact.name.partition(" ")
+    relationship: dict[str, Any] = {"text": contact.relation}
+    if code := RELATION_CODES.get(contact.relation):
+        relationship["coding"] = [{"system": V3_ROLE_CODE, "code": code}]
+    name: dict[str, Any] = {"family": family} if family else {"text": given}
+    if family:
+        name["given"] = [given]
     resource: Resource = {
         "resourceType": "RelatedPerson",
         "identifier": [{"system": SID_RELATED_PERSON, "value": f"{rc_value(patient.birth_number)}-{contact.relation}"}],
         "active": True,
         "patient": {"reference": patient_reference},
-        "relationship": [
-            {
-                "coding": [{"system": V3_ROLE_CODE, "code": code}]
-                if (code := RELATION_CODES.get(contact.relation))
-                else [],
-                "text": contact.relation,
-            }
-        ],
-        "name": [{"family": family or given, "given": [given] if family else []}],
+        "relationship": [relationship],
+        "name": [name],
     }
     if contact.phone:
         resource["telecom"] = [{"system": "phone", "value": contact.phone}]

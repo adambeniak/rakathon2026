@@ -14,8 +14,6 @@ CS: Final = "https://stafeta.example/fhir/CodeSystem/"
 SID_ORGANIZATION: Final = SID + "organization"
 SID_PRACTITIONER: Final = SID + "practitioner"
 SID_PRACTITIONER_ROLE: Final = SID + "practitioner-role"
-# Placeholder until the CZ Core NamingSystem for rodné číslo is confirmed (value = digits without the slash).
-SID_RC: Final = SID + "rc"
 SID_RELATED_PERSON: Final = SID + "related-person"
 SID_COVERAGE: Final = SID + "coverage"
 SID_CASE: Final = SID + "case"
@@ -23,7 +21,9 @@ SID_CASE_TASK: Final = SID + "case-task"
 SID_SOURCE_DOCUMENT: Final = SID + "source-document"
 SID_USER: Final = SID + "user"
 
-# CZ Core (hl7.cz/fhir/core) organisation identifiers.
+# CZ Core (hl7.cz/fhir/core 1.0.0) identifier systems.
+# Rodné číslo: fixedUri of StructureDefinition cz-rodcis-identifier; value = digits without the slash.
+CZ_RODNE_CISLO: Final = "https://ncez.mzcr.cz/fhir/sid/rcis"
 CZ_ICP: Final = "https://ncez.mzcr.cz/fhir/sid/icp"
 CZ_INSURER_CODE: Final = "https://ncez.mzcr.cz/fhir/sid/kp"
 

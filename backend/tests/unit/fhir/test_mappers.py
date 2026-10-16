@@ -21,7 +21,7 @@ from app.fhir.mappers.patient import (
     patient_to_fhir,
     related_person_to_fhir,
 )
-from app.fhir.systems import CS_CASE_STATE, SID_RC, V3_ROLE_CODE
+from app.fhir.systems import CS_CASE_STATE, CZ_RODNE_CISLO, V3_ROLE_CODE
 from app.seed.demo_case import PEOPLE
 from app.settings import PRAGUE
 
@@ -40,7 +40,7 @@ PATIENT = Patient(
 def test_patient_round_trip() -> None:
     resource = patient_to_fhir(PATIENT, general_practitioner="PractitionerRole/4")
 
-    assert resource["identifier"] == [{"system": SID_RC, "value": "6357221013"}]
+    assert resource["identifier"] == [{"use": "official", "system": CZ_RODNE_CISLO, "value": "6357221013"}]
     assert resource["gender"] == "female"
     assert resource["birthDate"] == "1963-07-22"
     assert resource["address"][0]["text"] == "Za Školou 17, 252 41 Dolní Břežany"
@@ -165,3 +165,23 @@ def test_audit_event_requires_aware_time() -> None:
             entities=["Patient/1"],
             recorded=datetime(2026, 10, 16),  # noqa: DTZ001 - naive on purpose
         )
+
+
+def test_related_person_without_known_relation_or_given_name_has_no_empty_arrays() -> None:
+    resource = related_person_to_fhir(
+        ContactPerson(name="Horká", relation="sousedka"), patient_reference="Patient/3", patient=PATIENT
+    )
+
+    assert resource["relationship"] == [{"text": "sousedka"}]
+    assert resource["name"] == [{"text": "Horká"}]
+    assert "telecom" not in resource
+
+
+def test_audit_event_identifies_people_by_practitioner_role() -> None:
+    nurse = PartyRef(id="dvorakova-lucie@koc2-nemocnice-lipova", display="Bc. Lucie Dvořáková", role=Role.COORDINATOR)
+    event = build_audit_event(
+        action="R", subtype="read", actor=nurse, entities=[], recorded=datetime(2026, 10, 16, tzinfo=PRAGUE)
+    )
+
+    assert event["agent"][0]["who"]["identifier"]["system"] == "https://stafeta.example/fhir/sid/practitioner-role"
+    assert "entity" not in event

@@ -5,8 +5,18 @@ import { daysUntil, formatDate, formatRemaining } from '@/lib/date'
 import { useDemo } from '@/app/DemoContext'
 import { cn } from '@/lib/cn'
 
-export function BatonHolder({ baton, size = 'sm' }: { baton: BatonHolderInfo; size?: 'sm' | 'lg' }) {
+export function BatonHolder({ baton, size = 'sm' }: { baton: BatonHolderInfo | null; size?: 'sm' | 'lg' }) {
   const { today } = useDemo()
+  if (!baton) {
+    return (
+      <p className={cn('flex items-center gap-1.5', size === 'lg' ? 'text-base' : 'text-sm')}>
+        <Hourglass aria-hidden className="h-4 w-4 shrink-0 text-accent" />
+        <span className="text-muted">
+          {common.baton.label}: {common.baton.nobody}
+        </span>
+      </p>
+    )
+  }
   const days = baton.due ? daysUntil(baton.due, today) : null
   const overdue = days !== null && days < 0
   return (

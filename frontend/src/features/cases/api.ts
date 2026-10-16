@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDemo } from '@/app/DemoContext'
+import { client, unwrap } from '@/lib/api/client'
 import { api } from '@/lib/api/http'
-import type { AuditEntry, CaseDetail, CaseSummary, DocumentInfo, Finding, Message, TaskItem, TimelineEvent } from '@/lib/domain'
+import { adaptCase, adaptDetail } from './adapter'
+import type { AuditEntry, Finding, Message, TaskItem, TimelineEvent } from '@/lib/domain'
 
 function useCaseQuery<T>(id: string, part: string) {
   const { today } = useDemo()
@@ -10,16 +12,23 @@ function useCaseQuery<T>(id: string, part: string) {
 
 export function useInbox() {
   const { today } = useDemo()
-  return useQuery({ queryKey: ['cases', today], queryFn: () => api.get<CaseSummary[]>('/api/cases') })
+  return useQuery({ queryKey: ['cases', today], queryFn: async () => unwrap(await client.GET('/api/cases')).map(adaptCase) })
 }
 
 export function useCase(id: string) {
   const { today } = useDemo()
-  return useQuery({ queryKey: ['case', id, 'detail', today], queryFn: () => api.get<CaseDetail>(`/api/cases/${id}`) })
+  return useQuery({ queryKey: ['case', id, 'detail', today], queryFn: async () => adaptDetail(unwrap(await client.GET('/api/cases/{case_id}', { params: { path: { case_id: id } } }))),
+  })
 }
 
 export const useFindings = (id: string) => useCaseQuery<Finding[]>(id, 'findings')
-export const useDocuments = (id: string) => useCaseQuery<DocumentInfo[]>(id, 'documents')
+export function useDocuments(id: string) {
+  const { today } = useDemo()
+  return useQuery({
+    queryKey: ['case', id, 'documents', today],
+    queryFn: async () => adaptDetail(unwrap(await client.GET('/api/cases/{case_id}', { params: { path: { case_id: id } } }))).documents,
+  })
+}
 export const useTasks = (id: string) => useCaseQuery<TaskItem[]>(id, 'tasks')
 export const useTimeline = (id: string) => useCaseQuery<TimelineEvent[]>(id, 'timeline')
 export const useMessages = (id: string) => useCaseQuery<Message[]>(id, 'messages')

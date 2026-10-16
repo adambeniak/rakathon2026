@@ -1,7 +1,17 @@
 import { StatusPill, type PillKind } from './StatusPill'
 
-export function CountBadge({ kind, count }: { kind: Extract<PillKind, 'missing' | 'conflict' | 'stale'>; count: number }) {
+export function CountBadge({ kind, count }: { kind: Extract<PillKind, 'missing' | 'conflict' | 'stale'>; count: number | null }) {
   if (count === 0) return null
+  if (count === null) {
+    return (
+      <span className="inline-flex items-center gap-1 text-muted">
+        <StatusPill kind={kind} />
+        <span className="font-mono text-sm" aria-label="počet zatím nespočítán">
+          —
+        </span>
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-1">
       <StatusPill kind={kind} />

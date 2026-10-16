@@ -1,6 +1,6 @@
 import { http, HttpResponse } from 'msw'
+import { toApiCase, toApiDetail } from '../fixtures/api'
 import { ALENA_ID, allCases, caseById, inboxCases } from '../fixtures/cases'
-import { DOCUMENTS } from '../fixtures/documents'
 import { activeFindings } from '../fixtures/findings'
 import { AUDIT, MESSAGES } from '../fixtures/messages'
 import { store } from '../fixtures/store'
@@ -11,15 +11,14 @@ import { problem, todayOf } from './util'
 const isAlena = (id: string | readonly string[] | undefined) => id === ALENA_ID
 
 export const handlers = [
-  http.get('/api/cases', ({ request }) => HttpResponse.json(inboxCases(todayOf(request), store))),
+  http.get('/api/cases', ({ request }) => HttpResponse.json(inboxCases(todayOf(request), store).map((c) => toApiCase(c, todayOf(request))))),
   http.get('/api/cases/:id', ({ params, request }) => {
     const c = caseById(String(params.id), todayOf(request), store)
-    return c ? HttpResponse.json(c) : problem(404, 'Případ nebyl nalezen')
+    return c ? HttpResponse.json(toApiDetail(c, todayOf(request))) : problem(404, 'Případ nebyl nalezen')
   }),
   http.get('/api/cases/:id/findings', ({ params, request }) =>
     HttpResponse.json(isAlena(params.id) ? activeFindings(todayOf(request)) : []),
   ),
-  http.get('/api/cases/:id/documents', ({ params }) => HttpResponse.json(isAlena(params.id) ? DOCUMENTS : [])),
   http.get('/api/cases/:id/tasks', ({ params, request }) =>
     HttpResponse.json(isAlena(params.id) ? tasksAt(todayOf(request)) : []),
   ),

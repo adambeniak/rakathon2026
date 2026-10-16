@@ -4,6 +4,9 @@ import type { Role } from './domain'
 // DemoContext keeps React in sync and persists it.
 export const DEMO_DATES = ['2026-10-02', '2026-10-12', '2026-10-16', '2026-10-19', '2026-10-21'] as const
 
+/** MDT start of the demo case = as_of of its handover. */
+export const DEMO_AS_OF = '2026-10-21T08:00:00+02:00'
+
 const KEY = 'stafeta.demo'
 let state: { role: Role; today: string } = { role: 'coordinator', today: '2026-10-16' }
 

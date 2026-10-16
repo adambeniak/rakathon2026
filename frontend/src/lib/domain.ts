@@ -2,15 +2,16 @@
 // replace these with types from the generated `src/lib/api/schema.d.ts`.
 import { z } from 'zod'
 
+// Codes are the backend's (contracts/case-states.md); labels live in i18n/cs/common.ts.
 export const CASE_STATES = [
-  'sent',
+  'odeslano',
   'triage',
-  'awaiting_docs',
-  'complete',
-  'ready_for_mdt',
-  'mdt_conclusion',
-  'feedback_sent',
-  'closed',
+  'ceka_na_podklady',
+  'kompletni',
+  'pripraveno_mdt',
+  'zaver_mdt',
+  'zpetna_vazba_odeslana',
+  'uzavreno',
 ] as const
 export type CaseState = (typeof CASE_STATES)[number]
 
@@ -53,26 +54,41 @@ export interface BatonHolderInfo {
   due: string | null // ISO date
 }
 
+/** Counts the consistency detector has not computed yet are `null` (rendered as "—", never as 0). */
+export interface FindingCounts {
+  missing: number | null
+  conflict: number | null
+  stale: number | null
+}
+
+/**
+ * View-model of a case. Only the first block comes from `GET /api/cases`; the optional fields are not in the
+ * contract yet and render as "—" when absent (never filled with defaults).
+ */
 export interface CaseSummary {
   id: string
   patientName: string
   birthDate: string
-  diagnosis: string
+  insurerCode: string | null
   state: CaseState
-  subStatus: string
   column: 'new' | 'active' | 'snoozed'
-  baton: BatonHolderInfo
-  counts: { missing: number; conflict: number; stale: number }
-  koc: string
-  gp: string
-  urgent: boolean
-  referredAt: string
+  baton: BatonHolderInfo | null
+  counts: FindingCounts
+  documentCount: number
+  openedAt: string | null
+  // --- not in the contract (mock / portal endpoints only) ---
+  insurer?: string
+  diagnosis?: string
+  subStatus?: string
+  koc?: string
+  gp?: string
+  urgent?: boolean
+  referredAt?: string
 }
 
 export interface CaseDetail extends CaseSummary {
-  birthNumber: string
-  insurer: string
-  t: { t1: number | null; t2: number | null; t3: number | null }
+  birthNumber?: string
+  t?: { t1: number | null; t2: number | null; t3: number | null }
 }
 
 export interface DocumentInfo {

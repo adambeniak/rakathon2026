@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from http import HTTPStatus
+from typing import Any
 
 import structlog
 from fastapi import FastAPI, Request
@@ -35,6 +37,7 @@ def problem_response(
     instance: str | None = None,
     request_id: str | None = None,
     errors: list[ValidationIssue] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     body = ProblemDetails(
         type=f"{PROBLEM_BASE}{problem}" if problem else "about:blank",
@@ -45,7 +48,23 @@ def problem_response(
         request_id=request_id,
         errors=errors,
     )
-    return JSONResponse(body.model_dump(exclude_none=True), status_code=status, media_type=PROBLEM_JSON)
+    return JSONResponse(
+        body.model_dump(exclude_none=True), status_code=status, media_type=PROBLEM_JSON, headers=headers
+    )
+
+
+def declare_problem_media_type(openapi: dict[str, Any]) -> dict[str, Any]:
+    """FastAPI documents every `responses={...: {"model": ...}}` as application/json; ProblemDetails bodies are sent
+    as application/problem+json, so declare them under that media type in the contract."""
+    ref = "#/components/schemas/ProblemDetails"
+    for path_item in openapi.get("paths", {}).values():
+        for operation in path_item.values():
+            for response in operation.get("responses", {}).values():
+                content = response.get("content", {})
+                body = content.get("application/json")
+                if body is not None and body.get("schema", {}).get("$ref") == ref:
+                    content[PROBLEM_JSON] = content.pop("application/json")
+    return openapi
 
 
 def _request_id(request: Request) -> str | None:
@@ -114,5 +133,9 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         detail = exc.detail if isinstance(exc.detail, str) else None
         return problem_response(
-            exc.status_code, detail=detail, instance=request.url.path, request_id=_request_id(request)
+            exc.status_code,
+            detail=detail,
+            instance=request.url.path,
+            request_id=_request_id(request),
+            headers=exc.headers,  # e.g. `Allow` on 405
         )

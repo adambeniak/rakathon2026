@@ -154,3 +154,29 @@ async def test_paging_link_to_another_origin_is_refused(fhir_client: FhirClient)
         await fhir_client.search_all("Task", {})
 
     assert evil.call_count == 0
+
+
+async def test_transaction_refuses_batch_bundles(fhir_client: FhirClient) -> None:
+    with pytest.raises(ValueError, match="batch is not supported"):
+        await fhir_client.transaction({"resourceType": "Bundle", "type": "batch", "entry": []})
+
+
+@respx.mock
+async def test_search_all_accepts_a_complete_result_of_exactly_max_pages(fhir_client: FhirClient) -> None:
+    respx.get(f"{FHIR_BASE}/Task").mock(
+        return_value=httpx.Response(200, json={"resourceType": "Bundle", "entry": [{"resource": {"id": "1"}}]})
+    )
+
+    assert [t["id"] for t in await fhir_client.search_all("Task", {}, max_pages=1)] == ["1"]
+
+
+@respx.mock
+async def test_search_all_raises_when_more_pages_remain(fhir_client: FhirClient) -> None:
+    respx.get(f"{FHIR_BASE}/Task").mock(
+        return_value=httpx.Response(
+            200, json={"resourceType": "Bundle", "link": [{"relation": "next", "url": f"{FHIR_BASE}/Task?page=2"}]}
+        )
+    )
+
+    with pytest.raises(FhirError, match="exceeded 1 pages"):
+        await fhir_client.search_all("Task", {}, max_pages=1)

@@ -84,6 +84,8 @@ class FhirClient:
                 return resources
             bundle = await self._get_json(next_url)
             resources.extend(_matches(bundle))
+        if _next_link(bundle) is None:
+            return resources
         raise FhirError(f"search {resource_type} exceeded {max_pages} pages")
 
     async def count(self, resource_type: str, params: SearchParams) -> int:
@@ -111,8 +113,9 @@ class FhirClient:
         await self._send("DELETE", f"{resource_type}/{resource_id}")
 
     async def transaction(self, bundle: Resource) -> Resource:
-        if bundle.get("resourceType") != "Bundle" or bundle.get("type") not in ("transaction", "batch"):
-            raise ValueError("transaction() expects a Bundle of type transaction or batch")
+        """All-or-nothing write. Batches are refused: they can return 200 with failed entries."""
+        if bundle.get("resourceType") != "Bundle" or bundle.get("type") != "transaction":
+            raise ValueError("transaction() expects a Bundle of type transaction (batch is not supported)")
         response = await self._send("POST", "", json=bundle)
         return _json_or_empty(response)
 

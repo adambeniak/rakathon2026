@@ -207,3 +207,39 @@ def test_access_log_has_full_route_template_and_no_ids(settings: Settings, capsy
     lines = [json.loads(line) for line in capsys.readouterr().out.splitlines() if '"http_request"' in line]
     assert lines[-1]["route"] == "/api/cases/{case_id}"
     assert "rakathon-2026-prochazkova" not in json.dumps(lines[-1])
+
+
+def test_405_problem_keeps_allow_header(client: TestClient) -> None:
+    response = client.post("/api/cases")
+
+    assert response.status_code == 405
+    assert response.headers["content-type"] == "application/problem+json"
+    assert "GET" in response.headers["allow"]
+
+
+def test_openapi_declares_problem_json_for_errors(app: FastAPI) -> None:
+    responses = app.openapi()["paths"]["/api/cases/{case_id}"]["get"]["responses"]
+
+    assert list(responses["404"]["content"]) == ["application/problem+json"]
+    assert list(responses["422"]["content"]) == ["application/problem+json"]
+    assert list(responses["200"]["content"]) == ["application/json"]
+
+
+def test_unhandled_error_response_carries_cors_headers(app: FastAPI, client: TestClient) -> None:
+    app.dependency_overrides[get_case_reader] = lambda: FakeReader(RuntimeError("boom"))
+
+    response = client.get("/api/cases", headers={"Origin": "http://localhost:5173"})
+
+    assert response.status_code == 500
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.headers["X-Request-ID"]
+    assert response.json()["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_cors_preflight_gets_a_request_id(client: TestClient) -> None:
+    response = client.options(
+        "/api/cases", headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"]

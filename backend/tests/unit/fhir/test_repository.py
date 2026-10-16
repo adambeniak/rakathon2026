@@ -9,7 +9,7 @@ import pytest
 import respx
 
 from app.fhir.client import FhirClient
-from app.fhir.errors import AuditWriteError
+from app.fhir.errors import AuditWriteError, FhirUnavailableError
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_TAG, SID_ORGANIZATION, SID_USER
 from app.security.actor import SYSTEM_ACTOR
@@ -203,3 +203,51 @@ async def test_delete_by_tag_audits_every_deleted_resource_in_chunks(repo: FhirR
     await repo.delete_by_tag(["Patient"], "stafeta-demo")
 
     assert [len(_body(call)["entity"]) for call in audit.calls] == [100, 50]
+
+
+@respx.mock
+async def test_reset_that_aborts_still_audits_the_deletions_that_happened(repo: FhirRepository) -> None:
+    patients = [{"resourceType": "Patient", "id": "1"}, {"resourceType": "Patient", "id": "2"}]
+    respx.get(f"{FHIR_BASE}/Patient").mock(return_value=httpx.Response(200, json=_bundle(*patients)))
+    respx.delete(f"{FHIR_BASE}/Patient/1").mock(return_value=httpx.Response(204))
+    respx.delete(f"{FHIR_BASE}/Patient/2").mock(return_value=httpx.Response(503))
+    audit = respx.post(f"{FHIR_BASE}/AuditEvent").mock(
+        return_value=httpx.Response(201, headers={"Location": f"{FHIR_BASE}/AuditEvent/9"})
+    )
+
+    with pytest.raises(FhirUnavailableError):
+        await repo.delete_by_tag(["Patient"], "stafeta-demo")
+
+    assert [e["what"]["reference"] for e in _body(audit.calls[0])["entity"]] == ["Patient/1"]
+
+
+@respx.mock
+async def test_transaction_delete_without_location_is_audited(repo: FhirRepository) -> None:
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "transaction",
+        "entry": [{"request": {"method": "DELETE", "url": "Task/3"}}],
+    }
+    respx.post(FHIR_BASE).mock(
+        return_value=httpx.Response(
+            200,
+            json={"resourceType": "Bundle", "type": "transaction-response", "entry": [{"response": {"status": "204"}}]},
+        )
+    )
+    audit = respx.post(f"{FHIR_BASE}/AuditEvent").mock(
+        return_value=httpx.Response(201, headers={"Location": f"{FHIR_BASE}/AuditEvent/9"})
+    )
+
+    await repo.transaction(bundle)
+
+    assert [e["what"]["reference"] for e in _body(audit.calls[0])["entity"]] == ["Task/3"]
+
+
+async def test_transaction_refuses_conditional_delete(repo: FhirRepository) -> None:
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "transaction",
+        "entry": [{"request": {"method": "DELETE", "url": "Task?identifier=x|y"}}],
+    }
+    with pytest.raises(ValueError, match="conditional DELETE"):
+        await repo.transaction(bundle)

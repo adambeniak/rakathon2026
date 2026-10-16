@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 import httpx
 from fastapi import FastAPI
@@ -15,8 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRoute
 
 from app import __version__
-from app.api.errors import register_error_handlers
-from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
+from app.api.errors import declare_problem_media_type, register_error_handlers
+from app.api.middleware import REQUEST_ID_HEADER, RequestContextMiddleware, UnhandledErrorMiddleware
 from app.api.routes import API_PREFIX, discover_routers
 from app.iris.db import IrisPool
 from app.logging_config import configure_logging
@@ -62,6 +63,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.settings = settings
     register_error_handlers(app)
+    # The last added middleware is the outermost: RequestContext → CORS → UnhandledError → routes.
+    app.add_middleware(UnhandledErrorMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -72,4 +75,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     for router in discover_routers():
         app.include_router(router, prefix=API_PREFIX)
+    _declare_problem_responses(app)
     return app
+
+
+def _declare_problem_responses(app: FastAPI) -> None:
+    """Generate the OpenAPI document once, then declare ProblemDetails bodies as application/problem+json."""
+    generate = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        if app.openapi_schema is None:
+            app.openapi_schema = declare_problem_media_type(generate())
+        return app.openapi_schema
+
+    app.openapi = openapi  # type: ignore[method-assign]

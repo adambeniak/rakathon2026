@@ -18,7 +18,7 @@ from app.domain.common import PartyRef
 from app.fhir.audit import AuditAction, AuditSubtype, build_audit_event
 from app.fhir.client import CreateResult, FhirClient, Resource, SearchParams, reference_from_location
 from app.fhir.errors import AuditWriteError, FhirConflictError, FhirError
-from app.fhir.systems import CS_TAG, DEMO_TAG_CODE, TEST_TAG_CODE
+from app.fhir.systems import CS_TAG, DEMO_TAG_CODE
 
 log = structlog.get_logger(__name__)
 
@@ -120,6 +120,10 @@ class FhirRepository:
 
     async def transaction(self, bundle: Resource) -> Resource:
         """Atomic multi-resource write. One AuditEvent lists every entry that was actually written."""
+        for entry in bundle.get("entry", []):
+            request = entry.get("request", {})
+            if request.get("method") == "DELETE" and "?" in str(request.get("url", "")):
+                raise ValueError("conditional DELETE in a transaction is not supported (its target cannot be audited)")
         tagged = copy.deepcopy(bundle)
         for entry in tagged.get("entry", []):
             if "resource" in entry:
@@ -133,27 +137,30 @@ class FhirRepository:
     async def delete_by_tag(self, resource_types: Sequence[str], tag_code: str) -> dict[str, int]:
         """Delete every resource carrying `tag_code`, in the given order (dependents first).
 
-        The audit trail is never deleted (AuditEvent is refused, except for the integration-test tag). Writes summary
-        AuditEvents (one per `AUDIT_CHUNK` deleted resources) instead of one per resource. Used by
-        `python -m app.seed --reset` and the integration tests.
+        The audit trail is never deleted (AuditEvent is refused). Writes summary AuditEvents (one per `AUDIT_CHUNK`
+        deleted resources) instead of one per resource — also when the reset aborts halfway, so every deletion that
+        happened is audited. Used by `python -m app.seed --reset` and the integration tests.
         """
-        if "AuditEvent" in resource_types and tag_code != TEST_TAG_CODE:
+        if "AuditEvent" in resource_types:
             raise ValueError("AuditEvents are never deleted (AGENTS.md non-negotiable 6)")
         deleted: dict[str, int] = {}
         references: list[str] = []
-        for resource_type in resource_types:
-            found = await self.client.search_all(resource_type, {"_tag": f"{CS_TAG}|{tag_code}", "_count": "100"})
-            for resource in found:
-                await self.client.delete(resource_type, str(resource["id"]))
-                references.append(f"{resource_type}/{resource['id']}")
-            deleted[resource_type] = len(found)
-        for start in range(0, len(references), AUDIT_CHUNK):
-            await self._audit(
-                "D",
-                "delete",
-                references[start : start + AUDIT_CHUNK],
-                description=f"reset of tag {tag_code}: {len(references)} resources",
-            )
+        try:
+            for resource_type in resource_types:
+                query = {"_tag": f"{CS_TAG}|{tag_code}", "_count": "100"}
+                found = await self.client.search_all(resource_type, query)
+                for resource in found:
+                    await self.client.delete(resource_type, str(resource["id"]))
+                    references.append(f"{resource_type}/{resource['id']}")
+                deleted[resource_type] = len(found)
+        finally:
+            for start in range(0, len(references), AUDIT_CHUNK):
+                await self._audit(
+                    "D",
+                    "delete",
+                    references[start : start + AUDIT_CHUNK],
+                    description=f"reset of tag {tag_code}: {len(references)} resources",
+                )
         return deleted
 
     # --- internals ---
@@ -188,16 +195,24 @@ class FhirRepository:
 
 
 def _written_references(request_bundle: Resource, response_bundle: Resource) -> list[str]:
-    """References of entries that changed data (a conditional create that matched, POST + 200, is not a write)."""
+    """References of entries that changed data.
+
+    A conditional create that matched (POST + 200) and reads (GET) are not writes. A DELETE may answer 204 without
+    `location`: its target comes from the request URL (conditional deletes are refused before submitting).
+    """
     references: list[str] = []
     requests = request_bundle.get("entry", [])
     for index, entry in enumerate(response_bundle.get("entry", [])):
         response = entry.get("response", {})
         status = str(response.get("status", "")).split(" ", 1)[0]
-        method = requests[index].get("request", {}).get("method") if index < len(requests) else None
-        location = response.get("location")
-        if not location or not status.startswith("2") or (method == "POST" and status == "200"):
+        request = requests[index].get("request", {}) if index < len(requests) else {}
+        method = request.get("method")
+        if not status.startswith("2") or method == "GET" or (method == "POST" and status == "200"):
             continue
-        resource_type, resource_id = reference_from_location(str(location))
-        references.append(f"{resource_type}/{resource_id}")
+        location = response.get("location")
+        if location:
+            resource_type, resource_id = reference_from_location(str(location))
+            references.append(f"{resource_type}/{resource_id}")
+        elif method == "DELETE" and request.get("url"):
+            references.append(str(request["url"]).strip("/"))
     return references

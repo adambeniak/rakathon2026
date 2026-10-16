@@ -93,7 +93,7 @@ function alena(today: string, s: MockStore): MockCase | null {
     subStatus = 'V triage → Čeká na podklady (výsledky 01–06 nejsou přiloženy)'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Vyžádat výsledky 01–06', due: '2026-10-06' }
   } else {
-    const nd = nextDeadline(today)
+    const nd = nextDeadline(today, s.taskPhase)
     state = 'ceka_na_podklady'
     subStatus = nd ? `Čeká na podklady – další krok: ${nd.title}` : 'Čeká na podklady'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: nd?.title ?? 'Doplnit podklady', due: nd?.due ?? null }

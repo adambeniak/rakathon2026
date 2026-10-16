@@ -27,9 +27,9 @@ export function tasksAt(today: string, setStarted = false, phases: Record<string
   })
 }
 
-/** Earliest due date among tasks not done yet. */
-export function nextDeadline(today: string): { title: string; due: string; owner: string } | null {
-  const open = tasksAt(today, true)
+/** Earliest due date among tasks not done yet, honouring the phases the user has already advanced. */
+export function nextDeadline(today: string, phases: Record<string, TaskPhase> = {}): { title: string; due: string; owner: string } | null {
+  const open = tasksAt(today, true, phases)
     .filter((t) => t.state !== 'done')
     .sort((a, b) => a.due.localeCompare(b.due))[0]
   return open ? { title: open.title, due: open.due, owner: open.owner } : null

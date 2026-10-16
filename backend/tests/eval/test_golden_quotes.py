@@ -22,16 +22,15 @@ def _quotes() -> list[tuple[str, str, str]]:
 
 
 def test_golden_quotes_found(docs) -> None:  # type: ignore[no-untyped-def]
+    golden = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
+    finding_docs = {f["id"]: f.get("docs", []) for f in golden["expected_findings"]}
     missing = []
     for where, doc_id, quote in _quotes():
         if doc_id not in docs:
             continue  # e.g. MDT_zaver (post as_of, not a patient report)
-        hay = match_key(docs[doc_id].text).key
         needle = match_key(normalize_text(quote)).key
-        if needle in hay:
-            continue
-        # finding quotes list several docs; a quote only needs to be in one of them
-        if any(needle in match_key(d.text).key for d in docs.values()):
+        allowed_docs = finding_docs.get(where, [doc_id])
+        if any(needle in match_key(docs[d].text).key for d in allowed_docs if d in docs):
             continue
         missing.append((where, doc_id, quote))
     assert not missing, missing

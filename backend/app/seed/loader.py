@@ -36,6 +36,7 @@ RESET_ORDER = (
     "Consent",
     "DocumentReference",
     "Observation",
+    "MedicationStatement",
     "DiagnosticReport",
     "Condition",
     "CarePlan",

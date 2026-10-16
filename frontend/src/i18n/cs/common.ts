@@ -1,5 +1,6 @@
 export const common = {
   appName: 'Štafeta',
+  disclaimer: 'Prototyp – fiktivní data, neurčeno pro klinické rozhodování',
   skipToContent: 'Přeskočit na obsah',
   mainNav: 'Hlavní navigace',
   role: 'Role',

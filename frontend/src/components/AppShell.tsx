@@ -95,9 +95,12 @@ export function AppShell() {
           {common.simulatedDateBanner}: <strong>{formatDate(today)}</strong>
         </p>
       </header>
-      <main id="main" tabIndex={-1} className="mx-auto max-w-7xl px-6 py-6">
+      <main id="main" tabIndex={-1} className="mx-auto max-w-7xl px-6 py-6 pb-16">
         <Outlet />
       </main>
+      <footer className="fixed inset-x-0 bottom-0 z-10 border-t border-hairline bg-card px-6 py-2 text-center text-xs text-muted">
+        {common.disclaimer}
+      </footer>
     </div>
   )
 }

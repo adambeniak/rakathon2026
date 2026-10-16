@@ -9,6 +9,16 @@ const ALENA_ID = 'rakathon-2026-prochazkova'
 const ALENA = `/cases/${ALENA_ID}`
 
 describe('route smoke + axe', () => {
+  it.each(['gp', 'coordinator', 'physician', 'reviewer'] as const)(
+    'shows the prototype disclaimer for the %s role',
+    (role) => {
+      renderRoute('/', { role })
+      expect(screen.getByRole('contentinfo')).toHaveTextContent(
+        'Prototyp – fiktivní data, neurčeno pro klinické rozhodování',
+      )
+    },
+  )
+
   it('inbox: three columns with cards and a single primary claim action', async () => {
     const { container } = renderRoute('/inbox', { today: '2026-10-02' })
     expect(await screen.findByRole('heading', { name: 'Fronta případů' })).toBeInTheDocument()

@@ -125,8 +125,7 @@ async def run(client: CompletionClient, model: str, as_of: datetime = AS_OF) -> 
     accepted_all = [f for r in results for f in r.accepted]
     final = filter_as_of(accepted_all, docs, as_of, require_received=True)
     excluded = {e["doc"] for e in golden["excluded_documents"]}
-    included_golden = set(golden["included_documents"])
-    included_run = {d for d in docs if any(f.doc_id == d for f in final)} | {d for d in docs if d in included_golden}
+    included_run = {f.doc_id for f in final}
 
     # evidence validity: re-normalise from DOCX independently
     fresh = {p.stem: normalize(p) for p in paths}  # without seed metadata: text only

@@ -17,8 +17,8 @@ const REFERRAL_EVIDENCE = {
 }
 
 /** Reports 01–06 are referenced by the GP's request but not attached (demo step 2). */
-function proposals(): DocumentRequest[] {
-  return DOCUMENTS.slice(0, 6).map((d) => ({
+function proposals(today: string): DocumentRequest[] {
+  return DOCUMENTS.slice(0, 6).filter((d) => d.received.slice(0, 10) > today).map((d) => ({
     id: `req-${d.id}`,
     title: d.title,
     recipient: d.place,
@@ -29,13 +29,13 @@ function proposals(): DocumentRequest[] {
 }
 
 export const handlers = [
-  http.get('/api/cases/:id/document-requests', ({ params }) =>
-    HttpResponse.json(params.id === ALENA_ID ? proposals() : []),
+  http.get('/api/cases/:id/document-requests', ({ params, request }) =>
+    HttpResponse.json(params.id === ALENA_ID ? proposals(todayOf(request)) : []),
   ),
   http.post('/api/cases/:id/document-requests', async ({ request }) => {
     if (roleOf(request) !== 'coordinator') return problem(403, 'Podklady může vyžádat pouze koordinátorka')
     const body = (await request.json()) as { ids?: string[] }
-    const valid = new Set(proposals().map((p) => p.id))
+    const valid = new Set(proposals(todayOf(request)).map((p) => p.id))
     const ids = (body.ids ?? []).filter((i) => valid.has(i))
     if (ids.length === 0) return problem(422, 'Vyberte alespoň jeden dokument')
     for (const id of ids) if (!store.requested.includes(id)) store.requested.push(id)

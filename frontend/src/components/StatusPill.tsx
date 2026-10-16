@@ -18,8 +18,9 @@ const MAP: Record<PillKind, { Icon: LucideIcon; label: string; cls: string }> = 
 }
 
 /** The fixed status semantics: always icon + text, never colour alone. */
-export function StatusPill({ kind, className }: { kind: PillKind; className?: string }) {
-  const { Icon, label, cls } = MAP[kind]
+export function StatusPill({ kind, className, label: override }: { kind: PillKind; className?: string; label?: string }) {
+  const { Icon, label: base, cls } = MAP[kind]
+  const label = override ?? base
   return (
     <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium', cls, className)}>
       <Icon aria-hidden className="h-3.5 w-3.5" />

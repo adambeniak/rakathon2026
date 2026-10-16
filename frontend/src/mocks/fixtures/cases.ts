@@ -1,5 +1,5 @@
 // MOCK copy – replaced by API in F2/F3
-import type { CaseState } from '@/lib/domain'
+import type { CaseState, TaskPhase } from '@/lib/domain'
 import { daysUntil } from '@/lib/date'
 import { countFindings } from './findings'
 import { INTERVALS } from './timeline'
@@ -34,10 +34,27 @@ export interface MockStore {
   mdtGeneratedAt: string | null
   confirmed: Record<string, string>
   extraCases: MockCase[]
+  /** ids of document requests the coordinator has sent. */
+  requested: string[]
+  setStarted: boolean
+  taskPhase: Record<string, TaskPhase>
+  /** Section edits by key: new row values + the reason the clinician gave. */
+  edits: Record<string, { rows: Record<number, string>; reason: string; by: string }>
 }
 
 export function newStore(): MockStore {
-  return { claimed: [], acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] }
+  return {
+    claimed: [],
+    acknowledged: [],
+    feedbackSent: false,
+    mdtGeneratedAt: null,
+    confirmed: {},
+    extraCases: [],
+    requested: [],
+    setStarted: false,
+    taskPhase: {},
+    edits: {},
+  }
 }
 
 const COORD = 'Bc. Dvořáková'
@@ -67,6 +84,10 @@ function alena(today: string, s: MockStore): MockCase | null {
     state = 'odeslano'
     subStatus = 'Nová žádost od PL – čeká na převzetí'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Převzít případ', due: '2026-10-05' }
+  } else if (today === '2026-10-02' && s.requested.length > 0) {
+    state = 'ceka_na_podklady'
+    subStatus = 'Čeká na podklady – vyžádány výsledky 01–06'
+    baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Doplnit chybějící podklady', due: '2026-10-09' }
   } else if (today === '2026-10-02') {
     state = 'triage'
     subStatus = 'V triage → Čeká na podklady (výsledky 01–06 nejsou přiloženy)'

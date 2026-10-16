@@ -1,4 +1,4 @@
-import { Copy } from 'lucide-react'
+import { Copy, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { EvidenceChip } from '@/components/EvidenceChip'
 import { StatusPill, pillForHandover } from '@/components/StatusPill'
@@ -15,6 +15,8 @@ export function SectionCard({
   docs,
   findings,
   onConfirm,
+  onEdit,
+  editError,
   busy,
   canConfirm: roleAllowed,
 }: {
@@ -22,10 +24,37 @@ export function SectionCard({
   docs: DocumentInfo[]
   findings: Finding[]
   onConfirm: (key: string) => void
+  onEdit: (key: string, rows: Record<number, string>, reason: string) => Promise<unknown>
+  editError: boolean
   busy: boolean
   canConfirm: boolean
 }) {
   const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<Record<number, string>>({})
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const changed = Object.entries(draft).filter(([i, v]) => v !== s.rows[Number(i)]?.value)
+  const canEdit = roleAllowed && s.rows.length > 0
+
+  function startEdit() {
+    setDraft(Object.fromEntries(s.rows.map((r, i) => [i, r.value])))
+    setReason('')
+    setEditing(true)
+  }
+
+  async function save() {
+    setSaving(true)
+    try {
+      await onEdit(s.key, Object.fromEntries(changed.map(([i, v]) => [Number(i), v])), reason.trim())
+      setEditing(false)
+    } catch {
+      /* the error flag from the mutation is shown below; keep the form open */
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const pills = pillForHandover(s.status, s.confirmed)
   const canConfirm = roleAllowed && s.status !== 'missing' && !s.confirmed
 
@@ -59,8 +88,19 @@ export function SectionCard({
           <div key={i} className="flex flex-wrap gap-x-3">
             {r.label ? <dt className="w-44 shrink-0 text-muted">{r.label}</dt> : <dt className="sr-only">{s.title}</dt>}
             <dd className="min-w-0 flex-1">
-              {r.value}
-              {r.note && <span className="ml-2 text-xs text-muted">{r.note}</span>}
+              {editing ? (
+                <input
+                  value={draft[i] ?? ''}
+                  onChange={(e) => setDraft({ ...draft, [i]: e.target.value })}
+                  aria-label={t.editValueAria(r.label ?? s.title)}
+                  className="min-h-9 w-full rounded border border-hairline bg-card px-2"
+                />
+              ) : (
+                <>
+                  {r.value}
+                  {r.note && <span className="ml-2 text-xs text-muted">{r.note}</span>}
+                </>
+              )}
             </dd>
           </div>
         ))}
@@ -73,6 +113,34 @@ export function SectionCard({
           </div>
         ))}
       </dl>
+
+      {editing && (
+        <div className="mt-3 space-y-2 rounded bg-accent-soft/50 p-3">
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium">{t.reasonLabel}</span>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+              className="min-h-9 rounded border border-hairline bg-card px-2"
+            />
+          </label>
+          <p className="text-xs text-muted">{t.editHint}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="primary" disabled={saving || changed.length === 0 || reason.trim() === ''} onClick={() => void save()}>
+              {t.saveEdit}
+            </Button>
+            <Button variant="ghost" onClick={() => setEditing(false)}>
+              {t.cancelEdit}
+            </Button>
+            {editError && (
+              <span role="alert" className="text-sm text-missing">
+                {t.editError}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {findings.length > 0 && (
         <ul aria-label={t.findings} className="mt-3 space-y-1 text-sm">
@@ -94,6 +162,12 @@ export function SectionCard({
           <span role="status" className="text-xs text-verified">
             {copied ? t.copied : ''}
           </span>
+          {canEdit && !editing && (
+            <Button variant="ghost" onClick={startEdit} aria-label={t.editAria(s.title)}>
+              <Pencil aria-hidden className="h-4 w-4" />
+              {t.edit}
+            </Button>
+          )}
           <Button variant="ghost" onClick={() => void copy()} aria-label={t.copyAria(s.title)}>
             <Copy aria-hidden className="h-4 w-4" />
             {t.copy}

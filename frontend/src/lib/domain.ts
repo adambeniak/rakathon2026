@@ -113,6 +113,12 @@ export interface Finding {
   resolvedOn?: string
 }
 
+// Lanes of the "Kdo je na tahu" board; the phase is the lifecycle a task goes through.
+export const TASK_LANES = ['gp', 'coordinator', 'koc_physician', 'external', 'patient'] as const
+export type TaskLane = (typeof TASK_LANES)[number]
+export const TASK_PHASES = ['to_order', 'ordered', 'performed', 'result_delivered'] as const
+export type TaskPhase = (typeof TASK_PHASES)[number]
+
 export interface TaskItem {
   id: string
   title: string
@@ -122,6 +128,17 @@ export interface TaskItem {
   doneOn?: string
   dependsOn: string[]
   state: 'open' | 'done' | 'overdue'
+  lane: TaskLane
+  phase: TaskPhase
+}
+
+/** A document request proposed by the triage step (one per missing report). */
+export interface DocumentRequest {
+  id: string
+  title: string
+  recipient: string
+  docId: string
+  requested: boolean
 }
 
 export interface TimelineEvent {

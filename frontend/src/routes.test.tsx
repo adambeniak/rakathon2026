@@ -54,7 +54,7 @@ describe('route smoke + axe', () => {
 
   it('referral: Odeslat stays disabled until file, KOC and consent are set', async () => {
     const { container } = renderRoute('/referral/new', { role: 'gp' })
-    const submit = await screen.findByRole('button', { name: 'Odeslat' })
+    const submit = await screen.findByRole('button', { name: 'Odeslat do KOC' })
     expect(submit).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: /Použít ukázkovou žádost/ }))
     expect(await screen.findByText('635722/1013')).toBeInTheDocument()

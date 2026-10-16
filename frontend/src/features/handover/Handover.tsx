@@ -8,7 +8,7 @@ import { useDocuments, useFindings } from '@/features/cases/api'
 import { handover as t } from '@/i18n/cs/handover'
 import { formatDateTime } from '@/lib/date'
 import { SectionCard } from './components/SectionCard'
-import { useConfirmAll, useConfirmSection, useHandover } from './api'
+import { useConfirmAll, useConfirmSection, useEditSection, useHandover } from './api'
 
 export function Handover() {
   const { id = '' } = useParams()
@@ -19,6 +19,7 @@ export function Handover() {
   const findings = useFindings(id)
   const confirm = useConfirmSection(id)
   const confirmAll = useConfirmAll(id)
+  const edit = useEditSection(id)
 
   if (q.isPending) return <LoadingBlock lines={8} />
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
@@ -26,6 +27,13 @@ export function Handover() {
 
   const confirmable = q.data.sections.filter((s) => s.status !== 'missing')
   const done = confirmable.filter((s) => s.confirmed).length
+  const allConfirmed = confirmable.length > 0 && done === confirmable.length
+  const open = findings.data ?? []
+  // Same numbers as the case header; unknown (still loading / not computed) shows "—", never 0.
+  const counts = {
+    missing: findings.data ? open.filter((f) => f.bucket === 'missing').length : null,
+    conflict: findings.data ? open.filter((f) => f.bucket === 'conflict').length : null,
+  }
 
   return (
     <div className="space-y-4">
@@ -48,10 +56,31 @@ export function Handover() {
         </div>
       </div>
 
+      <div
+        role="group"
+        aria-label={t.summary}
+        className="sticky top-0 z-30 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-hairline bg-card/95 px-4 py-2 shadow-sm backdrop-blur"
+      >
+        <span className="font-medium">{t.confirmedCount(done)}</span>
+        <span className="font-medium text-missing">{t.missingCount(counts.missing)}</span>
+        <span className="font-medium text-conflict">{t.conflictCount(counts.conflict)}</span>
+        <span className="ml-auto">
+          {allConfirmed ? (
+            <span role="status" className="text-sm font-medium text-verified">
+              {t.allConfirmed}
+            </span>
+          ) : (
+            <StatusPill kind="ai" label={t.draftLabel} />
+          )}
+        </span>
+      </div>
+
       {q.data.sections.map((s) => (
         <SectionCard
           key={s.key}
           s={s}
+          editError={edit.isError}
+          onEdit={(sectionKey, rows, reason) => edit.mutateAsync({ sectionKey, rows, reason })}
           docs={docs.data ?? []}
           findings={(findings.data ?? []).filter((f) => s.findingIds.includes(f.id))}
           busy={confirm.isPending}

@@ -20,3 +20,23 @@ class ConflictError(DomainError):
 
 class InvalidInputError(DomainError):
     """The request is well-formed but semantically invalid."""
+
+
+class UnauthenticatedError(DomainError):
+    """The actor could not be identified (missing or unknown `X-Demo-Role`, or demo mode off)."""
+
+
+class ForbiddenError(DomainError):
+    """The identified actor's role may not perform this operation."""
+
+
+class PayloadTooLargeError(DomainError):
+    """An upload exceeds the size limit."""
+
+
+class UnsupportedMediaError(DomainError):
+    """An upload is not a DOCX or PDF document (checked by content, not by the declared type)."""
+
+
+class ExtractionUnavailableError(DomainError):
+    """The document could not be analysed now (no recorded response in cache-only mode, or the model is unreachable)."""

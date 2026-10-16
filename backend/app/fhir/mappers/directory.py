@@ -6,6 +6,7 @@ from typing import Any
 
 from app.domain.common import PartyRef, Role
 from app.domain.directory import Organization, OrganizationKind, Practitioner, PractitionerRole
+from app.domain.patient import Address
 from app.fhir.client import Resource
 from app.fhir.systems import (
     CS_ORGANIZATION_KIND,
@@ -101,11 +102,13 @@ def practitioner_role_to_fhir(
 
 def party_reference(party: PartyRef, fhir_reference: str) -> Resource:
     """A Reference that carries the business id and display, so readers need no extra lookup."""
-    return {
+    reference: Resource = {
         "reference": fhir_reference,
         "identifier": {"system": SID_PRACTITIONER_ROLE, "value": party.id},
-        "display": party.display,
     }
+    if party.display:  # FHIR JSON forbids empty strings
+        reference["display"] = party.display
+    return reference
 
 
 def role_from_codeable_concepts(concepts: list[dict[str, Any]]) -> Role | None:
@@ -114,3 +117,70 @@ def role_from_codeable_concepts(concepts: list[dict[str, Any]]) -> Role | None:
             if coding.get("system") == CS_WORKFLOW_ROLE:
                 return Role(coding["code"])
     return None
+
+
+def _identifier(resource: Resource, system: str) -> str | None:
+    return next((str(i["value"]) for i in resource.get("identifier", []) if i.get("system") == system), None)
+
+
+def organization_from_fhir(resource: Resource) -> Organization:
+    if resource.get("resourceType") != "Organization":
+        raise ValueError("expected an Organization resource")
+    slug = _identifier(resource, SID_ORGANIZATION)
+    if slug is None:
+        raise ValueError("Organization has no business identifier")
+    kind = next(
+        (
+            OrganizationKind(c["code"])
+            for t in resource.get("type", [])
+            for c in t.get("coding", [])
+            if c.get("system") == CS_ORGANIZATION_KIND
+        ),
+        None,
+    )
+    if kind is None:
+        raise ValueError("Organization has no organization-kind")
+    addresses = resource.get("address") or []
+    phone = next((str(t["value"]) for t in resource.get("telecom", []) if t.get("system") == "phone"), None)
+    return Organization(
+        id=slug,
+        name=str(resource.get("name", "")),
+        kind=kind,
+        address=_address(addresses[0]) if addresses else None,
+        phone=phone,
+        icp=_identifier(resource, CZ_ICP),
+        insurer_code=_identifier(resource, CZ_INSURER_CODE),
+    )
+
+
+def _address(address: dict[str, Any]) -> Address:
+    return Address(
+        line=", ".join(address.get("line", [])),
+        postal_code=address.get("postalCode", ""),
+        city=address.get("city", ""),
+        country=address.get("country", "CZ"),
+    )
+
+
+def practitioner_role_from_fhir(resource: Resource) -> tuple[PractitionerRole, str]:
+    """The domain role plus the practitioner's display name (titles included) as written on the resource."""
+    if resource.get("resourceType") != "PractitionerRole":
+        raise ValueError("expected a PractitionerRole resource")
+    role_id = _identifier(resource, SID_PRACTITIONER_ROLE)
+    if role_id is None:
+        raise ValueError("PractitionerRole has no business identifier")
+    practitioner_id, _, organization_id = role_id.partition("@")
+    role = role_from_codeable_concepts(resource.get("code", []))
+    if role is None:
+        raise ValueError("PractitionerRole has no workflow-role")
+    specialty = next((str(s["text"]) for s in resource.get("specialty", []) if s.get("text")), "")
+    return (
+        PractitionerRole(
+            id=role_id,
+            practitioner_id=practitioner_id,
+            organization_id=organization_id,
+            role=role,
+            specialty=specialty,
+        ),
+        str(resource.get("practitioner", {}).get("display", "")),
+    )

@@ -6,29 +6,57 @@ Every successful read of clinical content writes one AuditEvent (action R) throu
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from app.domain.case import Case
 from app.domain.document import SourceDocument
 from app.domain.errors import NotFoundError
+from app.domain.evidence import Evidence
 from app.fhir.client import Resource
+from app.fhir.errors import FhirNotFoundError
 from app.fhir.mappers.case import case_from_fhir
 from app.fhir.mappers.document import document_from_fhir
 from app.fhir.mappers.patient import insurer_code_from_coverage, patient_from_fhir
+from app.fhir.mappers.referral import diagnosis_from_service_request
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_TASK_CODE, SID_CASE_TASK, TASK_CODE_COORDINATE_CASE
+
+
+@dataclass(frozen=True)
+class CaseExtras:
+    """Header facts read around the coordinating Task; every field is optional (e.g. the seeded story case has no
+    ServiceRequest, so no diagnosis)."""
+
+    koc_name: str | None = None
+    gp_name: str | None = None
+    gp_practice: str | None = None
+    diagnosis_code: str | None = None
+    diagnosis_text: str | None = None
+    diagnosis_evidence: tuple[Evidence, ...] = ()
 
 
 @dataclass(frozen=True)
 class CaseOverview:
     case: Case
     document_count: int
+    extras: CaseExtras = field(default_factory=CaseExtras)
 
 
 @dataclass(frozen=True)
 class CaseDetailView:
     case: Case
     documents: list[SourceDocument]
+    extras: CaseExtras = field(default_factory=CaseExtras)
+
+
+@dataclass(frozen=True)
+class LoadedCase:
+    """The coordinating Task as stored (id, version), its EpisodeOfCare and the domain case. `load` audits the read;
+    the writer records its own write in the transaction."""
+
+    task: Resource
+    episode: Resource
+    case: Case
 
 
 class CaseReader:
@@ -49,19 +77,74 @@ class CaseReader:
         task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)
         if task is None:
             raise NotFoundError("case", case_id)
-        case = await self._case(task)
+        case, extras = await asyncio.gather(self._case(task), self._extras(task))
         resources = await self._repo.search("DocumentReference", {"encounter": _focus(task), "_count": "100"})
         documents = sorted((document_from_fhir(r) for r in resources), key=lambda d: (d.received_at, d.doc_id))
         await self._repo.audit_read(
             [*_audit_entities([task]), *(f"DocumentReference/{r['id']}" for r in resources)], subtype="read"
         )
-        return CaseDetailView(case=case, documents=documents)
+        return CaseDetailView(case=case, documents=documents, extras=extras)
+
+    async def overview(self, case_id: str) -> CaseOverview:
+        """Summary of one case (fresh read, e.g. after a write); the read is audited like `list_cases`."""
+        task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)
+        if task is None:
+            raise NotFoundError("case", case_id)
+        result = await self._overview(task)
+        await self._repo.audit_read(_audit_entities([task]), subtype="read")
+        return result
+
+    async def load(self, case_id: str) -> LoadedCase:
+        task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)
+        if task is None:
+            raise NotFoundError("case", case_id)
+        episode_reference = _focus(task)
+        episode, case = await asyncio.gather(self._repo.read(*episode_reference.split("/", 1)), self._case(task))
+        await self._repo.audit_read(_audit_entities([task]), subtype="read")  # clinical content was read
+        return LoadedCase(task=task, episode=episode, case=case)
 
     async def _overview(self, task: Resource) -> CaseOverview:
-        case, document_count = await asyncio.gather(
-            self._case(task), self._repo.count("DocumentReference", {"encounter": _focus(task)})
+        case, document_count, extras = await asyncio.gather(
+            self._case(task),
+            self._repo.count("DocumentReference", {"encounter": _focus(task)}),
+            self._extras(task),
         )
-        return CaseOverview(case=case, document_count=document_count)
+        return CaseOverview(case=case, document_count=document_count, extras=extras)
+
+    async def _extras(self, task: Resource) -> CaseExtras:
+        episode_ref = _focus(task)
+        requester_ref = task.get("requester", {}).get("reference")
+        request_ref = next(
+            (
+                b.get("reference")
+                for b in task.get("basedOn", [])
+                if str(b.get("reference", "")).startswith("ServiceRequest/")
+            ),
+            None,
+        )
+        episode, role, request = await asyncio.gather(
+            self._repo.read(*episode_ref.split("/", 1)),
+            self._read_optional(requester_ref, "PractitionerRole"),
+            self._read_optional(request_ref, "ServiceRequest"),
+        )
+        koc = await self._read_optional(episode.get("managingOrganization", {}).get("reference"), "Organization")
+        code, text, evidence = diagnosis_from_service_request(request) if request else (None, None, [])
+        return CaseExtras(
+            koc_name=koc.get("name") if koc else None,
+            gp_name=role.get("practitioner", {}).get("display") if role else None,
+            gp_practice=role.get("organization", {}).get("display") if role else None,
+            diagnosis_code=code,
+            diagnosis_text=text,
+            diagnosis_evidence=tuple(evidence),
+        )
+
+    async def _read_optional(self, reference: str | None, expected_type: str) -> Resource | None:
+        if not reference or not str(reference).startswith(f"{expected_type}/"):
+            return None
+        try:
+            return await self._repo.read(*str(reference).split("/", 1))
+        except FhirNotFoundError:
+            return None
 
     async def _case(self, task: Resource) -> Case:
         patient_reference = _patient(task)

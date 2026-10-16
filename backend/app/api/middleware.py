@@ -104,3 +104,74 @@ class UnhandledErrorMiddleware:
                 request_id=scope.get("state", {}).get("request_id"),
             )
             await response(scope, receive, send)
+
+
+MULTIPART_OVERHEAD = 1024 * 1024  # form fields, boundaries, JSON payload
+BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
+
+
+class _BodyTooLarge(Exception):  # noqa: N818 - control-flow signal, not an error type
+    pass
+
+
+class BodyLimitMiddleware:
+    """Rejects oversized uploads BEFORE any multipart parsing: by `Content-Length`, and by counting streamed bytes
+    (chunked bodies carry no length). Answers 413 problem+json in Czech; `/api/referrals` may carry the letter plus
+    up to `attachments` further files."""
+
+    def __init__(self, app: ASGIApp, *, max_file_bytes: int, max_files_referral: int) -> None:
+        self.app = app
+        self._max_file = max_file_bytes
+        self._max_files_referral = max_files_referral
+
+    def _limit(self, path: str) -> int:
+        files = self._max_files_referral if path.rstrip("/") == f"{API_PREFIX}/referrals" else 1
+        return files * self._max_file + MULTIPART_OVERHEAD
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope.get("method") not in BODY_METHODS:
+            await self.app(scope, receive, send)
+            return
+        limit = self._limit(str(scope.get("path", "")))
+        declared = dict(scope.get("headers", [])).get(b"content-length")
+        if declared is not None and declared.isdigit() and int(declared) > limit:
+            await self._reject(scope, receive, send)
+            return
+        received = 0
+        exceeded = False
+        answered = False
+
+        async def counting_receive() -> Message:
+            nonlocal received, exceeded
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    exceeded = True
+                    raise _BodyTooLarge
+            return message
+
+        async def guarded_send(message: Message) -> None:
+            # Starlette's form parser turns the abort into its own 400: replace whatever the app answers by the 413.
+            nonlocal answered
+            if not exceeded:
+                await send(message)
+            elif not answered and message["type"] == "http.response.start":
+                answered = True
+                await self._reject(scope, receive, send)
+
+        try:
+            await self.app(scope, counting_receive, guarded_send)
+        except _BodyTooLarge:
+            if not answered:
+                await self._reject(scope, receive, send)
+
+    async def _reject(self, scope: Scope, receive: Receive, send: Send) -> None:
+        megabytes = self._max_file // (1024 * 1024)
+        response = problem_response(
+            413,
+            problem="payload-too-large",
+            detail=f"Soubor je příliš velký. Maximální velikost jednoho souboru je {megabytes} MB.",
+            instance=str(scope.get("path", "")),
+        )
+        await response(scope, receive, send)

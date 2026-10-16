@@ -19,6 +19,7 @@ def settings() -> Settings:
         fhir_base_url=FHIR_BASE,
         iris_password=SecretStr("test-password"),
         log_level="WARNING",
+        stafeta_demo_mode=True,
         stafeta_demo_now="2026-10-21T08:00:00+02:00",
     )
 

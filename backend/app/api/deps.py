@@ -4,27 +4,25 @@ from __future__ import annotations
 
 from typing import Annotated
 
-import httpx
 from fastapi import Depends, Request
 
+from app.api.clients import DirectoryProviderDep as DirectoryProviderDep  # re-exports: routes and tests import these
+from app.api.clients import FhirClientDep as FhirClientDep
+from app.api.clients import SettingsDep as SettingsDep
+from app.api.clients import get_directory_provider as get_directory_provider
+from app.api.clients import get_fhir_client as get_fhir_client
+from app.api.clients import get_http as get_http
+from app.api.clients import get_settings as get_settings
 from app.domain.common import PartyRef
+from app.extraction.llm import LLMClient
 from app.fhir.cases import CaseReader
-from app.fhir.client import FhirClient
+from app.fhir.referrals import ReferralWriter
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
+from app.fhir.triage import TriageReader
+from app.fhir.workflow import CaseWorkflow, RequestWorkflow
 from app.iris.db import IrisPool
 from app.security.actor import current_actor
-from app.settings import Settings
-
-
-def get_settings(request: Request) -> Settings:
-    settings: Settings = request.app.state.settings
-    return settings
-
-
-def get_http(request: Request) -> httpx.AsyncClient:
-    http: httpx.AsyncClient = request.app.state.http
-    return http
 
 
 def get_iris_pool(request: Request) -> IrisPool:
@@ -32,16 +30,8 @@ def get_iris_pool(request: Request) -> IrisPool:
     return pool
 
 
-SettingsDep = Annotated[Settings, Depends(get_settings)]
-ActorDep = Annotated[PartyRef, Depends(current_actor)]
 IrisPoolDep = Annotated[IrisPool, Depends(get_iris_pool)]
-
-
-def get_fhir_client(settings: SettingsDep, http: Annotated[httpx.AsyncClient, Depends(get_http)]) -> FhirClient:
-    return FhirClient(http, settings.fhir_base_url, settings.iris_user, settings.iris_password)
-
-
-FhirClientDep = Annotated[FhirClient, Depends(get_fhir_client)]
+ActorDep = Annotated[PartyRef, Depends(current_actor)]
 
 
 def get_repository(client: FhirClientDep, actor: ActorDep, settings: SettingsDep) -> FhirRepository:
@@ -56,3 +46,38 @@ def get_case_reader(repository: RepositoryDep) -> CaseReader:
 
 
 CaseReaderDep = Annotated[CaseReader, Depends(get_case_reader)]
+
+
+def get_case_workflow(repository: RepositoryDep, reader: CaseReaderDep) -> CaseWorkflow:
+    return CaseWorkflow(repository, reader)
+
+
+CaseWorkflowDep = Annotated[CaseWorkflow, Depends(get_case_workflow)]
+
+
+def get_llm_client(settings: SettingsDep) -> LLMClient:
+    return LLMClient.from_settings(settings)
+
+
+LlmClientDep = Annotated[LLMClient, Depends(get_llm_client)]
+
+
+def get_referral_writer(repository: RepositoryDep) -> ReferralWriter:
+    return ReferralWriter(repository)
+
+
+ReferralWriterDep = Annotated[ReferralWriter, Depends(get_referral_writer)]
+
+
+def get_request_workflow(repository: RepositoryDep, reader: CaseReaderDep) -> RequestWorkflow:
+    return RequestWorkflow(repository, reader)
+
+
+RequestWorkflowDep = Annotated[RequestWorkflow, Depends(get_request_workflow)]
+
+
+def get_triage_reader(repository: RepositoryDep, reader: CaseReaderDep, llm: LlmClientDep) -> TriageReader:
+    return TriageReader(repository, reader, llm)
+
+
+TriageReaderDep = Annotated[TriageReader, Depends(get_triage_reader)]

@@ -243,3 +243,14 @@ def test_cors_preflight_gets_a_request_id(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.headers["X-Request-ID"]
+
+
+def test_case_summary_has_the_header_fields_and_null_counters(client: TestClient) -> None:
+    [case] = client.get("/api/cases").json()
+
+    assert case["postponed"] is False
+    assert case["bucket"] == "aktivni"
+    assert case["counts"] is None  # not 0: the handover service does not exist yet
+    assert case["suspected_diagnosis"] is None
+    assert case["koc"] is None
+    assert case["referring_gp"] is None

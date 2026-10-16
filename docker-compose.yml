@@ -1,21 +1,30 @@
-# Local stack. IRIS uses the same image digest as the team ACI so behaviour matches.
-# Storage is intentionally NOT persistent (like ACI): after `make up` always run `make iris-bootstrap && make seed`.
-# First run:  mkdir -p .iris && echo 'local-password' > .iris/password.txt  (and the same value as IRIS_PASSWORD in .env)
-#             make up && make iris-bootstrap && make seed
-# Apple Silicon: this digest is an amd64 image and runs emulated (slow). Use the arm64 variant from Docker Hub
-# (separate "-arm64" repository) or develop against the team ACI instance.
-# backend/ and frontend/ services are added in phase F1 (see prompts/F1-*.md). Inside docker the backend must use
-# IRIS_HOST=iris and FHIR_BASE_URL=http://iris:52773/fhir/r4 (set them under `environment:`, not only env_file).
+# Local stack: backend + mailpit. The backend talks to the IRIS configured in .env (default: the team ACI).
+#   make up && make iris-bootstrap && make seed      # bootstrap + seed are idempotent, run them after every ACI restart
+#   curl -s localhost:8000/api/health
+#
+# Local IRIS instead of ACI (demo fallback) = docker-compose.local-iris.yml:
+#   mkdir -p .iris && echo 'local-password' > .iris/password.txt   (same value as IRIS_PASSWORD)
+#   make up-local
+# The backend container then uses IRIS_HOST=iris (set in the override), but `make iris-bootstrap` and `make seed`
+# run on the host and read .env: for the local fallback run them with IRIS_HOST=localhost and
+# FHIR_BASE_URL=http://localhost:52773/fhir/r4 (e.g. a second env file). Storage is not persistent, like ACI.
 services:
-  iris:
-    image: intersystems/irishealth-community@sha256:aad59884bdd89ee21c8cb059937c6b9b26947457641e5e04adecb68754376c6c
-    command: --password-file /iris-secrets/password
+  backend:
+    build: ./backend
     ports:
-      - "1972:1972"
-      - "52773:52773"
-    volumes:
-      - ./.iris:/iris-secrets
-    mem_limit: 2g
+      - "8000:8000"
+    env_file: .env
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+    depends_on:
+      - mailpit
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=15)"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 10s
 
   mailpit:
     image: axllent/mailpit:latest

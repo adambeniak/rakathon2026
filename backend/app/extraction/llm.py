@@ -80,24 +80,28 @@ class LLMClient:
         self._sem = asyncio.Semaphore(MAX_CONCURRENCY)
         self._sleep = sleep
         self.use_temperature = True
+        self._warned_read_only = False
 
     @classmethod
     def from_settings(
         cls,
         settings: Settings,
         *,
-        cache_dir: Path = DEFAULT_CACHE_DIR,
+        cache_dir: Path | None = None,
         prompt_version: str = PROMPT_VERSION,
         model: str | None = None,
         persist: bool = True,
     ) -> LLMClient:
-        """`prompt_version` is part of the cache key: each prompt (extraction, epicrisis, ask) uses its own."""
+        """`prompt_version` is part of the cache key: each prompt (extraction, epicrisis, ask) uses its own.
+
+        Cache directory: explicit `cache_dir`, else LLM_CACHE_DIR (the Docker image), else the committed fixtures.
+        """
         model = model or settings.llm_model_extract or CACHE_MODEL
         client = cls(
             model=model,
             prompt_version=prompt_version,
             cache_only=settings.stafeta_llm_cache,
-            cache_dir=cache_dir,
+            cache_dir=cache_dir or settings.llm_cache_dir or DEFAULT_CACHE_DIR,
             persist=persist,
         )
         if not settings.stafeta_llm_cache:
@@ -123,7 +127,6 @@ class LLMClient:
         json.loads(text)  # fail loudly before caching garbage
         if not self.persist:
             return text
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
         entry = {
             "key": key,
             "model": self.model,
@@ -133,7 +136,14 @@ class LLMClient:
             "usage": usage,
             "response_text": text,
         }
-        path.write_text(json.dumps(entry, ensure_ascii=False, indent=1), encoding="utf-8")
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(entry, ensure_ascii=False, indent=1), encoding="utf-8")
+        except OSError as e:
+            # Read-only cache (the baked-in image copy): serve the live answer, skip recording it.
+            if not self._warned_read_only:
+                self._warned_read_only = True
+                log.warning("llm_cache_not_writable", cache_dir=str(self.cache_dir), error_type=type(e).__name__)
         return text
 
     async def _with_retry(

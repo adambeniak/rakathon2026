@@ -23,6 +23,9 @@ RUN python -c "import sys; from fastembed import TextEmbedding; TextEmbedding(sy
 ENV HF_HUB_OFFLINE=1
 
 COPY app ./app
+# Recorded LLM responses (fictitious demo data) for STAFETA_LLM_CACHE=1; read-only for the runtime user.
+COPY tests/fixtures/llm_cache /srv/llm_cache
+ENV LLM_CACHE_DIR=/srv/llm_cache
 RUN useradd --system --uid 10001 --no-create-home stafeta
 USER stafeta
 

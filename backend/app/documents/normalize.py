@@ -14,7 +14,9 @@ import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
+from io import BytesIO
 from pathlib import Path
+from typing import IO
 
 from docx import Document
 from docx.table import Table
@@ -200,8 +202,8 @@ def _row_text(row_cells: list[object]) -> str:
     return " | ".join(texts)
 
 
-def _raw_blocks(path: Path) -> list[tuple[str, str, str | None]]:
-    doc = Document(str(path))
+def _raw_blocks(source: Path | IO[bytes]) -> list[tuple[str, str, str | None]]:
+    doc = Document(source if not isinstance(source, Path) else str(source))
     out: list[tuple[str, str, str | None]] = []
     for el in doc.element.body.iterchildren():
         tag = el.tag.rsplit("}", 1)[-1]
@@ -258,6 +260,17 @@ def build_doc(
     if authored_date and header_dates and authored_date not in {d for ds in header_dates.values() for d in ds}:
         warnings.append(f"file-name date {authored_date.isoformat()} not among header dates")
     return NormalizedDoc(doc_id, full, tuple(blocks), authored_date, header_dates, None, tuple(warnings))
+
+
+def stem_date(stem: str) -> date | None:
+    """Authored date from a file stem ending in YYYY-MM-DD, e.g. '07_PL_zadost_KOC2_2026-10-02'."""
+    m = _STEM_DATE.search(stem)
+    return date(int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else None
+
+
+def normalize_docx_bytes(doc_id: str, content: bytes, authored_date: date | None) -> NormalizedDoc:
+    """Same result as `normalize(path)` for the same bytes (the LLM cache key depends on it)."""
+    return build_doc(doc_id, _raw_blocks(BytesIO(content)), authored_date)
 
 
 def normalize(path: Path, source: SourceDocument | None = None) -> NormalizedDoc:

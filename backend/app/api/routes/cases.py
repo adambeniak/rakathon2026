@@ -7,15 +7,26 @@ from datetime import date
 from fastapi import APIRouter, Path
 
 from app.api.deps import CaseReaderDep, SettingsDep
-from app.api.schemas.cases import BatonHolder, CaseDetail, CaseSummary, DocumentSummary, PatientSummary
+from app.api.schemas.cases import (
+    BatonHolder,
+    CaseDetail,
+    CaseSummary,
+    DocumentSummary,
+    EvidenceRef,
+    PatientSummary,
+    ReferringGp,
+    SuspectedDiagnosis,
+)
 from app.api.schemas.common import problem_responses
 from app.domain.case import Case
 from app.domain.common import BUSINESS_ID_PATTERN
+from app.fhir.cases import CaseExtras
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
 
-def _summary_fields(case: Case, today: date) -> dict[str, object]:
+def summary_fields(case: Case, today: date, extras: CaseExtras | None = None) -> dict[str, object]:
+    extras = extras or CaseExtras()
     patient = case.patient
     return {
         "id": case.id,
@@ -30,6 +41,18 @@ def _summary_fields(case: Case, today: date) -> dict[str, object]:
         "baton_holder": BatonHolder(**case.baton_holder.model_dump()) if case.baton_holder else None,
         "next_deadline": case.next_deadline,
         "opened_at": case.opened_at,
+        "postponed": case.odlozeny,
+        "bucket": case.bucket,
+        "suspected_diagnosis": SuspectedDiagnosis(
+            code=extras.diagnosis_code,
+            text=extras.diagnosis_text,
+            evidence=[EvidenceRef(doc_id=e.doc_id, quote=e.quote) for e in extras.diagnosis_evidence],
+        )
+        if extras.diagnosis_text
+        else None,
+        "koc": extras.koc_name,
+        "referring_gp": ReferringGp(name=extras.gp_name, practice=extras.gp_practice) if extras.gp_name else None,
+        "counts": None,
     }
 
 
@@ -43,7 +66,7 @@ async def list_cases(reader: CaseReaderDep, settings: SettingsDep) -> list[CaseS
     today = settings.now().date()
     overviews = await reader.list_cases()
     return [
-        CaseSummary.model_validate({**_summary_fields(o.case, today), "document_count": o.document_count})
+        CaseSummary.model_validate({**summary_fields(o.case, today, o.extras), "document_count": o.document_count})
         for o in overviews
     ]
 
@@ -65,7 +88,7 @@ async def get_case(
     ]
     return CaseDetail.model_validate(
         {
-            **_summary_fields(view.case, settings.now().date()),
+            **summary_fields(view.case, settings.now().date(), view.extras),
             "document_count": len(documents),
             "documents": documents,
         }

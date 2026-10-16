@@ -7,8 +7,12 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 _PROBLEM_DESCRIPTIONS = {
+    401: "Actor not identified",
+    403: "Role not allowed",
     404: "Not found",
     409: "Not allowed in the current state",
+    413: "Upload too large",
+    415: "Unsupported document type",
     422: "Request validation failed",
     500: "Unexpected server error",
     502: "FHIR storage rejected the operation",
@@ -47,6 +51,10 @@ class ProblemDetails(BaseModel):
     instance: str | None = None
     request_id: str | None = None
     errors: list[ValidationIssue] | None = Field(None, description="Present for 422 validation problems.")
+    code: str | None = Field(
+        None,
+        description="Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.",
+    )
 
 
 def problem_responses(*statuses: int) -> dict[int | str, dict[str, Any]]:

@@ -87,6 +87,23 @@ def iris() -> respx.MockRouter:
         coverage = coverage_to_fhir(patient=PATIENT, patient_reference="Patient/3", payor_reference="Organization/8")
         router.get("/Coverage").respond(200, json=_bundle({**coverage, "id": "6"}))
         router.post("/AuditEvent").respond(201, headers={"Location": f"{FHIR_BASE}/AuditEvent/99"})
+        # Header facts (appended after the audit route: tests address routes by index).
+        router.get("/EpisodeOfCare/4").respond(
+            200,
+            json={"resourceType": "EpisodeOfCare", "id": "4", "managingOrganization": {"reference": "Organization/8"}},
+        )
+        router.get("/Organization/8").respond(
+            200, json={"resourceType": "Organization", "id": "8", "name": "KOC 2 – Lipová"}
+        )
+        router.get("/PractitionerRole/1").respond(
+            200,
+            json={
+                "resourceType": "PractitionerRole",
+                "id": "1",
+                "practitioner": {"display": "MUDr. Tomáš Řezníček"},
+                "organization": {"display": "Ordinace PL"},
+            },
+        )
         yield router
 
 
@@ -100,6 +117,9 @@ async def test_list_cases_maps_task_patient_coverage_and_counts_documents(
 
     assert overview.case == CASE
     assert overview.document_count == 13
+    assert overview.extras.koc_name == "KOC 2 – Lipová"
+    assert (overview.extras.gp_name, overview.extras.gp_practice) == ("MUDr. Tomáš Řezníček", "Ordinace PL")
+    assert overview.extras.diagnosis_text is None  # the seeded story case has no ServiceRequest
     assert count.calls[0].request.url.params["encounter"] == "EpisodeOfCare/4"
     audit = json.loads(iris.routes[2].calls[0].request.content)
     assert audit["action"] == "E"
@@ -126,3 +146,50 @@ async def test_unknown_case_raises_not_found_without_audit(reader: CaseReader, i
         await reader.get_case("unknown")
 
     assert iris.routes[2].call_count == 0
+
+
+async def test_suspected_diagnosis_comes_with_its_evidence_from_the_service_request(
+    reader: CaseReader, iris: respx.MockRouter
+) -> None:
+    from app.domain.evidence import Evidence
+    from app.domain.referral import ReferralSubmission
+    from app.fhir.mappers.referral import service_request_to_fhir
+
+    submission = ReferralSubmission(
+        given="Alena",
+        family="Procházková",
+        sex=Sex.FEMALE,
+        birth_date=date(1963, 7, 22),
+        birth_number="635722/1013",
+        diagnosis_code="C25.0",
+        diagnosis_text="suspektní tumor hlavy pankreatu",
+        koc_id="koc2-nemocnice-lipova",
+        consent_confirmed=True,
+        priority="urgent",
+    )
+    request = {
+        **service_request_to_fhir(
+            "c",
+            submission,
+            patient_reference="Patient/3",
+            requester=PartyRef(id="r@o", display="GP", role=Role.GP),
+            requester_reference="PractitionerRole/1",
+            koc_reference="Organization/8",
+            letter_reference="DocumentReference/9",
+            authored_on=datetime(2026, 10, 2, tzinfo=UTC),
+            diagnosis_evidence=[Evidence(doc_id="07_PL", quote="Suspektní diagnóza: C25.0")],
+        ),
+        "id": "30",
+    }
+    with_request = {**TASK, "basedOn": [{"reference": "ServiceRequest/30"}]}
+    iris.get("/Task").respond(200, json=_bundle(with_request))
+    iris.get("/ServiceRequest/30").respond(200, json=request)
+    iris.get("/DocumentReference", params={"_summary": "count"}).respond(200, json=_bundle(total=1))
+
+    [overview] = await reader.list_cases()
+
+    assert (overview.extras.diagnosis_code, overview.extras.diagnosis_text) == (
+        "C25.0",
+        "suspektní tumor hlavy pankreatu",
+    )
+    assert [(e.doc_id, e.quote) for e in overview.extras.diagnosis_evidence] == [("07_PL", "Suspektní diagnóza: C25.0")]

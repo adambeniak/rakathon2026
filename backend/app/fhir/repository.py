@@ -89,6 +89,11 @@ class FhirRepository:
         """
         await self._audit("E" if subtype == "search-type" else "R", subtype, entities)
 
+    async def audit_extract(self) -> None:
+        """A document was sent to the extraction service (processor). Nothing is persisted, so no entity is named and no
+        patient reference exists; the actor and the time are the record."""
+        await self._audit("E", "extract", [], description="document sent for extraction")
+
     # --- writes ---
 
     async def create(self, resource: Resource, *, if_none_exist: str | None = None) -> CreateResult:

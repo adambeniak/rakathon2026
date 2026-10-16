@@ -1,6 +1,35 @@
 {
   "components": {
     "schemas": {
+      "Address": {
+        "additionalProperties": false,
+        "properties": {
+          "city": {
+            "title": "City",
+            "type": "string"
+          },
+          "country": {
+            "default": "CZ",
+            "title": "Country",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "string"
+          },
+          "postal_code": {
+            "title": "Postal Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "postal_code",
+          "city"
+        ],
+        "title": "Address",
+        "type": "object"
+      },
       "BatonHolder": {
         "properties": {
           "display": {
@@ -22,6 +51,139 @@
           "role"
         ],
         "title": "BatonHolder",
+        "type": "object"
+      },
+      "Body_cases-upload_document": {
+        "properties": {
+          "authored_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date the report was written (ISO).",
+            "title": "Authored At"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "DOCX or PDF with a text layer, up to 10 MB.",
+            "title": "File",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "maxLength": 140,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_cases-upload_document",
+        "type": "object"
+      },
+      "Body_referrals-create_referral": {
+        "properties": {
+          "attachments": {
+            "anyOf": [
+              {
+                "items": {
+                  "contentMediaType": "application/octet-stream",
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Further reports sent along, optional.",
+            "title": "Attachments"
+          },
+          "letter": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Letter",
+            "type": "string"
+          },
+          "payload": {
+            "description": "JSON of ReferralSubmission",
+            "maxLength": 20000,
+            "title": "Payload",
+            "type": "string"
+          }
+        },
+        "required": [
+          "letter",
+          "payload"
+        ],
+        "title": "Body_referrals-create_referral",
+        "type": "object"
+      },
+      "Body_referrals-prefill_referral": {
+        "properties": {
+          "letter": {
+            "contentMediaType": "application/octet-stream",
+            "description": "The GP letter, DOCX or PDF with a text layer, up to 10 MB.",
+            "title": "Letter",
+            "type": "string"
+          }
+        },
+        "required": [
+          "letter"
+        ],
+        "title": "Body_referrals-prefill_referral",
+        "type": "object"
+      },
+      "CaseCounts": {
+        "description": "Handover counters. Each is null (UI shows '—') until the handover service computes it; null is not 0.",
+        "properties": {
+          "conflict": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict"
+          },
+          "missing": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Missing"
+          },
+          "stale": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stale"
+          }
+        },
+        "title": "CaseCounts",
         "type": "object"
       },
       "CaseDetail": {
@@ -69,6 +231,11 @@
             ],
             "description": "'Na tahu' — who must act next on the case."
           },
+          "bucket": {
+            "$ref": "#/components/schemas/QueueBucket",
+            "default": "aktivni",
+            "description": "Coordinator queue column: novy | aktivni | odlozeny | archiv."
+          },
           "conflict_count": {
             "anyOf": [
               {
@@ -80,6 +247,17 @@
             ],
             "description": "Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.",
             "title": "Conflict Count"
+          },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until the handover service (P2) computes the counters; never a false zero."
           },
           "document_count": {
             "description": "All documents of the case (not filtered by as-of).",
@@ -99,6 +277,18 @@
             "description": "Case business id, e.g. 'rakathon-2026-prochazkova'.",
             "title": "Id",
             "type": "string"
+          },
+          "koc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the managing KOC (Organization).",
+            "title": "Koc"
           },
           "missing_count": {
             "anyOf": [
@@ -140,8 +330,35 @@
           "patient": {
             "$ref": "#/components/schemas/PatientSummary"
           },
+          "postponed": {
+            "default": false,
+            "description": "Postponed (waiting for an external step): queue column Odložený.",
+            "title": "Postponed",
+            "type": "boolean"
+          },
+          "referring_gp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferringGp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "$ref": "#/components/schemas/CaseState"
+          },
+          "suspected_diagnosis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__api__schemas__cases__SuspectedDiagnosis"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the referral (suspected, as written); null when the case has no referral letter."
           }
         },
         "required": [
@@ -203,6 +420,11 @@
             ],
             "description": "'Na tahu' — who must act next on the case."
           },
+          "bucket": {
+            "$ref": "#/components/schemas/QueueBucket",
+            "default": "aktivni",
+            "description": "Coordinator queue column: novy | aktivni | odlozeny | archiv."
+          },
           "conflict_count": {
             "anyOf": [
               {
@@ -215,6 +437,17 @@
             "description": "Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.",
             "title": "Conflict Count"
           },
+          "counts": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseCounts"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until the handover service (P2) computes the counters; never a false zero."
+          },
           "document_count": {
             "description": "All documents of the case (not filtered by as-of).",
             "minimum": 0.0,
@@ -225,6 +458,18 @@
             "description": "Case business id, e.g. 'rakathon-2026-prochazkova'.",
             "title": "Id",
             "type": "string"
+          },
+          "koc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the managing KOC (Organization).",
+            "title": "Koc"
           },
           "missing_count": {
             "anyOf": [
@@ -266,8 +511,35 @@
           "patient": {
             "$ref": "#/components/schemas/PatientSummary"
           },
+          "postponed": {
+            "default": false,
+            "description": "Postponed (waiting for an external step): queue column Odložený.",
+            "title": "Postponed",
+            "type": "boolean"
+          },
+          "referring_gp": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferringGp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "state": {
             "$ref": "#/components/schemas/CaseState"
+          },
+          "suspected_diagnosis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__api__schemas__cases__SuspectedDiagnosis"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the referral (suspected, as written); null when the case has no referral letter."
           }
         },
         "required": [
@@ -307,6 +579,259 @@
           "latency_ms"
         ],
         "title": "CheckResult",
+        "type": "object"
+      },
+      "ContactPerson": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "relation": {
+            "description": "As written in the source, e.g. 'dcera'.",
+            "title": "Relation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "relation"
+        ],
+        "title": "ContactPerson",
+        "type": "object"
+      },
+      "CoordinatorContact": {
+        "properties": {
+          "display": {
+            "description": "Role-level label, e.g. 'Koordinátor KOC 2'; the person is named once they accept.",
+            "title": "Display",
+            "type": "string"
+          },
+          "id": {
+            "description": "PractitionerRole business id of the coordinator.",
+            "title": "Id",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Phone of the workplace, if the directory has one.",
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "id",
+          "display"
+        ],
+        "title": "CoordinatorContact",
+        "type": "object"
+      },
+      "DocumentReceived": {
+        "properties": {
+          "case": {
+            "$ref": "#/components/schemas/CaseSummary"
+          },
+          "case_event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'podklady_kompletni' when this report fulfilled the last open request.",
+            "title": "Case Event"
+          },
+          "document": {
+            "$ref": "#/components/schemas/DocumentSummary"
+          },
+          "open_requests_remaining": {
+            "title": "Open Requests Remaining",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "document",
+          "open_requests_remaining",
+          "case"
+        ],
+        "title": "DocumentReceived",
+        "type": "object"
+      },
+      "DocumentRequestItem": {
+        "additionalProperties": false,
+        "properties": {
+          "exam_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Date"
+          },
+          "label": {
+            "description": "What is requested, e.g. the label from the proposal.",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "recipient_org_id": {
+            "description": "Directory workplace that holds the report.",
+            "maxLength": 100,
+            "title": "Recipient Org Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "recipient_org_id"
+        ],
+        "title": "DocumentRequestItem",
+        "type": "object"
+      },
+      "DocumentRequestOut": {
+        "properties": {
+          "business_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskBusinessStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Two working days after the request.",
+            "title": "Due"
+          },
+          "exam_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Date"
+          },
+          "id": {
+            "description": "Business id of the request task, e.g. 'rakathon-2026-prochazkova-req-1'.",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Workplace display name.",
+            "title": "Recipient"
+          },
+          "result_doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The delivered report, once linked.",
+            "title": "Result Doc Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "status"
+        ],
+        "title": "DocumentRequestOut",
+        "type": "object"
+      },
+      "DocumentRequestsBody": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRequestItem"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "DocumentRequestsBody",
+        "type": "object"
+      },
+      "DocumentRequestsCreated": {
+        "properties": {
+          "case": {
+            "$ref": "#/components/schemas/CaseSummary"
+          },
+          "requests": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentRequestOut"
+            },
+            "title": "Requests",
+            "type": "array"
+          }
+        },
+        "required": [
+          "case",
+          "requests"
+        ],
+        "title": "DocumentRequestsCreated",
         "type": "object"
       },
       "DocumentSummary": {
@@ -374,6 +899,388 @@
         "title": "DocumentSummary",
         "type": "object"
       },
+      "Evidence": {
+        "additionalProperties": false,
+        "description": "A verbatim (whitespace-normalised) quote from a source document.\n\nThe golden file (`data/golden`) names the document key `doc`; the API and code use `doc_id`.",
+        "properties": {
+          "char_end": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Char End"
+          },
+          "char_start": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Offset of the quote in the normalised text.",
+            "title": "Char Start"
+          },
+          "doc_id": {
+            "description": "File stem of the source document.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "quote": {
+            "description": "Must occur verbatim in the normalised document text.",
+            "minLength": 1,
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc_id",
+          "quote"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "EvidenceRef": {
+        "properties": {
+          "doc_id": {
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "quote": {
+            "description": "Verbatim quote from the source document.",
+            "title": "Quote",
+            "type": "string"
+          }
+        },
+        "required": [
+          "doc_id",
+          "quote"
+        ],
+        "title": "EvidenceRef",
+        "type": "object"
+      },
+      "Evidenced_Address_": {
+        "additionalProperties": false,
+        "properties": {
+          "derived": {
+            "default": false,
+            "description": "Computed by rule from another value (e.g. sex from the RČ), not read.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.",
+            "title": "Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Address"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Evidenced[Address]",
+        "type": "object"
+      },
+      "Evidenced_ContactPerson_": {
+        "additionalProperties": false,
+        "properties": {
+          "derived": {
+            "default": false,
+            "description": "Computed by rule from another value (e.g. sex from the RČ), not read.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.",
+            "title": "Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContactPerson"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Evidenced[ContactPerson]",
+        "type": "object"
+      },
+      "Evidenced_Sex_": {
+        "additionalProperties": false,
+        "properties": {
+          "derived": {
+            "default": false,
+            "description": "Computed by rule from another value (e.g. sex from the RČ), not read.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.",
+            "title": "Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Sex"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Evidenced[Sex]",
+        "type": "object"
+      },
+      "Evidenced_SuspectedDiagnosis_": {
+        "additionalProperties": false,
+        "properties": {
+          "derived": {
+            "default": false,
+            "description": "Computed by rule from another value (e.g. sex from the RČ), not read.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.",
+            "title": "Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/app__domain__referral__SuspectedDiagnosis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Evidenced[SuspectedDiagnosis]",
+        "type": "object"
+      },
+      "Evidenced_date_": {
+        "additionalProperties": false,
+        "properties": {
+          "derived": {
+            "default": false,
+            "description": "Computed by rule from another value (e.g. sex from the RČ), not read.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.",
+            "title": "Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Evidenced[date]",
+        "type": "object"
+      },
+      "Evidenced_str_": {
+        "additionalProperties": false,
+        "properties": {
+          "derived": {
+            "default": false,
+            "description": "Computed by rule from another value (e.g. sex from the RČ), not read.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.",
+            "title": "Note"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FieldStatus"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "Evidenced[str]",
+        "type": "object"
+      },
+      "FieldStatus": {
+        "description": "Subset of the shared handover field status enum.",
+        "enum": [
+          "complete",
+          "missing",
+          "needs_clarification"
+        ],
+        "title": "FieldStatus",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
       "HealthChecks": {
         "properties": {
           "fhir": {
@@ -434,6 +1341,58 @@
         "title": "HealthResponse",
         "type": "object"
       },
+      "KocEntry": {
+        "examples": [
+          {
+            "city": "Praha 4",
+            "coordinator": {
+              "display": "Koordinátor KOC 2",
+              "id": "dvorakova-lucie@koc2-nemocnice-lipova"
+            },
+            "id": "koc2-nemocnice-lipova",
+            "name": "KOC 2 – Komplexní onkologické centrum Nemocnice Lipová"
+          }
+        ],
+        "properties": {
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "coordinator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoordinatorContact"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null when the directory lists no coordinator."
+          },
+          "id": {
+            "description": "Organization business id; send it as `koc_id` when creating a referral.",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "KocEntry",
+        "type": "object"
+      },
       "PatientSummary": {
         "properties": {
           "age_years": {
@@ -488,6 +1447,18 @@
           }
         ],
         "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.",
+            "title": "Code"
+          },
           "detail": {
             "anyOf": [
               {
@@ -558,6 +1529,315 @@
         "title": "ProblemDetails",
         "type": "object"
       },
+      "ProposalStatus": {
+        "enum": [
+          "missing",
+          "attached",
+          "possibly_attached"
+        ],
+        "title": "ProposalStatus",
+        "type": "string"
+      },
+      "ProposalsOut": {
+        "properties": {
+          "proposals": {
+            "items": {
+              "$ref": "#/components/schemas/RequestProposal"
+            },
+            "title": "Proposals",
+            "type": "array"
+          },
+          "source_doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The referral letter the proposals are quoted from.",
+            "title": "Source Doc Id"
+          }
+        },
+        "required": [
+          "proposals"
+        ],
+        "title": "ProposalsOut",
+        "type": "object"
+      },
+      "QueueBucket": {
+        "description": "Coordinator queue (VZP slide 9) plus the archive; derived from state and the `odlozeny` flag.",
+        "enum": [
+          "novy",
+          "aktivni",
+          "odlozeny",
+          "archiv"
+        ],
+        "title": "QueueBucket",
+        "type": "string"
+      },
+      "ReferralCreated": {
+        "properties": {
+          "case": {
+            "$ref": "#/components/schemas/CaseSummary",
+            "description": "The new case: state `odeslano`, baton at the KOC coordinator."
+          },
+          "warnings": {
+            "description": "Non-blocking notes, e.g. 'insurer_not_in_directory' (no Coverage written).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "case"
+        ],
+        "title": "ReferralCreated",
+        "type": "object"
+      },
+      "ReferralPrefill": {
+        "additionalProperties": false,
+        "description": "Draft read from the uploaded letter. The GP confirms or edits every field before sending.",
+        "properties": {
+          "address": {
+            "$ref": "#/components/schemas/Evidenced_Address_"
+          },
+          "age_text": {
+            "$ref": "#/components/schemas/Evidenced_str_",
+            "description": "As written in the letter, e.g. '63 let'."
+          },
+          "authored_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authored At"
+          },
+          "birth_date": {
+            "$ref": "#/components/schemas/Evidenced_date_"
+          },
+          "birth_number": {
+            "$ref": "#/components/schemas/Evidenced_str_"
+          },
+          "birth_number_checksum_valid": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Number Checksum Valid"
+          },
+          "consent_statements": {
+            "description": "Statements quoted verbatim; the consent checkbox is never pre-ticked.",
+            "items": {
+              "$ref": "#/components/schemas/Evidenced_str_"
+            },
+            "title": "Consent Statements",
+            "type": "array"
+          },
+          "contact_person": {
+            "$ref": "#/components/schemas/Evidenced_ContactPerson_"
+          },
+          "doc_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+            "title": "Doc Id",
+            "type": "string"
+          },
+          "family": {
+            "$ref": "#/components/schemas/Evidenced_str_"
+          },
+          "given": {
+            "$ref": "#/components/schemas/Evidenced_str_"
+          },
+          "insurer_code": {
+            "$ref": "#/components/schemas/Evidenced_str_"
+          },
+          "insurer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Directory lookup of the code, not extracted text.",
+            "title": "Insurer Name"
+          },
+          "patient_phone": {
+            "$ref": "#/components/schemas/Evidenced_str_"
+          },
+          "requesting_gp": {
+            "$ref": "#/components/schemas/Evidenced_str_",
+            "description": "Name of the signing GP as written in the letter."
+          },
+          "requesting_gp_role_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Directory match of the GP (PractitionerRole id).",
+            "title": "Requesting Gp Role Id"
+          },
+          "sex": {
+            "$ref": "#/components/schemas/Evidenced_Sex_"
+          },
+          "suspected_diagnosis": {
+            "$ref": "#/components/schemas/Evidenced_SuspectedDiagnosis_"
+          },
+          "urgency_statement": {
+            "$ref": "#/components/schemas/Evidenced_str_"
+          }
+        },
+        "required": [
+          "doc_id",
+          "given",
+          "family",
+          "sex",
+          "birth_date",
+          "age_text",
+          "birth_number",
+          "address",
+          "patient_phone",
+          "insurer_code",
+          "contact_person",
+          "requesting_gp",
+          "suspected_diagnosis",
+          "urgency_statement"
+        ],
+        "title": "ReferralPrefill",
+        "type": "object"
+      },
+      "ReferringGp": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "practice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Practice"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ReferringGp",
+        "type": "object"
+      },
+      "RequestProposal": {
+        "additionalProperties": false,
+        "properties": {
+          "attached_doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attached Doc Id"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "exam_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Date"
+          },
+          "key": {
+            "description": "Stable within the letter, e.g. '2026-09-01-1'.",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "recipient_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Name"
+          },
+          "recipient_org_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Directory workplace; empty when it could not be resolved.",
+            "title": "Recipient Org Id"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'organization' | 'practitioner' | null",
+            "title": "Resolved By"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ProposalStatus"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "exam_date",
+          "status",
+          "evidence"
+        ],
+        "title": "RequestProposal",
+        "type": "object"
+      },
       "Role": {
         "description": "Workflow role of a party: decides who may act and in which board lane a task appears.",
         "enum": [
@@ -582,6 +1862,120 @@
         ],
         "title": "Sex",
         "type": "string"
+      },
+      "TaskBusinessStatus": {
+        "description": "FBMI principle: a sent request is not an ordered examination.",
+        "enum": [
+          "objednano",
+          "potvrzeno",
+          "provedeno",
+          "vysledek_dorucen"
+        ],
+        "title": "TaskBusinessStatus",
+        "type": "string"
+      },
+      "TaskStatus": {
+        "enum": [
+          "requested",
+          "accepted",
+          "in_progress",
+          "completed",
+          "failed",
+          "cancelled"
+        ],
+        "title": "TaskStatus",
+        "type": "string"
+      },
+      "TransitionRequest": {
+        "additionalProperties": false,
+        "examples": [
+          {
+            "event": "accept"
+          },
+          {
+            "event": "missing_found",
+            "reason": "chybí CT"
+          }
+        ],
+        "properties": {
+          "event": {
+            "description": "accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume. Other machine events are refused (422) until their endpoints exist.",
+            "maxLength": 40,
+            "title": "Event",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by missing_found and postpone.",
+            "title": "Reason"
+          },
+          "resume_on": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by postpone: date or external step.",
+            "title": "Resume On"
+          }
+        },
+        "required": [
+          "event"
+        ],
+        "title": "TransitionRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       },
       "ValidationIssue": {
         "properties": {
@@ -615,6 +2009,67 @@
         ],
         "title": "ValidationIssue",
         "type": "object"
+      },
+      "app__api__schemas__cases__SuspectedDiagnosis": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MKN-10 code as written in the referral, e.g. 'C25.0'.",
+            "title": "Code"
+          },
+          "evidence": {
+            "description": "Where the referral states it; empty when the GP changed the diagnosis after the prefill.",
+            "items": {
+              "$ref": "#/components/schemas/EvidenceRef"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "evidence"
+        ],
+        "title": "SuspectedDiagnosis",
+        "type": "object"
+      },
+      "app__domain__referral__SuspectedDiagnosis": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MKN-10 code exactly as written in the letter, e.g. 'C25.0'.",
+            "title": "Code"
+          },
+          "text": {
+            "description": "As written, e.g. 'suspektní tumor hlavy pankreatu'.",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SuspectedDiagnosis",
+        "type": "object"
       }
     }
   },
@@ -628,6 +2083,25 @@
     "/api/cases": {
       "get": {
         "operationId": "cases-list_cases",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -642,6 +2116,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           },
           "500": {
             "content": {
@@ -696,6 +2180,23 @@
               "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
               "title": "Case Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
             }
           }
         ],
@@ -767,6 +2268,674 @@
         ]
       }
     },
+    "/api/cases/{case_id}/document-requests": {
+      "get": {
+        "operationId": "cases-list_document_requests",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DocumentRequestOut"
+                  },
+                  "title": "Response Cases-List Document Requests",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Report requests of the case",
+        "tags": [
+          "cases"
+        ]
+      },
+      "post": {
+        "description": "Creates a CommunicationRequest and a tracking Task (owner: the coordinator, due: +2 working days) per item. While the case is in `triage` the same transaction moves it to `ceka_na_podklady`. Coordinator only.",
+        "operationId": "cases-create_document_requests",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentRequestsBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentRequestsCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Request reports from workplaces (one click)",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/document-requests/proposals": {
+      "get": {
+        "description": "Quoted from the letter, each with its evidence; the workplace is resolved from the directory or left empty for the coordinator. The proposals are facts from the letter, not a recommendation of examinations.",
+        "operationId": "cases-document_request_proposals",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Reports the referral letter lists but nobody attached (triage notice)",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/documents": {
+      "post": {
+        "description": "With `request_id` the report fulfils that request (business status `vysledek_dorucen`); when it was the last open request of a case in `ceka_na_podklady`, the case moves to `kompletni` (event `podklady_kompletni`). `authored_at` defaults to the date in the file name.",
+        "operationId": "cases-upload_document",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_cases-upload_document"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentReceived"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Upload too large (application/problem+json)"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported document type (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Upload a received report (DOCX/PDF)",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/transitions": {
+      "post": {
+        "description": "Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode).",
+        "operationId": "cases-transition_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Apply a case event (state machine)",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/directory/kocs": {
+      "get": {
+        "operationId": "directory-list_kocs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KocEntry"
+                  },
+                  "title": "Response Directory-List Kocs",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "List KOCs with their coordinator contact",
+        "tags": [
+          "directory"
+        ]
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "health-health",
@@ -797,6 +2966,248 @@
           "health"
         ]
       }
+    },
+    "/api/referrals": {
+      "post": {
+        "description": "Multipart: `letter` (the same file as for the prefill), optional `attachments`, and `payload` = JSON of `ReferralSubmission` (the prefilled values as confirmed or edited by the GP). The case starts in state `odeslano` with the KOC coordinator on the baton. Only a GP may call this.",
+        "operationId": "referrals-create_referral",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_referrals-create_referral"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Upload too large (application/problem+json)"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported document type (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Confirm the referral: creates the case in ONE FHIR transaction",
+        "tags": [
+          "referrals"
+        ]
+      }
+    },
+    "/api/referrals/prefill": {
+      "post": {
+        "description": "Every value carries the verbatim quote it was read from; a value the letter does not state is `missing`. The sex is derived from the rodné číslo and marked `derived`. This is a draft for the GP to confirm.",
+        "operationId": "referrals-prefill_referral",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_referrals-prefill_referral"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReferralPrefill"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "413": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Upload too large (application/problem+json)"
+          },
+          "415": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unsupported document type (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Prefill the referral from the GP letter (DOCX/PDF); nothing is stored",
+        "tags": [
+          "referrals"
+        ]
+      }
     }
   },
   "tags": [
@@ -807,6 +3218,14 @@
     {
       "description": "Shared oncology case: state, baton holder, documents.",
       "name": "cases"
+    },
+    {
+      "description": "Workplaces (KOC) and their coordinators.",
+      "name": "directory"
+    },
+    {
+      "description": "GP referral: prefill from the letter, confirm, create the case.",
+      "name": "referrals"
     }
   ]
 }

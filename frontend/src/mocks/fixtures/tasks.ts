@@ -21,7 +21,7 @@ export function tasksAt(today: string, setStarted = false, phases: Record<string
   return BASE.map((t) => {
     const byDate = t.doneOn !== undefined && t.doneOn <= today
     const phase: TaskPhase = byDate ? 'result_delivered' : (phases[t.id] ?? 'to_order')
-    const done = phase === 'performed' || phase === 'result_delivered'
+    const done = phase === 'result_delivered'
     const state: TaskItem['state'] = done ? 'done' : t.due < today ? 'overdue' : 'open'
     return { ...t, state, phase, doneOn: byDate ? t.doneOn : undefined }
   })

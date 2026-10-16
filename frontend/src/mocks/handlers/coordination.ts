@@ -43,6 +43,7 @@ export const handlers = [
     return HttpResponse.json({ started: true })
   }),
   http.post('/api/cases/:id/tasks/:taskId/phase', async ({ params, request }) => {
+    if (roleOf(request) !== 'coordinator') return problem(403, 'Stav úkolu může měnit pouze koordinátorka')
     const { phase } = (await request.json()) as { phase?: TaskPhase }
     const tasks = tasksAt(todayOf(request), store.setStarted, store.taskPhase)
     const task = tasks.find((t) => t.id === params.taskId)

@@ -19,7 +19,7 @@ export const handlers = [
         return {
           ...s,
           rows: s.rows.map((r, i) =>
-            edit.rows[i] === undefined ? r : { ...r, value: edit.rows[i], note: `Upraveno: ${edit.reason} (${edit.by})` },
+            edit.rows[i] === undefined ? r : { ...r, value: edit.rows[i], note: `Upraveno lékařem (${edit.by}, ${edit.at}) – důvod: ${edit.reason}. Citace se vztahuje k původní hodnotě.` },
           ),
         }
       }),
@@ -43,7 +43,7 @@ export const handlers = [
     if (!body.reason?.trim()) return problem(422, 'Uveďte důvod změny')
     const key = String(params.key)
     if (!buildSections(store.confirmed).some((x) => x.key === key)) return problem(404, 'Sekce nebyla nalezena')
-    store.edits[key] = { rows: { ...store.edits[key]?.rows, ...body.rows }, reason: body.reason.trim(), by: DEMO_USERS[role].name }
+    store.edits[key] = { rows: { ...store.edits[key]?.rows, ...body.rows }, reason: body.reason.trim(), by: DEMO_USERS[role].name, at: new Date().toLocaleString('cs-CZ', { timeZone: 'Europe/Prague' }) }
     delete store.confirmed[key] // an edited value must be confirmed again
     return HttpResponse.json({ ok: true })
   }),

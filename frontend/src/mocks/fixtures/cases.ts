@@ -39,7 +39,7 @@ export interface MockStore {
   setStarted: boolean
   taskPhase: Record<string, TaskPhase>
   /** Section edits by key: new row values + the reason the clinician gave. */
-  edits: Record<string, { rows: Record<number, string>; reason: string; by: string }>
+  edits: Record<string, { rows: Record<number, string>; reason: string; by: string; at: string }>
 }
 
 export function newStore(): MockStore {

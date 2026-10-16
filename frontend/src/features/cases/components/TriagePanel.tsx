@@ -31,6 +31,7 @@ export function TriagePanel({ caseId, canAct }: { caseId: string; canAct: boolea
           {t.triage.title}
         </h2>
         <p className="text-sm text-muted">{t.triage.hint}</p>
+        <p className="text-sm font-medium">{t.triage.proposal}</p>
       </div>
       <ul className="divide-y divide-hairline">
         {q.data.map((r) => (

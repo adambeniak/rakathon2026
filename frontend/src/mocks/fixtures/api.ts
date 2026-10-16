@@ -21,6 +21,9 @@ const BATON_ROLE: Record<CaseState, Role | null> = {
   uzavreno: null,
 }
 
+// Only documents already received on the simulated day exist yet.
+const arrived = (today: string) => DOCUMENTS.filter((d) => d.received.slice(0, 10) <= today)
+
 const ageOn = (birth: string, today: string) => {
   const b = new Date(birth)
   const t = new Date(today)
@@ -44,7 +47,7 @@ export function toApiCase(c: MockCase, today: string): ApiCase {
     baton_holder: c.baton && role ? { display: c.baton.name, id: `mock-${role}`, role } : null,
     next_deadline: c.baton?.due ? `${c.baton.due}T12:00:00+02:00` : null,
     opened_at: `${c.referredAt}T09:30:00+02:00`,
-    document_count: c.id === ALENA_ID ? DOCUMENTS.length : 0,
+    document_count: c.id === ALENA_ID ? arrived(today).length : 0,
     missing_count: c.counts.missing,
     conflict_count: c.counts.conflict,
   }
@@ -55,7 +58,7 @@ export function toApiDetail(c: MockCase, today: string): ApiDetail {
     ...toApiCase(c, today),
     documents:
       c.id === ALENA_ID
-        ? DOCUMENTS.map((d) => ({
+        ? arrived(today).map((d) => ({
             doc_id: d.id,
             title: d.title,
             custodian: d.place,

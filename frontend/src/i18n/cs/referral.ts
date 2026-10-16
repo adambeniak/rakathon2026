@@ -19,9 +19,9 @@ export const referral = {
   urgent: 'Urgentní',
   kocLabel: 'Cílové onkologické centrum',
   kocPlaceholder: 'Vyberte centrum',
-  consent: 'Pacientka souhlasí se sdílením zdravotnické dokumentace s vybraným centrem.',
+  consent: 'Pacient/ka souhlasí se sdílením zdravotnické dokumentace s vybraným centrem.',
   noteLabel: 'Poznámka pro koordinaci (nepovinné)',
-  noteHint: 'Například kontakt na pacientku nebo informace k termínu.',
+  noteHint: 'Organizační informace pro koordinaci (např. preferovaný termín). Nevkládejte klinické údaje.',
   submit: 'Odeslat do KOC',
   nextTitle: 'Co bude dál',
   nextSteps: [

@@ -49,6 +49,6 @@ describe('EvidenceChip', () => {
   it('says so when no quote is stored', async () => {
     render(<EvidenceChip docId="10_x" />)
     await userEvent.click(screen.getByRole('button'))
-    expect(await screen.findByText(/doslovná citace není/)).toBeInTheDocument()
+    expect(await screen.findByText(/Doslovná citace chybí/)).toBeInTheDocument()
   })
 })

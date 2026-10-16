@@ -38,6 +38,253 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cases/{case_id}/alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overdue tasks and missed promised turnarounds at the (demo) current time */
+        get: operations["coordination-get_alerts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the case (AI draft with citations, no advice)
+         * @description Hybrid retrieval in IRIS (VECTOR_COSINE on HNSW + iFind full text, as-of filtered) and an LLM answer in Czech from the retrieved chunks only. Every sentence is evidence-locked to a verbatim quote; questions asking for treatment, dose or prognosis get only cited documentation. Only participants of the case (referring GP, staff of the managing KOC) may ask. Fictitious data only.
+         */
+        post: operations["cases-ask_case"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/board": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Board: lanes by owner role and the baton holder of the case */
+        get: operations["coordination-get_board"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/document-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report requests of the case */
+        get: operations["cases-list_document_requests"];
+        put?: never;
+        /**
+         * Request reports from workplaces (one click)
+         * @description Creates a CommunicationRequest and a tracking Task (owner: the coordinator, due: +2 working days) per item. While the case is in `triage` the same transaction moves it to `ceka_na_podklady`. Coordinator only.
+         */
+        post: operations["cases-create_document_requests"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/document-requests/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Reports the referral letter lists but nobody attached (triage notice)
+         * @description Quoted from the letter, each with its evidence; the workplace is resolved from the directory or left empty for the coordinator. The proposals are facts from the letter, not a recommendation of examinations.
+         */
+        get: operations["cases-document_request_proposals"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload a received report (DOCX/PDF)
+         * @description With `request_id` the report fulfils that request (business status `vysledek_dorucen`); when it was the last open request of a case in `ceka_na_podklady`, the case moves to `kompletni` (event `podklady_kompletni`). `authored_at` defaults to the date in the file name.
+         */
+        post: operations["cases-upload_document"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/handover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Handover (15 fields) as of a timestamp
+         * @description Deterministic assembly from evidence-locked facts; every value cites its source. Documents authored or received after `as_of` are listed in `excluded_documents`. AI parts are drafts ('Návrh AI'). If the handover was persisted, the stored review state and confirmed edits are applied.
+         */
+        get: operations["handover-get_handover"];
+        put?: never;
+        /**
+         * Persist the handover for review (Composition preliminary + Provenance)
+         * @description Idempotent per (case, as_of): an existing Composition and its review state are kept.
+         */
+        post: operations["handover-persist_handover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/handover/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Handover as copyable text (Markdown), one block per section */
+        get: operations["handover-export_handover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/handover/sections/{number}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A KOC physician confirms, edits or accepts as missing one handover section
+         * @description Recorded as Provenance (who, when, previous value hash) on the Composition; the Composition becomes final when all 15 sections are confirmed or accepted as missing. A missing section needs `accept_missing: true` or an `edited_value`.
+         */
+        post: operations["handover-confirm_section"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/pathways": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Launch a care pathway (CarePlan + step tasks) for the case */
+        post: operations["coordination-launch_pathway"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a single (ad-hoc) task */
+        post: operations["coordination-create_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a case event (state machine)
+         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode).
+         */
+        post: operations["cases-transition_case"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/directory/kocs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List KOCs with their coordinator contact */
+        get: operations["directory-list_kocs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -55,10 +302,312 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/referrals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm the referral: creates the case in ONE FHIR transaction
+         * @description Multipart: `letter` (the same file as for the prefill), optional `attachments`, and `payload` = JSON of `ReferralSubmission` (the prefilled values as confirmed or edited by the GP). The case starts in state `odeslano` with the KOC coordinator on the baton. Only a GP may call this.
+         */
+        post: operations["referrals-create_referral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/referrals/prefill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prefill the referral from the GP letter (DOCX/PDF); nothing is stored
+         * @description Every value carries the verbatim quote it was read from; a value the letter does not state is `missing`. The sex is derived from the rodné číslo and marked `derived`. This is a draft for the GP to confirm.
+         */
+        post: operations["referrals-prefill_referral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/transitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm, perform, deliver the result of, fail or cancel a task
+         * @description Roles are checked by the task state machine. For a task owned by an external workplace the coordinator may record perform / deliver_result on its behalf; the audit trail says so.
+         */
+        post: operations["tasks-transition_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Address */
+        Address: {
+            /** City */
+            city: string;
+            /**
+             * Country
+             * @default CZ
+             */
+            country: string;
+            /** Line */
+            line: string;
+            /** Postal Code */
+            postal_code: string;
+        };
+        /**
+         * AlertKind
+         * @enum {string}
+         */
+        AlertKind: "sla_breach" | "overdue";
+        /** AlertOut */
+        AlertOut: {
+            /**
+             * Basis
+             * @enum {string}
+             */
+            basis: "sla" | "due";
+            /** Case Id */
+            case_id: string;
+            /** Code */
+            code: string;
+            /**
+             * Deadline
+             * Format: date
+             * @description The earlier of `due` and `sla_due`.
+             */
+            deadline: string;
+            /**
+             * Demo Assumption
+             * @description The deadline comes from a demo template, not from clinical guidance.
+             */
+            demo_assumption: boolean;
+            /**
+             * Escalated At
+             * @description When the watchdog escalated it (once).
+             */
+            escalated_at?: string | null;
+            kind: components["schemas"]["AlertKind"];
+            /** Overdue Workdays */
+            overdue_workdays: number;
+            /** Recipients */
+            recipients: components["schemas"]["Role"][];
+            /** Task Id */
+            task_id: string;
+            /** Title */
+            title: string;
+        };
+        /** AskCitation */
+        AskCitation: {
+            /** Doc Id */
+            doc_id: string;
+            /**
+             * Quote
+             * @description Verbatim span of the cited chunk (= of the normalised source document).
+             */
+            quote: string;
+            /** Title */
+            title: string;
+        };
+        /**
+         * AskRequest
+         * @example {
+         *       "as_of": "2026-10-21T08:00:00+02:00",
+         *       "question": "Kdy byla vysazena antikoagulace před biopsií?"
+         *     }
+         */
+        AskRequest: {
+            /**
+             * As Of
+             * @description Only documents authored before this day and received by this time. Default: demo now.
+             */
+            as_of?: string | null;
+            /**
+             * Question
+             * @description Question in Czech. Never logged.
+             */
+            question: string;
+        };
+        /**
+         * AskResponse
+         * @example {
+         *       "answer_text": "V protokolu o výkonu z 12. 10. 2026 je uvedeno, že apixaban byl vysazen 48 h před výkonem. [09_Biopsie_vykon_KOC2_2026-10-12]",
+         *       "as_of": "2026-10-21T08:00:00+02:00",
+         *       "disclaimer": "Návrh AI – neověřeno lékařem, ověřte v citovaných dokumentech.",
+         *       "dropped_sentences": 0,
+         *       "embedding_model": "local:sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+         *       "label": "Návrh AI",
+         *       "model": "gpt-6-1-sol-dz-eu",
+         *       "prompt_version": "ask-v2",
+         *       "sentences": [
+         *         {
+         *           "citations": [
+         *             {
+         *               "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+         *               "quote": "Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer).",
+         *               "title": "EUS-FNB – protokol o výkonu (KOC 2)"
+         *             }
+         *           ],
+         *           "text": "V protokolu o výkonu z 12. 10. 2026 je uvedeno, že apixaban byl vysazen 48 h před výkonem."
+         *         }
+         *       ],
+         *       "sources": [
+         *         {
+         *           "authored_at": "2026-10-12",
+         *           "char_end": 640,
+         *           "char_start": 312,
+         *           "cosine": 0.47,
+         *           "doc_id": "09_Biopsie_vykon_KOC2_2026-10-12",
+         *           "received_at": "2026-10-12T11:00:00Z",
+         *           "rrf_score": 0.0311,
+         *           "seq": 1,
+         *           "text": "… Apixaban vysazen 48 h před výkonem (poslední dávka 18. 10. 2026 večer). …",
+         *           "text_rank": 2,
+         *           "title": "EUS-FNB – protokol o výkonu (KOC 2)",
+         *           "vector_rank": 7
+         *         }
+         *       ],
+         *       "status": "answered"
+         *     }
+         */
+        AskResponse: {
+            /**
+             * Answer Text
+             * @description Ready-to-show Czech text; every sentence ends with [doc_id].
+             */
+            answer_text: string;
+            /**
+             * As Of
+             * Format: date-time
+             */
+            as_of: string;
+            /**
+             * Disclaimer
+             * @description Fixed Czech disclaimer, always shown with the answer.
+             */
+            disclaimer: string;
+            /**
+             * Dropped Sentences
+             * @description Sentences removed by the evidence lock.
+             */
+            dropped_sentences: number;
+            /** Embedding Model */
+            embedding_model: string;
+            /**
+             * Label
+             * @description AI output is a draft until a clinician confirms it.
+             * @constant
+             */
+            label: "Návrh AI";
+            /** Model */
+            model: string;
+            /**
+             * Prefix
+             * @description Fixed refusal prefix for advice questions.
+             */
+            prefix?: string | null;
+            /** Prompt Version */
+            prompt_version: string;
+            /** Sentences */
+            sentences: components["schemas"]["AskSentence"][];
+            /** Sources */
+            sources: components["schemas"]["AskSource"][];
+            /** @description answered | not_documented | not_verified (the model answered but no sentence could be evidence-locked; the sources must be checked) | advice_declined (no advice, only cited documentation). */
+            status: components["schemas"]["AskStatus"];
+        };
+        /** AskSentence */
+        AskSentence: {
+            /**
+             * Citations
+             * @description The UI must show these quotes next to the sentence: a word-level lock cannot catch a wrong meaning, the reader can.
+             */
+            citations: components["schemas"]["AskCitation"][];
+            /** Text */
+            text: string;
+        };
+        /**
+         * AskSource
+         * @description A retrieved chunk the answer was generated from (IRIS hybrid search), in retrieval order.
+         */
+        AskSource: {
+            /**
+             * Authored At
+             * Format: date
+             */
+            authored_at: string;
+            /** Char End */
+            char_end: number;
+            /** Char Start */
+            char_start: number;
+            /**
+             * Cosine
+             * @description Cosine similarity from the vector leg.
+             */
+            cosine?: number | null;
+            /** Doc Id */
+            doc_id: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /**
+             * Rrf Score
+             * @description Reciprocal-rank-fusion score of the vector and full-text legs.
+             */
+            rrf_score: number;
+            /** Seq */
+            seq: number;
+            /** Text */
+            text: string;
+            /**
+             * Text Rank
+             * @description Rank in the IRIS iFind full-text leg (1 = best).
+             */
+            text_rank?: number | null;
+            /** Title */
+            title: string;
+            /**
+             * Vector Rank
+             * @description Rank in the IRIS VECTOR_COSINE leg (1 = best).
+             */
+            vector_rank?: number | null;
+        };
+        /**
+         * AskStatus
+         * @enum {string}
+         */
+        AskStatus: "answered" | "not_documented" | "not_verified" | "advice_declined";
+        /**
+         * BatonBasis
+         * @enum {string}
+         */
+        BatonBasis: "required_for_mdt" | "other_pathway" | "ad_hoc";
         /** BatonHolder */
         BatonHolder: {
             /** Display */
@@ -69,6 +618,103 @@ export interface components {
              */
             id: string;
             role: components["schemas"]["Role"];
+        };
+        /** BatonHolderOut */
+        BatonHolderOut: {
+            /** @description Which group of steps the baton is taken from. */
+            basis: components["schemas"]["BatonBasis"];
+            /** Demo Assumption */
+            demo_assumption: boolean;
+            /** Due */
+            due?: string | null;
+            owner?: components["schemas"]["TaskOwner"] | null;
+            /** @description action = the owner acts; awaiting_confirmation = nothing is ordered yet, the coordinator confirms place and date; dependency_failed = a prerequisite failed or was cancelled. */
+            reason: components["schemas"]["BatonReason"];
+            role: components["schemas"]["Role"];
+            /** Task Id */
+            task_id: string;
+            /** Task Title */
+            task_title: string;
+        };
+        /**
+         * BatonReason
+         * @description Why the baton sits with this role.
+         * @enum {string}
+         */
+        BatonReason: "action" | "awaiting_confirmation" | "dependency_failed";
+        /** Board */
+        Board: {
+            /** @description Owner of the earliest-due open task on the critical path; null when nothing is open. */
+            baton_holder?: components["schemas"]["BatonHolderOut"] | null;
+            /** Case Id */
+            case_id: string;
+            /**
+             * Computed At
+             * Format: date-time
+             * @description The (demo) time the board was computed for.
+             */
+            computed_at: string;
+            /**
+             * Lanes
+             * @description Always five lanes: gp, coordinator, koc_physician, external_workplace, patient.
+             */
+            lanes: components["schemas"]["BoardLane"][];
+        };
+        /** BoardLane */
+        BoardLane: {
+            role: components["schemas"]["Role"];
+            /** Tasks */
+            tasks: components["schemas"]["TaskOut"][];
+        };
+        /** Body_cases-upload_document */
+        "Body_cases-upload_document": {
+            /**
+             * Authored At
+             * @description Date the report was written (ISO).
+             */
+            authored_at?: string | null;
+            /**
+             * File
+             * @description DOCX or PDF with a text layer, up to 10 MB.
+             */
+            file: string;
+            /** Request Id */
+            request_id?: string | null;
+        };
+        /** Body_referrals-create_referral */
+        "Body_referrals-create_referral": {
+            /**
+             * Attachments
+             * @description Further reports sent along, optional.
+             */
+            attachments?: string[] | null;
+            /** Letter */
+            letter: string;
+            /**
+             * Payload
+             * @description JSON of ReferralSubmission
+             */
+            payload: string;
+        };
+        /** Body_referrals-prefill_referral */
+        "Body_referrals-prefill_referral": {
+            /**
+             * Letter
+             * @description The GP letter, DOCX or PDF with a text layer, up to 10 MB.
+             */
+            letter: string;
+        };
+        /**
+         * CaseCounts
+         * @description Handover counters. Each is null (UI shows '—') until the handover service computes it; null is not 0.
+         */
+        CaseCounts: {
+            /** Conflict */
+            conflict?: number | null;
+            /** Missing */
+            missing?: number | null;
+            /** Stale */
+            stale?: number | null;
         };
         /**
          * CaseDetail
@@ -107,10 +753,17 @@ export interface components {
             /** @description 'Na tahu' — who must act next on the case. */
             baton_holder?: components["schemas"]["BatonHolder"] | null;
             /**
+             * @description Coordinator queue column: novy | aktivni | odlozeny | archiv.
+             * @default aktivni
+             */
+            bucket: components["schemas"]["QueueBucket"];
+            /**
              * Conflict Count
              * @description Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.
              */
             conflict_count?: number | null;
+            /** @description Null until the handover service (P2) computes the counters; never a false zero. */
+            counts?: components["schemas"]["CaseCounts"] | null;
             /**
              * Document Count
              * @description All documents of the case (not filtered by as-of).
@@ -127,6 +780,11 @@ export interface components {
              */
             id: string;
             /**
+             * Koc
+             * @description Name of the managing KOC (Organization).
+             */
+            koc?: string | null;
+            /**
              * Missing Count
              * @description Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'.
              */
@@ -139,7 +797,16 @@ export interface components {
              */
             opened_at?: string | null;
             patient: components["schemas"]["PatientSummary"];
+            /**
+             * Postponed
+             * @description Postponed (waiting for an external step): queue column Odložený.
+             * @default false
+             */
+            postponed: boolean;
+            referring_gp?: components["schemas"]["ReferringGp"] | null;
             state: components["schemas"]["CaseState"];
+            /** @description From the referral (suspected, as written); null when the case has no referral letter. */
+            suspected_diagnosis?: components["schemas"]["app__api__schemas__cases__SuspectedDiagnosis"] | null;
         };
         /**
          * CaseState
@@ -173,10 +840,17 @@ export interface components {
             /** @description 'Na tahu' — who must act next on the case. */
             baton_holder?: components["schemas"]["BatonHolder"] | null;
             /**
+             * @description Coordinator queue column: novy | aktivni | odlozeny | archiv.
+             * @default aktivni
+             */
+            bucket: components["schemas"]["QueueBucket"];
+            /**
              * Conflict Count
              * @description Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.
              */
             conflict_count?: number | null;
+            /** @description Null until the handover service (P2) computes the counters; never a false zero. */
+            counts?: components["schemas"]["CaseCounts"] | null;
             /**
              * Document Count
              * @description All documents of the case (not filtered by as-of).
@@ -187,6 +861,11 @@ export interface components {
              * @description Case business id, e.g. 'rakathon-2026-prochazkova'.
              */
             id: string;
+            /**
+             * Koc
+             * @description Name of the managing KOC (Organization).
+             */
+            koc?: string | null;
             /**
              * Missing Count
              * @description Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'.
@@ -200,7 +879,16 @@ export interface components {
              */
             opened_at?: string | null;
             patient: components["schemas"]["PatientSummary"];
+            /**
+             * Postponed
+             * @description Postponed (waiting for an external step): queue column Odložený.
+             * @default false
+             */
+            postponed: boolean;
+            referring_gp?: components["schemas"]["ReferringGp"] | null;
             state: components["schemas"]["CaseState"];
+            /** @description From the referral (suspected, as written); null when the case has no referral letter. */
+            suspected_diagnosis?: components["schemas"]["app__api__schemas__cases__SuspectedDiagnosis"] | null;
         };
         /** CheckResult */
         CheckResult: {
@@ -213,6 +901,311 @@ export interface components {
             latency_ms: number;
             /** Ok */
             ok: boolean;
+        };
+        /** CitedSentence */
+        CitedSentence: {
+            /**
+             * Aliases
+             * @description Readable citation markers in `text` (e.g. 'F3'), parallel to `fact_ids`.
+             */
+            aliases?: string[];
+            /** Fact Ids */
+            fact_ids: string[];
+            /** Text */
+            text: string;
+        };
+        /** ComorbiditiesField */
+        ComorbiditiesField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            /** Value */
+            value?: components["schemas"]["Comorbidity"][] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** Comorbidity */
+        Comorbidity: {
+            /** Detail */
+            detail?: string | null;
+            /** Icd10 */
+            icd10?: string | null;
+            /** Text */
+            text: string;
+        };
+        /**
+         * ConfirmSection
+         * @description Body of a section confirmation. Without fields: the assembled value is confirmed as is.
+         * @example {
+         *       "expected_value_hash": "<value_hash of the section as shown>"
+         *     }
+         * @example {
+         *       "accept_missing": true,
+         *       "expected_value_hash": "<value_hash>"
+         *     }
+         */
+        ConfirmSection: {
+            /**
+             * Accept Missing
+             * @description Confirm that a missing section stays missing for the MDT.
+             * @default false
+             */
+            accept_missing: boolean;
+            /** @description Physician's value; must fit the section's value schema (contracts/handover.schema.json). */
+            edited_value?: components["schemas"]["JsonValue"] | null;
+            /**
+             * Expected Value Hash
+             * @description `value_hash` of the section as the physician saw it; 409 if the content changed since.
+             */
+            expected_value_hash: string;
+        };
+        /** Contacts */
+        Contacts: {
+            contact_person?: components["schemas"]["app__domain__handover__ContactPerson"] | null;
+            /** Patient Email */
+            patient_email?: string | null;
+            /** Patient Phone */
+            patient_phone?: string | null;
+        };
+        /** ContactsField */
+        ContactsField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["Contacts"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** CoordinatorContact */
+        CoordinatorContact: {
+            /**
+             * Display
+             * @description Role-level label, e.g. 'Koordinátor KOC 2'; the person is named once they accept.
+             */
+            display: string;
+            /**
+             * Id
+             * @description PractitionerRole business id of the coordinator.
+             */
+            id: string;
+            /**
+             * Phone
+             * @description Phone of the workplace, if the directory has one.
+             */
+            phone?: string | null;
+        };
+        /**
+         * CreateTaskRequest
+         * @example {
+         *       "due": "2026-10-19",
+         *       "owner_role": "koc_physician",
+         *       "title": "Doplnit ECOG"
+         *     }
+         */
+        CreateTaskRequest: {
+            /**
+             * Depends On
+             * @description Ids of tasks of the same case.
+             */
+            depends_on?: string[];
+            /**
+             * Due
+             * @description A bare date means the end of that day (Prague).
+             */
+            due?: string | null;
+            /** Note */
+            note?: string | null;
+            /** @description Role that works on the task; decides its board lane. */
+            owner_role: components["schemas"]["Role"];
+            /** Place */
+            place?: string | null;
+            /** Title */
+            title: string;
+        };
+        /** Diagnosis */
+        Diagnosis: {
+            /**
+             * Icd10
+             * @description MKN-10 code, e.g. 'C25.0'.
+             */
+            icd10?: string | null;
+            /**
+             * Icdo3 Morphology
+             * @description ICD-O-3 morphology, e.g. '8500/3'.
+             */
+            icdo3_morphology?: string | null;
+            /** Text */
+            text: string;
+            /** Tnm */
+            tnm?: string | null;
+            /** Verified Histologically On */
+            verified_histologically_on?: string | null;
+        };
+        /** DiagnosisField */
+        DiagnosisField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["Diagnosis"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** DocumentReceived */
+        DocumentReceived: {
+            case: components["schemas"]["CaseSummary"];
+            /**
+             * Case Event
+             * @description 'podklady_kompletni' when this report fulfilled the last open request.
+             */
+            case_event?: string | null;
+            document: components["schemas"]["DocumentSummary"];
+            /** Open Requests Remaining */
+            open_requests_remaining: number;
+        };
+        /** DocumentRequestItem */
+        DocumentRequestItem: {
+            /** Exam Date */
+            exam_date?: string | null;
+            /**
+             * Label
+             * @description What is requested, e.g. the label from the proposal.
+             */
+            label: string;
+            /**
+             * Recipient Org Id
+             * @description Directory workplace that holds the report.
+             */
+            recipient_org_id: string;
+        };
+        /** DocumentRequestOut */
+        DocumentRequestOut: {
+            business_status?: components["schemas"]["TaskBusinessStatus"] | null;
+            /**
+             * Due
+             * @description Two working days after the request.
+             */
+            due?: string | null;
+            /** Exam Date */
+            exam_date?: string | null;
+            /**
+             * Id
+             * @description Business id of the request task, e.g. 'rakathon-2026-prochazkova-req-1'.
+             */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Recipient
+             * @description Workplace display name.
+             */
+            recipient?: string | null;
+            /**
+             * Result Doc Id
+             * @description The delivered report, once linked.
+             */
+            result_doc_id?: string | null;
+            status: components["schemas"]["TaskStatus"];
+        };
+        /** DocumentRequestsBody */
+        DocumentRequestsBody: {
+            /** Items */
+            items: components["schemas"]["DocumentRequestItem"][];
+        };
+        /** DocumentRequestsCreated */
+        DocumentRequestsCreated: {
+            case: components["schemas"]["CaseSummary"];
+            /** Requests */
+            requests: components["schemas"]["DocumentRequestOut"][];
         };
         /** DocumentSummary */
         DocumentSummary: {
@@ -243,6 +1236,437 @@ export interface components {
              */
             type_code?: string | null;
         };
+        /** Epicrisis */
+        Epicrisis: {
+            /**
+             * Label
+             * @description Shown next to the text until a physician confirms it.
+             * @default Návrh AI – čeká na potvrzení lékařem
+             */
+            label: string;
+            /**
+             * Mode
+             * @description llm = one cited LLM summary; fallback = code-built list of the facts with citations.
+             * @default llm
+             * @enum {string}
+             */
+            mode: "llm" | "fallback";
+            /**
+             * Sentences
+             * @description Each sentence with its cited facts.
+             */
+            sentences?: components["schemas"]["CitedSentence"][];
+            /**
+             * Text
+             * @description AI draft ('Návrh AI') until a physician confirms it.
+             */
+            text: string;
+        };
+        /** EpicrisisField */
+        EpicrisisField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["Epicrisis"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /**
+         * Evidence
+         * @description A verbatim (whitespace-normalised) quote from a source document.
+         *
+         *     The golden file (`data/golden`) names the document key `doc`; the API and code use `doc_id`.
+         */
+        Evidence: {
+            /** Char End */
+            char_end?: number | null;
+            /**
+             * Char Start
+             * @description Offset of the quote in the normalised text.
+             */
+            char_start?: number | null;
+            /**
+             * Doc Id
+             * @description File stem of the source document.
+             */
+            doc_id: string;
+            /**
+             * Quote
+             * @description Must occur verbatim in the normalised document text.
+             */
+            quote: string;
+        };
+        /** EvidenceRef */
+        EvidenceRef: {
+            /** Doc Id */
+            doc_id: string;
+            /**
+             * Quote
+             * @description Verbatim quote from the source document.
+             */
+            quote: string;
+        };
+        /** Evidenced[Address] */
+        Evidenced_Address_: {
+            /**
+             * Derived
+             * @description Computed by rule from another value (e.g. sex from the RČ), not read.
+             * @default false
+             */
+            derived: boolean;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Note
+             * @description Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.
+             */
+            note?: string | null;
+            status: components["schemas"]["FieldStatus"];
+            value?: components["schemas"]["Address"] | null;
+        };
+        /** Evidenced[ContactPerson] */
+        Evidenced_ContactPerson_: {
+            /**
+             * Derived
+             * @description Computed by rule from another value (e.g. sex from the RČ), not read.
+             * @default false
+             */
+            derived: boolean;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Note
+             * @description Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.
+             */
+            note?: string | null;
+            status: components["schemas"]["FieldStatus"];
+            value?: components["schemas"]["app__domain__patient__ContactPerson"] | null;
+        };
+        /** Evidenced[Sex] */
+        Evidenced_Sex_: {
+            /**
+             * Derived
+             * @description Computed by rule from another value (e.g. sex from the RČ), not read.
+             * @default false
+             */
+            derived: boolean;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Note
+             * @description Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.
+             */
+            note?: string | null;
+            status: components["schemas"]["FieldStatus"];
+            value?: components["schemas"]["Sex"] | null;
+        };
+        /** Evidenced[SuspectedDiagnosis] */
+        Evidenced_SuspectedDiagnosis_: {
+            /**
+             * Derived
+             * @description Computed by rule from another value (e.g. sex from the RČ), not read.
+             * @default false
+             */
+            derived: boolean;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Note
+             * @description Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.
+             */
+            note?: string | null;
+            status: components["schemas"]["FieldStatus"];
+            value?: components["schemas"]["app__domain__referral__SuspectedDiagnosis"] | null;
+        };
+        /** Evidenced[date] */
+        Evidenced_date_: {
+            /**
+             * Derived
+             * @description Computed by rule from another value (e.g. sex from the RČ), not read.
+             * @default false
+             */
+            derived: boolean;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Note
+             * @description Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.
+             */
+            note?: string | null;
+            status: components["schemas"]["FieldStatus"];
+            /** Value */
+            value?: string | null;
+        };
+        /** Evidenced[str] */
+        Evidenced_str_: {
+            /**
+             * Derived
+             * @description Computed by rule from another value (e.g. sex from the RČ), not read.
+             * @default false
+             */
+            derived: boolean;
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Note
+             * @description Neutral remark, e.g. 'datum narození nesouhlasí s rodným číslem'.
+             */
+            note?: string | null;
+            status: components["schemas"]["FieldStatus"];
+            /** Value */
+            value?: string | null;
+        };
+        /** Examination */
+        Examination: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /**
+             * Doc Id
+             * @description Document with the full text.
+             */
+            doc_id: string;
+            /** Place */
+            place: string;
+            /** Type */
+            type: string;
+        };
+        /** ExaminationsField */
+        ExaminationsField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            /** Value */
+            value?: components["schemas"]["Examination"][] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** ExcludedDocument */
+        ExcludedDocument: {
+            /** Doc Id */
+            doc_id: string;
+            /**
+             * Reason
+             * @description E.g. 'authored after as_of'.
+             */
+            reason: string;
+        };
+        /**
+         * FieldStatus
+         * @description Subset of the shared handover field status enum.
+         * @enum {string}
+         */
+        FieldStatus: "complete" | "missing" | "needs_clarification";
+        /** Finding */
+        Finding: {
+            /**
+             * Docs
+             * @description doc_ids involved.
+             */
+            docs?: string[];
+            /** Evidence */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Field
+             * @description Affected handover field or path, e.g. '3_diagnosis.tnm'.
+             */
+            field?: string | null;
+            /**
+             * Id
+             * @description Stable id referenced from handover fields, e.g. 'C1'.
+             */
+            id: string;
+            kind: components["schemas"]["FindingKind"];
+            /**
+             * Message
+             * @description Neutral Czech description of what is inconsistent or missing.
+             */
+            message: string;
+            severity: components["schemas"]["Severity"];
+            /**
+             * Suggested Action
+             * @description Workflow action, e.g. 'create_verification_task'.
+             */
+            suggested_action?: string | null;
+        };
+        /**
+         * FindingKind
+         * @enum {string}
+         */
+        FindingKind: "date_conflict" | "sla_breach" | "missing" | "stale" | "missing_document" | "temporal_cutoff" | "metadata_mismatch" | "insurer" | "needs_clarification" | "not_documented" | "lost_information" | "role_mismatch";
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * Handover
+         * @description Handover for one case. Documents count only if authored <= as_of AND received <= as_of.
+         */
+        Handover: {
+            /**
+             * As Of
+             * Format: date-time
+             * @description Cut-off timestamp, e.g. MDT start 2026-10-21T08:00:00+02:00.
+             */
+            as_of: string;
+            /** Case Id */
+            case_id: string;
+            /**
+             * Composition Id
+             * @description Business id of the persisted Composition, if any.
+             */
+            composition_id?: string | null;
+            /** Excluded Documents */
+            excluded_documents?: components["schemas"]["ExcludedDocument"][];
+            fields: components["schemas"]["HandoverFields"];
+            /** Findings */
+            findings?: components["schemas"]["Finding"][];
+            /** Generated At */
+            generated_at?: string | null;
+            /**
+             * Included Documents
+             * @description doc_ids used for this handover.
+             */
+            included_documents: string[];
+            /**
+             * Rules
+             * @description Configurable assembly rules applied, e.g. {'stale_vitals_days': '30'}.
+             */
+            rules?: {
+                [key: string]: string;
+            };
+            /**
+             * Status
+             * @description Composition status once persisted; final when every section is confirmed.
+             */
+            status?: ("preliminary" | "final") | null;
+        };
+        /** HandoverFields */
+        HandoverFields: {
+            /** @description Váha a výška */
+            "10_weight_height": components["schemas"]["WeightHeightField"];
+            /** @description Symptomy a jejich počátek */
+            "11_symptoms": components["schemas"]["SymptomsField"];
+            /** @description Provedená vyšetření */
+            "12_examinations": components["schemas"]["ExaminationsField"];
+            /** @description Laboratoř vč. onkomarkerů */
+            "13_labs": components["schemas"]["LabsField"];
+            /** @description Histologie */
+            "14_histology": components["schemas"]["HistologyField"];
+            /** @description Jiná důležitá sdělení vč. přání pacienta */
+            "15_other": components["schemas"]["TextListField"];
+            /** @description Nacionále */
+            "1_patient": components["schemas"]["PatientField"];
+            /** @description Kontakty */
+            "2_contacts": components["schemas"]["ContactsField"];
+            /** @description Diagnóza */
+            "3_diagnosis": components["schemas"]["DiagnosisField"];
+            /** @description Epikríza */
+            "4_epicrisis": components["schemas"]["EpicrisisField"];
+            /** @description Požadavek / otázka na MDT */
+            "5_mdt_question": components["schemas"]["TextField"];
+            /** @description Komorbidity (OA) */
+            "6_comorbidities": components["schemas"]["ComorbiditiesField"];
+            /** @description Léková anamnéza (FA) */
+            "7_medications": components["schemas"]["MedicationsField"];
+            /** @description Alergie (AA) */
+            "8_allergies": components["schemas"]["TextField"];
+            /** @description PS / Karnofsky */
+            "9_performance_status": components["schemas"]["PerformanceStatusField"];
+        };
+        /**
+         * HandoverItem
+         * @description One displayed value of a field with its own evidence (one chip per value).
+         */
+        HandoverItem: {
+            /** Clinical Date */
+            clinical_date?: string | null;
+            /**
+             * Evidence
+             * @description Empty only for document-metadata rows (field 12: see the row's doc_id).
+             */
+            evidence?: components["schemas"]["ItemEvidence"][];
+            /**
+             * Label
+             * @description Czech label, e.g. 'Hmotnost' or the test name.
+             */
+            label?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /**
+             * Value
+             * @description As written in the source (or a code-list lookup, see the label).
+             */
+            value: string | number;
+        };
+        /**
+         * HandoverStatus
+         * @enum {string}
+         */
+        HandoverStatus: "complete" | "partial" | "missing" | "stale" | "needs_clarification" | "complete_with_conflict" | "generated_with_citations";
         /** HealthChecks */
         HealthChecks: {
             /** @description IRIS FHIR endpoint: GET /metadata. */
@@ -277,6 +1701,383 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** Histology */
+        Histology: {
+            /** Grade */
+            grade?: string | null;
+            /**
+             * Ihc
+             * @description Immunohistochemistry marker -> result as written.
+             */
+            ihc?: {
+                [key: string]: string;
+            };
+            /** Issued */
+            issued?: string | null;
+            /** Perineural Invasion */
+            perineural_invasion?: boolean | null;
+            /** Report Id */
+            report_id?: string | null;
+        };
+        /** HistologyField */
+        HistologyField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["Histology"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /**
+         * ItemEvidence
+         * @description Evidence of one displayed value, with the source document's dates (one evidence chip in the UI).
+         */
+        ItemEvidence: {
+            /**
+             * Authored At
+             * Format: date
+             * @description Date the source document was written.
+             */
+            authored_at: string;
+            /** Char End */
+            char_end?: number | null;
+            /**
+             * Char Start
+             * @description Offset of the quote in the normalised text.
+             */
+            char_start?: number | null;
+            /**
+             * Doc Id
+             * @description File stem of the source document.
+             */
+            doc_id: string;
+            /**
+             * Quote
+             * @description Must occur verbatim in the normalised document text.
+             */
+            quote: string;
+            /**
+             * Received At
+             * Format: date-time
+             * @description When the KOC received the source document.
+             */
+            received_at: string;
+        };
+        JsonValue: unknown;
+        /**
+         * KocEntry
+         * @example {
+         *       "city": "Praha 4",
+         *       "coordinator": {
+         *         "display": "Koordinátor KOC 2",
+         *         "id": "dvorakova-lucie@koc2-nemocnice-lipova"
+         *       },
+         *       "id": "koc2-nemocnice-lipova",
+         *       "name": "KOC 2 – Komplexní onkologické centrum Nemocnice Lipová"
+         *     }
+         */
+        KocEntry: {
+            /** City */
+            city?: string | null;
+            /** @description Null when the directory lists no coordinator. */
+            coordinator?: components["schemas"]["CoordinatorContact"] | null;
+            /**
+             * Id
+             * @description Organization business id; send it as `koc_id` when creating a referral.
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /** LabResult */
+        LabResult: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Doc Id */
+            doc_id: string;
+            /**
+             * Flag
+             * @description As written in the report, e.g. 'H' or 'L'.
+             */
+            flag?: string | null;
+            /** Test */
+            test: string;
+            /** Unit */
+            unit?: string | null;
+            /** Value */
+            value: number;
+        };
+        /** LabsField */
+        LabsField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            /**
+             * Value
+             * @description Key values incl. tumour markers (golden: key_values).
+             */
+            value?: components["schemas"]["LabResult"][] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** LaunchPathwayRequest */
+        LaunchPathwayRequest: {
+            /**
+             * Indicated By
+             * @description REQUIRED: business id of the KOC physician (PractitionerRole `koc_physician`) who indicates the examination set. Stored as CarePlan.author and ServiceRequest.requester of every order, with a Provenance (the coordinator acts on the physician's behalf). Without it the answer is 422 'Sada vyšetření vyžaduje indikujícího lékaře KOC.' The UI pre-fills the physician of the case; the coordinator confirms.
+             * @example hruby-pavel@koc2-nemocnice-lipova
+             */
+            indicated_by?: string | null;
+            /**
+             * Mdt Start
+             * @description Planned MDT start; defaults to the case's `mdt_start` (required when the case has none).
+             */
+            mdt_start?: string | null;
+            /**
+             * Plan Url
+             * @description Canonical url of the PlanDefinition seeded in IRIS.
+             * @example https://stafeta.example/fhir/PlanDefinition/pancreas-dx
+             */
+            plan_url: string;
+            /**
+             * Start Date
+             * Format: date
+             * @description Day the pathway starts; due dates are computed from it.
+             */
+            start_date: string;
+        };
+        /** Medication */
+        Medication: {
+            /** Dose */
+            dose?: string | null;
+            /** Drug */
+            drug: string;
+            /**
+             * Schedule
+             * @description As written, e.g. '1-0-1'.
+             */
+            schedule?: string | null;
+        };
+        /** MedicationsField */
+        MedicationsField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            /** Value */
+            value?: components["schemas"]["Medication"][] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /**
+         * MissingItem
+         * @description A sub-item the sources do not state: never inferred, but routed to whoever can supply it.
+         */
+        MissingItem: {
+            /**
+             * Item
+             * @description Item key, e.g. 'ecog', 'patient_email', 'tnm_clinical_stage'.
+             */
+            item: string;
+            /**
+             * Reason
+             * @description Neutral Czech reason, e.g. 'v dokumentaci neuvedeno'.
+             */
+            reason: string;
+            /** @description Role expected to supply the value. */
+            suggested_owner: components["schemas"]["Role"];
+        };
+        /**
+         * PartyRef
+         * @description A person or role acting in the workflow (baton holder, task owner, actor of an audit record).
+         */
+        PartyRef: {
+            /** Display */
+            display: string;
+            /**
+             * Id
+             * @description Business id, e.g. 'dvorakova-lucie@koc2-nemocnice-lipova'.
+             */
+            id: string;
+            role: components["schemas"]["Role"];
+        };
+        /** PathwayLaunched */
+        PathwayLaunched: {
+            baton_holder?: components["schemas"]["BatonHolderOut"] | null;
+            /** @description The KOC physician who indicated the set. */
+            indicated_by: components["schemas"]["TaskOwner"];
+            /** Plan Url */
+            plan_url: string;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Tasks
+             * @description Steps ordered by due date (= dependency order).
+             */
+            tasks: components["schemas"]["TaskOut"][];
+        };
+        /** PatientField */
+        PatientField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["PatientIdentity"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** PatientIdentity */
+        PatientIdentity: {
+            /** Address */
+            address?: string | null;
+            /** Age Years */
+            age_years?: number | null;
+            /**
+             * Birth Date
+             * Format: date
+             */
+            birth_date: string;
+            /** Birth Number */
+            birth_number?: string | null;
+            /** Birth Number Checksum Valid */
+            birth_number_checksum_valid?: boolean | null;
+            /** Family */
+            family: string;
+            /** Given */
+            given: string;
+            /** Insurer Code */
+            insurer_code?: string | null;
+            /**
+             * Insurer Name
+             * @description Code-list lookup, not extracted text.
+             */
+            insurer_name?: string | null;
+            sex: components["schemas"]["Sex"];
+        };
         /** PatientSummary */
         PatientSummary: {
             /**
@@ -298,6 +2099,58 @@ export interface components {
             insurer_code?: string | null;
             sex: components["schemas"]["Sex"];
         };
+        /** PerformanceStatus */
+        PerformanceStatus: {
+            /**
+             * Scale
+             * @enum {string}
+             */
+            scale: "ECOG" | "Karnofsky";
+            /**
+             * Value
+             * @description As documented; never inferred (e.g. not from 'soběstačná').
+             */
+            value: string;
+        };
+        /** PerformanceStatusField */
+        PerformanceStatusField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["PerformanceStatus"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
         /**
          * ProblemDetails
          * @description RFC 7807 problem details (`application/problem+json`). The UI maps `type` to a Czech message.
@@ -311,6 +2164,11 @@ export interface components {
          *     }
          */
         ProblemDetails: {
+            /**
+             * Code
+             * @description Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.
+             */
+            code?: string | null;
             /** Detail */
             detail?: string | null;
             /**
@@ -334,16 +2192,403 @@ export interface components {
             type: string;
         };
         /**
+         * ProposalStatus
+         * @enum {string}
+         */
+        ProposalStatus: "missing" | "attached" | "possibly_attached";
+        /** ProposalsOut */
+        ProposalsOut: {
+            /** Proposals */
+            proposals: components["schemas"]["RequestProposal"][];
+            /**
+             * Source Doc Id
+             * @description The referral letter the proposals are quoted from.
+             */
+            source_doc_id?: string | null;
+        };
+        /**
+         * QueueBucket
+         * @description Coordinator queue (VZP slide 9) plus the archive; derived from state and the `odlozeny` flag.
+         * @enum {string}
+         */
+        QueueBucket: "novy" | "aktivni" | "odlozeny" | "archiv";
+        /** ReferralCreated */
+        ReferralCreated: {
+            /** @description The new case: state `odeslano`, baton at the KOC coordinator. */
+            case: components["schemas"]["CaseSummary"];
+            /**
+             * Warnings
+             * @description Non-blocking notes, e.g. 'insurer_not_in_directory' (no Coverage written).
+             */
+            warnings?: string[];
+        };
+        /**
+         * ReferralPrefill
+         * @description Draft read from the uploaded letter. The GP confirms or edits every field before sending.
+         */
+        ReferralPrefill: {
+            address: components["schemas"]["Evidenced_Address_"];
+            /** @description As written in the letter, e.g. '63 let'. */
+            age_text: components["schemas"]["Evidenced_str_"];
+            /** Authored At */
+            authored_at?: string | null;
+            birth_date: components["schemas"]["Evidenced_date_"];
+            birth_number: components["schemas"]["Evidenced_str_"];
+            /** Birth Number Checksum Valid */
+            birth_number_checksum_valid?: boolean | null;
+            /**
+             * Consent Statements
+             * @description Statements quoted verbatim; the consent checkbox is never pre-ticked.
+             */
+            consent_statements?: components["schemas"]["Evidenced_str_"][];
+            contact_person: components["schemas"]["Evidenced_ContactPerson_"];
+            /** Doc Id */
+            doc_id: string;
+            family: components["schemas"]["Evidenced_str_"];
+            given: components["schemas"]["Evidenced_str_"];
+            insurer_code: components["schemas"]["Evidenced_str_"];
+            /**
+             * Insurer Name
+             * @description Directory lookup of the code, not extracted text.
+             */
+            insurer_name?: string | null;
+            patient_phone: components["schemas"]["Evidenced_str_"];
+            /** @description Name of the signing GP as written in the letter. */
+            requesting_gp: components["schemas"]["Evidenced_str_"];
+            /**
+             * Requesting Gp Role Id
+             * @description Directory match of the GP (PractitionerRole id).
+             */
+            requesting_gp_role_id?: string | null;
+            sex: components["schemas"]["Evidenced_Sex_"];
+            suspected_diagnosis: components["schemas"]["Evidenced_SuspectedDiagnosis_"];
+            urgency_statement: components["schemas"]["Evidenced_str_"];
+        };
+        /** ReferringGp */
+        ReferringGp: {
+            /** Name */
+            name: string;
+            /** Practice */
+            practice?: string | null;
+        };
+        /** RequestProposal */
+        RequestProposal: {
+            /** Attached Doc Id */
+            attached_doc_id?: string | null;
+            /** Evidence */
+            evidence: components["schemas"]["Evidence"][];
+            /** Exam Date */
+            exam_date: string | null;
+            /**
+             * Key
+             * @description Stable within the letter, e.g. '2026-09-01-1'.
+             */
+            key: string;
+            /** Label */
+            label: string;
+            /** Recipient Name */
+            recipient_name?: string | null;
+            /**
+             * Recipient Org Id
+             * @description Directory workplace; empty when it could not be resolved.
+             */
+            recipient_org_id?: string | null;
+            /**
+             * Resolved By
+             * @description 'organization' | 'practitioner' | null
+             */
+            resolved_by?: string | null;
+            status: components["schemas"]["ProposalStatus"];
+        };
+        /**
+         * ReviewState
+         * @enum {string}
+         */
+        ReviewState: "draft" | "confirmed" | "accepted_missing";
+        /**
          * Role
          * @description Workflow role of a party: decides who may act and in which board lane a task appears.
          * @enum {string}
          */
         Role: "gp" | "coordinator" | "koc_physician" | "koc_staff" | "external_workplace" | "patient" | "reviewer" | "system";
         /**
+         * SectionReview
+         * @description Physician review of one section (human in the loop); recorded in FHIR as Provenance.
+         */
+        SectionReview: {
+            /** At */
+            at?: string | null;
+            by?: components["schemas"]["PartyRef"] | null;
+            /**
+             * Edited
+             * @description True if the physician changed the assembled value.
+             * @default false
+             */
+            edited: boolean;
+            /** @default draft */
+            state: components["schemas"]["ReviewState"];
+            /**
+             * Value Hash
+             * @description `value_hash` of the section the physician confirmed; a later change reopens the review.
+             */
+            value_hash?: string | null;
+        };
+        /**
+         * Severity
+         * @enum {string}
+         */
+        Severity: "high" | "medium" | "low" | "info";
+        /**
          * Sex
          * @enum {string}
          */
         Sex: "female" | "male" | "other" | "unknown";
+        /** Symptoms */
+        Symptoms: {
+            /** Items */
+            items?: string[];
+            /**
+             * Onset
+             * @description As written, e.g. 'polovina srpna 2026'.
+             */
+            onset?: string | null;
+        };
+        /** SymptomsField */
+        SymptomsField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["Symptoms"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /**
+         * TaskBusinessStatus
+         * @description FBMI principle: a sent request is not an ordered examination.
+         * @enum {string}
+         */
+        TaskBusinessStatus: "objednano" | "potvrzeno" | "provedeno" | "vysledek_dorucen";
+        /** TaskOut */
+        TaskOut: {
+            /** Ad Hoc */
+            ad_hoc: boolean;
+            /**
+             * Blocked By
+             * @description Subset of `depends_on` that is not finished yet.
+             */
+            blocked_by: string[];
+            /** @description Real-world progress: objednano (planned from the template, NOT yet ordered) → potvrzeno (place and date confirmed) → provedeno → vysledek_dorucen. */
+            business_status?: components["schemas"]["TaskBusinessStatus"] | null;
+            /** Case Id */
+            case_id: string;
+            /**
+             * Code
+             * @description Step type, e.g. 'ct-thorax-abdomen'; 'ad-hoc' for single tasks.
+             */
+            code: string;
+            /**
+             * Demo Assumption
+             * @description `due` and `sla_due` are demo-template assumptions, not clinical guidance.
+             */
+            demo_assumption: boolean;
+            /**
+             * Depends On
+             * @description Task ids that must finish first.
+             */
+            depends_on: string[];
+            /**
+             * Due
+             * @description Planned date (demo templates: a demo assumption).
+             */
+            due?: string | null;
+            /** Escalated At */
+            escalated_at?: string | null;
+            /**
+             * Id
+             * @description Task business id, e.g. 'rakathon-2026-prochazkova.ct'.
+             */
+            id: string;
+            /** @description Board lane: role of the concrete owner, else of the step. */
+            lane: components["schemas"]["Role"];
+            /** Note */
+            note?: string | null;
+            /** Overdue */
+            overdue: boolean;
+            /**
+             * Overdue Workdays
+             * @description Working days past the earlier of `due` and `sla_due`.
+             */
+            overdue_workdays: number;
+            owner?: components["schemas"]["TaskOwner"] | null;
+            /** @description Role responsible while no concrete owner is set. */
+            owner_role?: components["schemas"]["Role"] | null;
+            /**
+             * Place
+             * @description Workplace where the step happens.
+             */
+            place?: string | null;
+            /** @description Set when the coordinator recorded progress for the external workplace that owns the step (the source is the note or the result document). */
+            recorded_on_behalf_by?: components["schemas"]["TaskOwner"] | null;
+            /**
+             * Required For Mdt
+             * @description The MDT readiness waits for this step. Dependency ordering only; not a clinical priority.
+             */
+            required_for_mdt: boolean;
+            /** Result Doc Id */
+            result_doc_id?: string | null;
+            /**
+             * Scheduled At
+             * @description Confirmed date/time of the step.
+             */
+            scheduled_at?: string | null;
+            /**
+             * Sla Due
+             * @description Promised turnaround; may be earlier than `due`.
+             */
+            sla_due?: string | null;
+            status: components["schemas"]["TaskStatus"];
+            /** Title */
+            title: string;
+        };
+        /** TaskOwner */
+        TaskOwner: {
+            /** Display */
+            display: string;
+            /**
+             * Id
+             * @description Business id of the PractitionerRole.
+             */
+            id: string;
+            role: components["schemas"]["Role"];
+        };
+        /**
+         * TaskStatus
+         * @enum {string}
+         */
+        TaskStatus: "requested" | "accepted" | "in_progress" | "completed" | "failed" | "cancelled";
+        /** TextField */
+        TextField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            /** Value */
+            value?: string | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** TextListField */
+        TextListField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            /** Value */
+            value?: string[] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
         /** ValidationIssue */
         ValidationIssue: {
             /** Loc */
@@ -352,6 +2597,180 @@ export interface components {
             msg: string;
             /** Type */
             type: string;
+        };
+        /** WeightHeight */
+        WeightHeight: {
+            /** Height Cm */
+            height_cm?: number | null;
+            /** Height Date */
+            height_date?: string | null;
+            /** Weights */
+            weights?: components["schemas"]["WeightMeasurement"][];
+        };
+        /** WeightHeightField */
+        WeightHeightField: {
+            /**
+             * Conflicts
+             * @description Ids of findings that contradict the value.
+             */
+            conflicts?: string[];
+            /**
+             * Evidence
+             * @description All evidence of the section (union).
+             */
+            evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Items
+             * @description Displayed values, each with its evidence.
+             */
+            items?: components["schemas"]["HandoverItem"][];
+            /**
+             * Missing
+             * @description Sub-items not stated in the sources.
+             */
+            missing?: string[];
+            /**
+             * Missing Items
+             * @description Same items as `missing`, with reason and suggested owner.
+             */
+            missing_items?: components["schemas"]["MissingItem"][];
+            /** Note */
+            note?: string | null;
+            /** @description None until the handover is persisted for review. */
+            review?: components["schemas"]["SectionReview"] | null;
+            status: components["schemas"]["HandoverStatus"];
+            value?: components["schemas"]["WeightHeight"] | null;
+            /**
+             * Value Hash
+             * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
+             */
+            value_hash?: string | null;
+        };
+        /** WeightMeasurement */
+        WeightMeasurement: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Kg */
+            kg: number;
+        };
+        /** SuspectedDiagnosis */
+        app__api__schemas__cases__SuspectedDiagnosis: {
+            /**
+             * Code
+             * @description MKN-10 code as written in the referral, e.g. 'C25.0'.
+             */
+            code?: string | null;
+            /**
+             * Evidence
+             * @description Where the referral states it; empty when the GP changed the diagnosis after the prefill.
+             */
+            evidence: components["schemas"]["EvidenceRef"][];
+            /** Text */
+            text: string;
+        };
+        /**
+         * TransitionRequest
+         * @example {
+         *       "date": "2026-10-08",
+         *       "event": "confirm",
+         *       "place": "KOC 1 – radiologie"
+         *     }
+         * @example {
+         *       "document_id": "11_Histologie_KOC2_2026-10-19",
+         *       "event": "deliver_result"
+         *     }
+         */
+        app__api__schemas__coordination__TransitionRequest: {
+            /**
+             * Date
+             * @description Confirmed date (or date-time) of the step; required to confirm an order.
+             */
+            date?: string | null;
+            /**
+             * Document Id
+             * @description Result document; required to deliver a result.
+             */
+            document_id?: string | null;
+            /**
+             * Event
+             * @description confirm = order confirmed + accepted; perform = started + performed; deliver_result = result delivered; fail / cancel need a note.
+             * @enum {string}
+             */
+            event: "confirm" | "perform" | "deliver_result" | "fail" | "cancel";
+            /**
+             * Note
+             * @description Reason for fail / cancel; free text.
+             */
+            note?: string | null;
+            /**
+             * Place
+             * @description Confirmed workplace when the task has none.
+             */
+            place?: string | null;
+        };
+        /**
+         * TransitionRequest
+         * @example {
+         *       "event": "accept"
+         *     }
+         * @example {
+         *       "event": "missing_found",
+         *       "reason": "chybí CT"
+         *     }
+         */
+        app__api__schemas__workflow__TransitionRequest: {
+            /**
+             * Event
+             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume. Other machine events are refused (422) until their endpoints exist.
+             */
+            event: string;
+            /**
+             * Reason
+             * @description Required by missing_found and postpone.
+             */
+            reason?: string | null;
+            /**
+             * Resume On
+             * @description Required by postpone: date or external step.
+             */
+            resume_on?: string | null;
+        };
+        /** ContactPerson */
+        app__domain__handover__ContactPerson: {
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /** Relation */
+            relation: string;
+        };
+        /** ContactPerson */
+        app__domain__patient__ContactPerson: {
+            /** Name */
+            name: string;
+            /** Phone */
+            phone?: string | null;
+            /**
+             * Relation
+             * @description As written in the source, e.g. 'dcera'.
+             */
+            relation: string;
+        };
+        /** SuspectedDiagnosis */
+        app__domain__referral__SuspectedDiagnosis: {
+            /**
+             * Code
+             * @description MKN-10 code exactly as written in the letter, e.g. 'C25.0'.
+             */
+            code?: string | null;
+            /**
+             * Text
+             * @description As written, e.g. 'suspektní tumor hlavy pankreatu'.
+             */
+            text: string;
         };
     };
     responses: never;
@@ -365,7 +2784,9 @@ export interface operations {
     "cases-list_cases": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -378,6 +2799,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaseSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
             /** @description Unexpected server error (application/problem+json) */
@@ -398,7 +2828,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS unavailable (application/problem+json) */
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -412,7 +2842,9 @@ export interface operations {
     "cases-get_case": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
             path: {
                 case_id: string;
             };
@@ -465,7 +2897,1220 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS unavailable (application/problem+json) */
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "coordination-get_alerts": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AlertOut"][];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-ask_case": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AskResponse"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "coordination-get_board": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Board"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-list_document_requests": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRequestOut"][];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-create_document_requests": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentRequestsBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRequestsCreated"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-document_request_proposals": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalsOut"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-upload_document": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_cases-upload_document"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentReceived"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload too large (application/problem+json) */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported document type (application/problem+json) */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "handover-get_handover": {
+        parameters: {
+            query?: {
+                /** @description Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time. */
+                as_of?: string | null;
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Handover"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "handover-persist_handover": {
+        parameters: {
+            query?: {
+                /** @description Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time. */
+                as_of?: string | null;
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Handover"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "handover-export_handover": {
+        parameters: {
+            query?: {
+                /** @description Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time. */
+                as_of?: string | null;
+                /** @description Only Markdown for now. */
+                format?: "md";
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Markdown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/markdown": string;
+                    "text/plain": string;
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "handover-confirm_section": {
+        parameters: {
+            query?: {
+                /** @description Cut-off: a date (= 08:00 Europe/Prague that day, MDT start) or an ISO timestamp with offset. Default: the current (demo) time. */
+                as_of?: string | null;
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+                /** @description Section 1..15 (Handover_obsah order). */
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmSection"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Handover"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "coordination-launch_pathway": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchPathwayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PathwayLaunched"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "coordination-create_task": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTaskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-transition_case": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__schemas__workflow__TransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseSummary"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "directory-list_kocs": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KocEntry"][];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -501,6 +4146,275 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    "referrals-create_referral": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_referrals-create_referral"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralCreated"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload too large (application/problem+json) */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported document type (application/problem+json) */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "referrals-prefill_referral": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_referrals-prefill_referral"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReferralPrefill"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Upload too large (application/problem+json) */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unsupported document type (application/problem+json) */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "tasks-transition_task": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__api__schemas__coordination__TransitionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskOut"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

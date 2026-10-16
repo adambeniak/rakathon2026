@@ -12,22 +12,26 @@ describe('contract adapter', () => {
     id: 'x',
     patient: { display_name: 'Test Pacient', birth_date: '1970-01-01', age_years: 56, sex: 'unknown' },
     state: 'odeslano',
+    bucket: 'novy',
+    postponed: false,
     document_count: 0,
   }
 
   it('keeps counts the backend has not computed as null (never 0) and leaves unknown fields undefined', () => {
     const c = adaptCase(base)
-    expect(c.counts).toEqual({ missing: null, conflict: null, stale: null })
+    expect(c.counts).toEqual({ missing: null, conflict: null, stale: null }) // not computed: never 0
     expect(c.insurerCode).toBeNull()
     expect(c.diagnosis).toBeUndefined()
     expect(c.baton).toBeNull()
     expect(c.column).toBe('new')
+    expect(adaptCase({ ...base, bucket: 'odlozeny', postponed: true }).column).toBe('snoozed')
   })
 
   it('derives baton action and queue column from the state code', () => {
     const c = adaptCase({
       ...base,
       state: 'kompletni',
+      bucket: 'aktivni',
       baton_holder: { display: 'MUDr. Havelka', id: 'h', role: 'koc_physician' },
       next_deadline: '2026-10-21T08:00:00+02:00',
     })

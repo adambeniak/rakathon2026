@@ -18,7 +18,7 @@ describe('route smoke + axe', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
-  it('case detail header shows state, baton, deadline and counters (3 / 2 / — on 21. 10.)', async () => {
+  it('case detail header shows state, baton, deadline and counters (3 / 2 / 1 on 21. 10.)', async () => {
     const { container } = renderRoute(ALENA, { today: '2026-10-21' })
     expect(await screen.findByRole('heading', { name: 'Alena Procházková' })).toBeInTheDocument()
     expect(screen.getAllByText('Připraveno k rozhodnutí/MDT').length).toBeGreaterThan(0)
@@ -26,8 +26,7 @@ describe('route smoke + axe', () => {
     const counters = screen.getByRole('group', { name: 'Co je potřeba řešit' })
     expect(within(counters).getByLabelText('počet: 3', { selector: 'span' })).toBeInTheDocument()
     expect(within(counters).getByLabelText('počet: 2')).toBeInTheDocument()
-    // The contract has no stale count yet: it must show "—", never 0.
-    expect(within(counters).getByLabelText('počet zatím nespočítán')).toBeInTheDocument()
+    expect(within(counters).getByLabelText('počet: 1')).toBeInTheDocument()
     await screen.findByText('Zjištění z dokumentace')
     expect(await axe(container)).toHaveNoViolations()
   })

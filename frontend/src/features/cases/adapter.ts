@@ -1,13 +1,18 @@
 import { common } from '@/i18n/cs/common'
 import type { components } from '@/lib/api/schema'
-import type { CaseDetail, CaseState, CaseSummary, DocumentInfo } from '@/lib/domain'
+import type { CaseDetail, CaseSummary, DocumentInfo } from '@/lib/domain'
 
 type ApiCase = components['schemas']['CaseSummary']
 type ApiDetail = components['schemas']['CaseDetail']
 type ApiDocument = components['schemas']['DocumentSummary']
 
-// Only `odeslano` waits in "Nový". The contract has no postponed flag yet, so "Odložený" stays empty.
-const columnOf = (state: CaseState): CaseSummary['column'] => (state === 'odeslano' ? 'new' : 'active')
+// The queue bucket is decided by the backend (contracts/case-states.md); `archiv` is filtered out by the inbox.
+const COLUMN: Record<components['schemas']['QueueBucket'], CaseSummary['column']> = {
+  novy: 'new',
+  aktivni: 'active',
+  odlozeny: 'snoozed',
+  archiv: 'active',
+}
 
 export function adaptCase(c: ApiCase): CaseSummary {
   return {
@@ -16,11 +21,17 @@ export function adaptCase(c: ApiCase): CaseSummary {
     birthDate: c.patient.birth_date,
     insurerCode: c.patient.insurer_code ?? null,
     state: c.state,
-    column: columnOf(c.state),
+    column: COLUMN[c.bucket],
     baton: c.baton_holder
       ? { name: c.baton_holder.display, action: common.batonActions[c.state], due: c.next_deadline ?? null }
       : null,
-    counts: { missing: c.missing_count ?? null, conflict: c.conflict_count ?? null, stale: null },
+    counts: {
+      missing: c.counts?.missing ?? c.missing_count ?? null,
+      conflict: c.counts?.conflict ?? c.conflict_count ?? null,
+      stale: c.counts?.stale ?? null,
+    },
+    koc: c.koc ?? undefined,
+    gp: c.referring_gp?.name,
     documentCount: c.document_count,
     openedAt: c.opened_at ?? null,
   }

@@ -44,12 +44,18 @@ export function toApiCase(c: MockCase, today: string): ApiCase {
       insurer_code: c.insurer.slice(0, 3),
     },
     state: c.state,
+    // contracts/case-states.md: only `odeslano` is Nový; Odložený is the postponed flag; the rest is Aktivní.
+    bucket: c.column === 'snoozed' ? 'odlozeny' : c.state === 'odeslano' ? 'novy' : c.state === 'uzavreno' ? 'archiv' : 'aktivni',
+    postponed: c.column === 'snoozed',
+    koc: c.koc,
+    referring_gp: { name: c.gp },
     baton_holder: c.baton && role ? { display: c.baton.name, id: `mock-${role}`, role } : null,
     next_deadline: c.baton?.due ? `${c.baton.due}T12:00:00+02:00` : null,
     opened_at: `${c.referredAt}T09:30:00+02:00`,
     document_count: c.id === ALENA_ID ? arrived(today).length : 0,
     missing_count: c.counts.missing,
     conflict_count: c.counts.conflict,
+    counts: { missing: c.counts.missing, conflict: c.counts.conflict, stale: c.counts.stale },
   }
 }
 

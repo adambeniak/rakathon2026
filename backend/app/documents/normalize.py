@@ -278,6 +278,17 @@ def normalize_docx_bytes(doc_id: str, content: bytes, authored_date: date | None
     return build_doc(doc_id, _raw_blocks(BytesIO(content)), authored_date)
 
 
+def normalize_bytes(doc_id: str, content: bytes, source: SourceDocument | None = None) -> NormalizedDoc:
+    """`normalize` for DOCX bytes (a FHIR DocumentReference attachment); doc_id = file stem, received time from
+    `source` for the as-of rule."""
+    doc = normalize_docx_bytes(doc_id, content, stem_date(doc_id))
+    if source is None:
+        return doc
+    if source.doc_id != doc_id:
+        raise ValueError(f"source document {source.doc_id!r} does not match {doc_id!r}")
+    return replace(doc, received_at=source.received_at)
+
+
 def normalize(path: Path, source: SourceDocument | None = None) -> NormalizedDoc:
     """Read a DOCX report into a NormalizedDoc. doc_id = file stem; authored date from the file name.
 

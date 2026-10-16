@@ -13,6 +13,7 @@ Out of scope: assembling the 15-field handover and statuses (F2-2), consistency 
 | `backend/app/extraction/lock.py` | `evidence_lock` → P1's `app.domain.evidence.Fact` + `Evidence`; `doc_included` / `filter_as_of` |
 | `backend/app/extraction/llm.py` | the single LLM client (`LLMClient.from_settings`), retry, cache |
 | `backend/app/extraction/pipeline.py` | `extract_facts` (one call per doc), `extract_case` (as-of with `require_received=True`) |
+| `backend/app/extraction/handover/` | F2-2: `assemble.py` (pure assembly + as-of split), `fields.py` (one rule per field), `epicrisis.py` (cited LLM summary + fallback), `export.py` (Markdown), `service.py` (normalise → extract → epicrisis → assemble) |
 | `backend/tests/unit/{documents,extraction}` | offline unit tests |
 | `backend/tests/eval/` | golden atoms, eval runner, injection smoke test, `test_extraction_eval.py` (`make eval`) |
 | `backend/tests/fixtures/llm_cache/` | 14 cached LLM responses (fictitious data only) |
@@ -111,7 +112,7 @@ See `backend/app/extraction/prompt.py` (`PROMPT_VERSION`). Its key rules:
 | `text_not_in_quote` | free text in the value (`text`, `text_value`, `dose`, `schedule`, person `name` / `relation` / `address`) must be a contiguous copy of the quote (casefold + NFKC). No paraphrase, no diagnosis the quote does not name |
 | `ps_inferred` | `performance_status` requires `ECOG`, `PS` or `Karnofsk…` in the quote |
 | `negation_mismatch` | `negated` requires a negation cue in the quote |
-| `negation_not_in_value` | `negated` also requires the negation word **in the value** (a self-contained negative statement; consumers never compose a negation) |
+| `negation_not_in_value` | `negated` also requires the negation word **in the value** (a self-contained negative statement; consumers never compose a negation). *Repair (ADR-0004):* a `text` value whose quote has the cue, is ≤ 40 chars and a single clause (no `,`/`;`) becomes the exact source quote ("AA" → "AA: neguje"), noted `negated_value_from_quote` and counted in the report |
 | `certainty_mismatch` | a `stated` diagnosis, histology or comorbidity is rejected when its quote contains a suspicion cue (`suspekt…`, `susp.`, `v.s.`, `vs.`, `podezření`, `nelze vyloučit`, `diferenciálně`, `DD`, `k potvrzení`, `pravděpodobn…`, `?`) |
 
 As-of: `doc_included(doc, as_of, require_received=True)` is the default and the backend path. `received_at` is a timestamp
@@ -239,6 +240,57 @@ correctness is checked by rule and by audit, not by a metric.
 generic (format conversion, per-field counting, negation vocabulary) and each has a regression test, but run 2 is not a
 blind held-out score. Quote run 1 as the first-run number and run 2 as "after fixing three lock bugs". There is only one
 case, so neither run measures generalisation.
+
+### Lock repair of short negated values (ADR-0004), from cache
+`negation_not_in_value` 37 → 8; 29 values become their source quote (25 of them in the 21. 10. handover). Key value
+recall **98.2 % (53/54)**: `8.neguje` is now found. Facts raw / accepted / in handover: 487 / 479 / 411. Evidence
+validity 100 %, hallucinations 0, leakage 0 (68 facts filtered), injection smoke pass.
+
+## Handover assembly (F2-2, `app/extraction/handover/`, ADR-0004)
+`assemble_handover(case_id, as_of, facts, documents, *, patient, findings, epicrisis, rules)` is a pure function. It
+splits the documents by the as-of rule (`excluded_documents` with a Czech reason), drops facts from excluded documents,
+and builds each field with its own rule in `fields.py`.
+
+| # | Rule (verbatim values, evidence = the facts used) | Status |
+| --- | --- | --- |
+| 1 | name, birth date and RČ from the latest facts; sex + checksum from the RČ, insurer name from the code list, age at as_of | complete / partial |
+| 2 | patient phone = the registered phone if a document states it, else the only unnamed phone; contact person = family relation | partial if e-mail missing (owner: coordinator) |
+| 3 | MKN-10 (C…/D0…) + MKN-O morphology; verified on = pathology report date; TNM only from a TNM pattern | partial while TNM is missing (owner: KOC physician) |
+| 4 | epicrisis: one cited LLM summary, else the cited fact list (`mode`) | generated_with_citations |
+| 5 | request text of the latest referral note | needs_clarification if only "stanovení dalšího postupu" without an explicit question |
+| 6 | union of stated comorbidities; a coded entry absorbs text restatements (token subset or one shared distinctive word); short fragments keep their source quote as detail | complete |
+| 7 | union by drug stem (Czech case endings); latest entry with dose + schedule wins; procedure-note drugs and ended "po dobu N dní" courses excluded | complete (+ conflict via F3-1) |
+| 8, 9 | latest fact, verbatim; PS never inferred | missing ECOG → owner KOC physician |
+| 10 | weight history + latest height | stale if the latest weight is > 30 days old at as_of (**demo rule**, `HANDOVER_STALE_VITALS_DAYS`) |
+| 11 | stated and negated symptoms (verbatim) from clinical notes, not from imaging/lab requests; onset = earliest stated symptom dated before its document | complete |
+| 12 | one row per included non-referral document (date, custodian, title, doc_id) | complete |
+| 13 | numeric labs; tumour markers first, latest first per test; restatements in non-lab documents dropped | complete |
+| 14 | pathology facts: report id, issue date, IHC (+/-/verbatim), perineural invasion, grade | complete (+ conflict via F3-1) |
+| 15 | consents/wishes, living situation, then documented plans as "Uvedeno v dokumentaci (title, date): …" (field-7 plans only if they name a listed drug) | complete |
+
+API: `GET /api/cases/{id}/handover?as_of=2026-10-21` (a date means 08:00 Europe/Prague) and `GET …/handover/export?format=md`.
+
+**Eval** (`tests/eval/handover_eval.py`, part of `make eval`, merged into `eval/report.json` under `handover`), from cache:
+
+| metric | value | gate |
+| --- | --- | --- |
+| field status accuracy | **13/15** (7 and 14 need C1/C2 from F3-1) | ≥ 13 (#13: 14 after F3-1) |
+| evidence validity (470 quotes, section + per-value items, re-checked against fresh DOCX) | 100 % | 100 % |
+| every value shown as an item with evidence (`items[]`, field 12 = document rows) | yes | yes |
+| as-of leakage | 0; 12–13 excluded at 21. 10., included at 28. 10. | 0 |
+| hallucinations (every value string/number in its field's quotes) | 0 | 0 |
+| key values vs golden | 28/28 | info |
+| epicrisis | `fallback`, every line cited (no cached LLM answer yet) | every sentence cited |
+
+Reviews (2026-10-16): `clinical-safety-reviewer` and `extraction-auditor` findings fixed in the same PR: certainty and
+date precision in the fallback, citation legend, longer draft label, judgement/suspicion post-checks, attribution of
+documented plans, the medication pointer to the apixaban pause, labs ordered by date before unit, imaging/lab clinical
+questions kept out of symptoms, negated symptoms shown, comorbidity merge and context, single-clause lock repair.
+Open (extraction, prompt v2): lab rows carry no specimen (urine and blood share test names; the field note says so);
+"Zátěž toleruje dobře" is typed as a symptom; the 2019 depressive episode is typed for field 4; "t. č. v pracovní
+neschopnosti" is not extracted.
+
+The live epicrisis needs a human: `STAFETA_LLM_CACHE=0 make eval` records the `epicrisis-v1` response in the cache.
 
 ## Known failure modes / risks
 - **Table rows**: the lab quote must be the whole pipe row. The model may quote a single cell, so the term check rejects the fact and recall drops.

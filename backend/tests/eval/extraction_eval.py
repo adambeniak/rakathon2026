@@ -20,7 +20,13 @@ from typing import Any
 from app.documents.normalize import NormalizedDoc, match_key, normalize, normalize_text
 from app.domain.document import SourceDocument
 from app.domain.evidence import Fact
-from app.extraction.lock import PS_CUE, fact_quote, filter_as_of, stated_with_negation_cue
+from app.extraction.lock import (
+    NEGATED_VALUE_REPAIRED,
+    PS_CUE,
+    fact_quote,
+    filter_as_of,
+    stated_with_negation_cue,
+)
 from app.extraction.pipeline import CompletionClient, DocExtraction, extract_facts
 from app.extraction.prompt import PROMPT_VERSION
 from app.extraction.values import DateValue, QuantityValue, parse_value
@@ -198,6 +204,7 @@ async def run(client: CompletionClient, model: str, as_of: datetime = AS_OF) -> 
             "raw_quote_validity": round(raw_exact / raw_total, 4) if raw_total else None,
             "accepted_facts": len(accepted_all),
             "repaired_quotes": sum(1 for f in accepted_all if f.quote_repaired),
+            "negated_values_repaired": sum(1 for f in accepted_all if NEGATED_VALUE_REPAIRED in f.lock_notes),
             "clinical_dates_dropped": sum(1 for f in final if f.lock_notes),
             "facts_in_handover": len(final),
             "evidence_validity": round(1 - len(invalid) / len(final), 4) if final else None,
@@ -248,6 +255,7 @@ def format_table(rep: dict[str, Any]) -> str:
         ("Text coverage (mean)", m["text_coverage_mean"], "info"),
         ("Facts raw / accepted / handover", f"{m['raw_facts']} / {m['accepted_facts']} / {m['facts_in_handover']}", ""),
         ("Repaired quotes", m["repaired_quotes"], ""),
+        ("Negated values from quote", m["negated_values_repaired"], "lock repair, audit"),
         ("Stated with negation cue", m["stated_with_negation_cue"], "audit"),
     ]
     lines = [f"Štafeta extraction eval · {rep['model']} · {rep['prompt_version']} · commit {rep['commit']}"]

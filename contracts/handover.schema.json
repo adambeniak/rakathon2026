@@ -3,6 +3,14 @@
     "CitedSentence": {
       "additionalProperties": false,
       "properties": {
+        "aliases": {
+          "description": "Readable citation markers in `text` (e.g. 'F3'), parallel to `fact_ids`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Aliases",
+          "type": "array"
+        },
         "fact_ids": {
           "items": {
             "type": "string"
@@ -35,10 +43,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -47,6 +64,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -60,6 +85,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -209,10 +246,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -221,6 +267,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -234,6 +288,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -333,10 +399,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -345,6 +420,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -358,6 +441,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -383,6 +478,22 @@
     "Epicrisis": {
       "additionalProperties": false,
       "properties": {
+        "label": {
+          "default": "Návrh AI – čeká na potvrzení lékařem",
+          "description": "Shown next to the text until a physician confirms it.",
+          "title": "Label",
+          "type": "string"
+        },
+        "mode": {
+          "default": "llm",
+          "description": "llm = one cited LLM summary; fallback = code-built list of the facts with citations.",
+          "enum": [
+            "llm",
+            "fallback"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
         "sentences": {
           "description": "Each sentence with its cited facts.",
           "items": {
@@ -415,10 +526,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -427,6 +547,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -440,6 +568,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -557,10 +697,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -569,6 +718,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -582,6 +739,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -801,6 +970,75 @@
       "title": "HandoverFields",
       "type": "object"
     },
+    "HandoverItem": {
+      "additionalProperties": false,
+      "description": "One displayed value of a field with its own evidence (one chip per value).",
+      "properties": {
+        "clinical_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Clinical Date"
+        },
+        "evidence": {
+          "description": "Empty only for document-metadata rows (field 12: see the row's doc_id).",
+          "items": {
+            "$ref": "#/$defs/ItemEvidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Czech label, e.g. 'Hmotnost' or the test name.",
+          "title": "Label"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "description": "As written in the source (or a code-list lookup, see the label).",
+          "title": "Value"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "HandoverItem",
+      "type": "object"
+    },
     "HandoverStatus": {
       "enum": [
         "complete",
@@ -890,10 +1128,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -902,6 +1149,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -915,6 +1170,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -935,6 +1202,71 @@
         "status"
       ],
       "title": "HistologyField",
+      "type": "object"
+    },
+    "ItemEvidence": {
+      "additionalProperties": false,
+      "description": "Evidence of one displayed value, with the source document's dates (one evidence chip in the UI).",
+      "properties": {
+        "authored_at": {
+          "description": "Date the source document was written.",
+          "format": "date",
+          "title": "Authored At",
+          "type": "string"
+        },
+        "char_end": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Char End"
+        },
+        "char_start": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Offset of the quote in the normalised text.",
+          "title": "Char Start"
+        },
+        "doc_id": {
+          "description": "File stem of the source document.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+          "title": "Doc Id",
+          "type": "string"
+        },
+        "quote": {
+          "description": "Must occur verbatim in the normalised document text.",
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        },
+        "received_at": {
+          "description": "When the KOC received the source document.",
+          "format": "date-time",
+          "title": "Received At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "doc_id",
+        "quote",
+        "authored_at",
+        "received_at"
+      ],
+      "title": "ItemEvidence",
       "type": "object"
     },
     "LabResult": {
@@ -1005,10 +1337,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1017,6 +1358,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1030,6 +1379,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1108,10 +1469,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1120,6 +1490,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1133,6 +1511,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1159,6 +1549,59 @@
       "title": "MedicationsField",
       "type": "object"
     },
+    "MissingItem": {
+      "additionalProperties": false,
+      "description": "A sub-item the sources do not state: never inferred, but routed to whoever can supply it.",
+      "properties": {
+        "item": {
+          "description": "Item key, e.g. 'ecog', 'patient_email', 'tnm_clinical_stage'.",
+          "title": "Item",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Neutral Czech reason, e.g. 'v dokumentaci neuvedeno'.",
+          "title": "Reason",
+          "type": "string"
+        },
+        "suggested_owner": {
+          "$ref": "#/$defs/Role",
+          "description": "Role expected to supply the value."
+        }
+      },
+      "required": [
+        "item",
+        "reason",
+        "suggested_owner"
+      ],
+      "title": "MissingItem",
+      "type": "object"
+    },
+    "PartyRef": {
+      "additionalProperties": false,
+      "description": "A person or role acting in the workflow (baton holder, task owner, actor of an audit record).",
+      "properties": {
+        "display": {
+          "title": "Display",
+          "type": "string"
+        },
+        "id": {
+          "description": "Business id, e.g. 'dvorakova-lucie@koc2-nemocnice-lipova'.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        }
+      },
+      "required": [
+        "id",
+        "display",
+        "role"
+      ],
+      "title": "PartyRef",
+      "type": "object"
+    },
     "PatientField": {
       "additionalProperties": false,
       "properties": {
@@ -1171,10 +1614,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1183,6 +1635,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1196,6 +1656,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1356,10 +1828,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1368,6 +1849,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1381,6 +1870,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1401,6 +1902,72 @@
         "status"
       ],
       "title": "PerformanceStatusField",
+      "type": "object"
+    },
+    "ReviewState": {
+      "enum": [
+        "draft",
+        "confirmed",
+        "accepted_missing"
+      ],
+      "title": "ReviewState",
+      "type": "string"
+    },
+    "Role": {
+      "description": "Workflow role of a party: decides who may act and in which board lane a task appears.",
+      "enum": [
+        "gp",
+        "coordinator",
+        "koc_physician",
+        "koc_staff",
+        "external_workplace",
+        "patient",
+        "reviewer",
+        "system"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "SectionReview": {
+      "additionalProperties": false,
+      "description": "Physician review of one section (human in the loop); recorded in FHIR as Provenance.",
+      "properties": {
+        "at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "At"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PartyRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "edited": {
+          "default": false,
+          "description": "True if the physician changed the assembled value.",
+          "title": "Edited",
+          "type": "boolean"
+        },
+        "state": {
+          "$ref": "#/$defs/ReviewState",
+          "default": "draft"
+        }
+      },
+      "title": "SectionReview",
       "type": "object"
     },
     "Severity": {
@@ -1462,10 +2029,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1474,6 +2050,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1487,6 +2071,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1521,10 +2117,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1533,6 +2138,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1546,6 +2159,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1581,10 +2206,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1593,6 +2227,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1606,6 +2248,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1683,10 +2337,19 @@
           "type": "array"
         },
         "evidence": {
+          "description": "All evidence of the section (union).",
           "items": {
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "items": {
+          "description": "Displayed values, each with its evidence.",
+          "items": {
+            "$ref": "#/$defs/HandoverItem"
+          },
+          "title": "Items",
           "type": "array"
         },
         "missing": {
@@ -1695,6 +2358,14 @@
             "type": "string"
           },
           "title": "Missing",
+          "type": "array"
+        },
+        "missing_items": {
+          "description": "Same items as `missing`, with reason and suggested owner.",
+          "items": {
+            "$ref": "#/$defs/MissingItem"
+          },
+          "title": "Missing Items",
           "type": "array"
         },
         "note": {
@@ -1708,6 +2379,18 @@
           ],
           "default": null,
           "title": "Note"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SectionReview"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "None until the handover is persisted for review."
         },
         "status": {
           "$ref": "#/$defs/HandoverStatus"
@@ -1767,6 +2450,19 @@
       "title": "Case Id",
       "type": "string"
     },
+    "composition_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Business id of the persisted Composition, if any.",
+      "title": "Composition Id"
+    },
     "excluded_documents": {
       "items": {
         "$ref": "#/$defs/ExcludedDocument"
@@ -1804,6 +2500,31 @@
       },
       "title": "Included Documents",
       "type": "array"
+    },
+    "rules": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Configurable assembly rules applied, e.g. {'stale_vitals_days': '30'}.",
+      "title": "Rules",
+      "type": "object"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "enum": [
+            "preliminary",
+            "final"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Composition status once persisted; final when every section is confirmed.",
+      "title": "Status"
     }
   },
   "required": [

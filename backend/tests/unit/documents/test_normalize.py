@@ -8,9 +8,11 @@ from app.documents.normalize import (
     find_dates,
     find_month_years,
     match_key,
+    normalize_bytes,
     normalize_text,
     parse_czech_date,
 )
+from tests.document_fixtures import DOCS_DIR
 
 
 def test_nfc_composes_decomposed_input() -> None:
@@ -117,3 +119,11 @@ def test_doc_from_text() -> None:
     d = doc_from_text("x", "řádek 1\n\nřádek 2", date(2026, 1, 1))
     assert d.text == "řádek 1\nřádek 2"
     assert len(d.blocks) == 2
+
+
+def test_normalize_bytes_equals_file_normalisation(docs) -> None:  # type: ignore[no-untyped-def]
+    # FHIR attachments arrive as bytes; the text must be identical (it is part of the LLM cache key)
+    path = sorted(DOCS_DIR.glob("*.docx"))[6]
+    from_bytes = normalize_bytes(path.stem, path.read_bytes())
+    assert from_bytes.text == docs[path.stem].text
+    assert from_bytes.authored_date == docs[path.stem].authored_date

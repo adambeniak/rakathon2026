@@ -75,6 +75,15 @@ def document_from_fhir(resource: Resource) -> SourceDocument:
     )
 
 
+def document_content(resource: Resource) -> bytes:
+    """The attachment bytes (base64 `data`) of a DocumentReference."""
+    attachment = (resource.get("content") or [{}])[0].get("attachment", {})
+    data = attachment.get("data")
+    if not data:
+        raise ValueError("DocumentReference has no inline attachment data")
+    return base64.b64decode(str(data))
+
+
 def _creation_date(value: str) -> date:
     """`Attachment.creation` is a dateTime; we write a date but accept full timestamps."""
     return date.fromisoformat(value[:10])

@@ -13,7 +13,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, ConfigDict, Field
 
-from app.domain.common import BUSINESS_ID_PATTERN, DomainModel
+from app.domain.common import BUSINESS_ID_PATTERN, DomainModel, PartyRef, Role
 from app.domain.evidence import Evidence
 from app.domain.finding import Finding
 from app.domain.patient import Sex
@@ -68,11 +68,20 @@ class Diagnosis(DomainModel):
 class CitedSentence(DomainModel):
     text: str
     fact_ids: list[str] = Field(min_length=1)
+    aliases: list[str] = Field(
+        default_factory=list, description="Readable citation markers in `text` (e.g. 'F3'), parallel to `fact_ids`."
+    )
 
 
 class Epicrisis(DomainModel):
     text: str = Field(description="AI draft ('Návrh AI') until a physician confirms it.")
     sentences: list[CitedSentence] = Field(default_factory=list, description="Each sentence with its cited facts.")
+    mode: Literal["llm", "fallback"] = Field(
+        "llm", description="llm = one cited LLM summary; fallback = code-built list of the facts with citations."
+    )
+    label: str = Field(
+        "Návrh AI – čeká na potvrzení lékařem", description="Shown next to the text until a physician confirms it."
+    )
 
 
 class Comorbidity(DomainModel):
@@ -135,12 +144,59 @@ class Histology(DomainModel):
 # --- Fields ----------------------------------------------------------------------------------------------------------
 
 
+class MissingItem(DomainModel):
+    """A sub-item the sources do not state: never inferred, but routed to whoever can supply it."""
+
+    item: str = Field(description="Item key, e.g. 'ecog', 'patient_email', 'tnm_clinical_stage'.")
+    reason: str = Field(description="Neutral Czech reason, e.g. 'v dokumentaci neuvedeno'.")
+    suggested_owner: Role = Field(description="Role expected to supply the value.")
+
+
+class ReviewState(StrEnum):
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+    ACCEPTED_MISSING = "accepted_missing"
+
+
+class SectionReview(DomainModel):
+    """Physician review of one section (human in the loop); recorded in FHIR as Provenance."""
+
+    state: ReviewState = ReviewState.DRAFT
+    by: PartyRef | None = None
+    at: AwareDatetime | None = None
+    edited: bool = Field(False, description="True if the physician changed the assembled value.")
+
+
+class ItemEvidence(Evidence):
+    """Evidence of one displayed value, with the source document's dates (one evidence chip in the UI)."""
+
+    authored_at: dt.date = Field(description="Date the source document was written.")
+    received_at: AwareDatetime = Field(description="When the KOC received the source document.")
+
+
+class HandoverItem(DomainModel):
+    """One displayed value of a field with its own evidence (one chip per value)."""
+
+    label: str | None = Field(None, description="Czech label, e.g. 'Hmotnost' or the test name.")
+    value: str | float = Field(description="As written in the source (or a code-list lookup, see the label).")
+    unit: str | None = None
+    clinical_date: dt.date | None = None
+    evidence: list[ItemEvidence] = Field(
+        default_factory=list, description="Empty only for document-metadata rows (field 12: see the row's doc_id)."
+    )
+
+
 class HandoverFieldBase(DomainModel):
     status: HandoverStatus
-    evidence: list[Evidence] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list, description="All evidence of the section (union).")
+    items: list[HandoverItem] = Field(default_factory=list, description="Displayed values, each with its evidence.")
     missing: list[str] = Field(default_factory=list, description="Sub-items not stated in the sources.")
+    missing_items: list[MissingItem] = Field(
+        default_factory=list, description="Same items as `missing`, with reason and suggested owner."
+    )
     conflicts: list[str] = Field(default_factory=list, description="Ids of findings that contradict the value.")
     note: str | None = None
+    review: SectionReview | None = Field(None, description="None until the handover is persisted for review.")
 
 
 class PatientField(HandoverFieldBase):
@@ -241,3 +297,10 @@ class Handover(DomainModel):
     excluded_documents: list[ExcludedDocument] = Field(default_factory=list)
     fields: HandoverFields
     findings: list[Finding] = Field(default_factory=list)
+    status: Literal["preliminary", "final"] | None = Field(
+        None, description="Composition status once persisted; final when every section is confirmed."
+    )
+    composition_id: str | None = Field(None, description="Business id of the persisted Composition, if any.")
+    rules: dict[str, str] = Field(
+        default_factory=dict, description="Configurable assembly rules applied, e.g. {'stale_vitals_days': '30'}."
+    )

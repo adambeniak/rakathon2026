@@ -8,14 +8,15 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_case_reader, get_fhir_client, get_iris_pool
+from app.api.deps import LlmClients, get_case_reader, get_fhir_client, get_iris_pool, get_llm_clients
 from app.domain.case import Case, CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.document import SourceDocument
 from app.domain.errors import NotFoundError
 from app.domain.patient import Patient, Sex
 from app.export_openapi import stable_json
-from app.fhir.cases import CaseDetailView, CaseOverview
+from app.extraction.llm import CacheMissError
+from app.fhir.cases import CaseContentsView, CaseDetailView, CaseOverview
 from app.fhir.errors import FhirAuthError, FhirUnavailableError
 from app.main import create_app
 from app.settings import PRAGUE, Settings
@@ -60,6 +61,46 @@ class FakeReader:
             raise NotFoundError("case", case_id)
         return CaseDetailView(case=CASE, documents=[DOCUMENT])
 
+    async def get_case_contents(self, case_id: str) -> CaseContentsView:
+        detail = await self.get_case(case_id)
+        documents = [*detail.documents, LATE_DOCUMENT]
+        return CaseContentsView(case=CASE, documents=documents, contents={d.doc_id: _docx(d.title) for d in documents})
+
+
+def _docx(paragraph: str) -> bytes:
+    import io
+
+    from docx import Document
+
+    buffer = io.BytesIO()
+    document = Document()
+    document.add_paragraph(paragraph)
+    document.save(buffer)
+    return buffer.getvalue()
+
+
+class FakeLlm:
+    """Extraction returns no facts; the epicrisis cache misses (-> cited fallback)."""
+
+    def __init__(self, response: str | None) -> None:
+        self.response = response
+        self.calls: list[str] = []
+
+    async def complete_json(self, *, system: str, user: str, schema: dict[str, object], doc_id: str) -> str:
+        self.calls.append(doc_id)
+        if self.response is None:
+            raise CacheMissError("miss")
+        return self.response
+
+
+LATE_DOCUMENT = SourceDocument(
+    doc_id="12_Algeziologie_2026-10-26",
+    title="Algeziologie",
+    type_code="11488-4",
+    authored_at=date(2026, 10, 26),
+    received_at=datetime(2026, 10, 26, 12, 0, tzinfo=PRAGUE),
+)
+
 
 class FakeFhir:
     def __init__(self, error: Exception | None = None) -> None:
@@ -90,6 +131,8 @@ def client(app: FastAPI) -> Iterator[TestClient]:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader()
     app.dependency_overrides[get_fhir_client] = lambda: FakeFhir()
     app.dependency_overrides[get_iris_pool] = lambda: FakePool()
+    llm = LlmClients(FakeLlm('{"facts": []}'), FakeLlm(None))
+    app.dependency_overrides[get_llm_clients] = lambda: llm
     with TestClient(app) as test_client:
         yield test_client
 
@@ -254,3 +297,54 @@ def test_case_summary_has_the_header_fields_and_null_counters(client: TestClient
     assert case["suspected_diagnosis"] is None
     assert case["koc"] is None
     assert case["referring_gp"] is None
+
+
+def test_handover_as_of_excludes_later_documents(client: TestClient) -> None:
+    response = client.get("/api/cases/rakathon-2026-prochazkova/handover", params={"as_of": "2026-10-21"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["as_of"] == "2026-10-21T08:00:00+02:00"
+    assert body["included_documents"] == ["07_PL_zadost_KOC2_2026-10-02"]
+    assert [e["doc_id"] for e in body["excluded_documents"]] == ["12_Algeziologie_2026-10-26"]
+    fields = body["fields"]
+    assert list(fields) == [f"{n}_" + k.split("_", 1)[1] for n, k in enumerate(fields, start=1)]
+    assert fields["9_performance_status"]["status"] == "missing"
+    assert fields["9_performance_status"]["missing_items"][0]["suggested_owner"] == "koc_physician"
+    assert body["rules"]["stale_vitals_days"].startswith("30")
+
+
+def test_handover_later_as_of_includes_documents(client: TestClient) -> None:
+    response = client.get(
+        "/api/cases/rakathon-2026-prochazkova/handover", params={"as_of": "2026-10-28T08:00:00+01:00"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["excluded_documents"] == []
+    assert "12_Algeziologie_2026-10-26" in response.json()["included_documents"]
+
+
+@pytest.mark.parametrize("as_of", ["21. 10. 2026", "2026-10-21T08:00:00"])
+def test_handover_invalid_as_of_is_422(client: TestClient, as_of: str) -> None:
+    response = client.get("/api/cases/rakathon-2026-prochazkova/handover", params={"as_of": as_of})
+
+    assert response.status_code == 422
+    assert response.headers["content-type"] == "application/problem+json"
+
+
+def test_handover_unknown_case_is_404(client: TestClient) -> None:
+    response = client.get("/api/cases/unknown-case/handover")
+
+    assert response.status_code == 404
+
+
+def test_handover_export_markdown(client: TestClient) -> None:
+    response = client.get(
+        "/api/cases/rakathon-2026-prochazkova/handover/export", params={"as_of": "2026-10-21", "format": "md"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert response.text.startswith("# Předávka k MDT – stav k 21. 10. 2026 08:00")
+    assert "## 9. PS / Karnofsky — chybí" in response.text
+    assert "Nezahrnuto: 12_Algeziologie_2026-10-26" in response.text

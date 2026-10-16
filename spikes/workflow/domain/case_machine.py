@@ -83,6 +83,7 @@ class CaseContext:
     reason: str | None = None
     resume_on: str | None = None  # ISO date or description of the external step
     conclusion: str | None = None
+    confirmed_by: str | None = None  # clinician user id; explicit sign-off of the MDT conclusion
     gp_recipient: str | None = None
     receipt_id: str | None = None
 
@@ -154,7 +155,9 @@ def _g_conclusion(case: Case, ctx: CaseContext, now: datetime) -> str | None:
         return "MDT start is not set"
     if now < case.mdt_start:
         return "MDT has not started yet"
-    return None if _nonblank(ctx.conclusion) else "conclusion is required"
+    if not _nonblank(ctx.conclusion):
+        return "conclusion is required"
+    return None if _nonblank(ctx.confirmed_by) else "conclusion must be confirmed by a clinician"
 
 
 def _g_feedback(case: Case, ctx: CaseContext, _n: datetime) -> str | None:

@@ -39,7 +39,8 @@ def load_plan(path: str | Path) -> dict[str, Any]:
 def _ext(node: Mapping[str, Any], url: str) -> Mapping[str, Any] | None:
     for e in node.get("extension", []):
         if e.get("url") == url:
-            return e
+            found: Mapping[str, Any] = e
+            return found
     return None
 
 

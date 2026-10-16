@@ -22,7 +22,7 @@ R = Role
 OK = Readiness(True, (), ())
 CTX_OK = CaseContext(
     consent_confirmed=True, target_koc="KOC2", patient_id="p1", open_request_tasks=1,
-    readiness=OK, reason="důvod", resume_on="2026-10-20", conclusion="závěr",
+    readiness=OK, reason="důvod", resume_on="2026-10-20", conclusion="závěr", confirmed_by="u-doc",
     gp_recipient="gp@example.test", receipt_id="r1",
 )  # fmt: skip
 NOW = MDT + timedelta(hours=1)
@@ -128,6 +128,7 @@ GUARD_FAILS = [
      {"readiness": Readiness(False, ("performance_status",), ())}, {}),
     (S.PRIPRAVENO_MDT, "reopen", R.KOC_DOC, {"reason": ""}, {}),
     (S.PRIPRAVENO_MDT, "record_mdt_conclusion", R.MDT, {"conclusion": None}, {}),
+    (S.PRIPRAVENO_MDT, "record_mdt_conclusion", R.MDT, {"confirmed_by": None}, {}),
     (S.PRIPRAVENO_MDT, "record_mdt_conclusion", R.MDT, {}, {"mdt_start": None}),
     (S.ZAVER_MDT, "send_feedback", R.COORD, {"gp_recipient": None}, {"conclusion_confirmed": True}),
     (S.ZAVER_MDT, "send_feedback", R.COORD, {}, {"conclusion_confirmed": False}),

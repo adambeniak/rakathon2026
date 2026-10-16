@@ -125,7 +125,10 @@ def _result_guard(t: Task, ctx: TaskContext) -> str | None:
     return None if ctx.result_doc_id else "result document is required"
 
 
-_OC = frozenset({OWNER, Role.COORD})
+_OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORD})
+_OWNER_ONLY: frozenset[Role | _Owner] = frozenset({OWNER})
+_OWNER_SYSTEM: frozenset[Role | _Owner] = frozenset({OWNER, Role.SYSTEM})
+_COORD_ONLY: frozenset[Role | _Owner] = frozenset({Role.COORD})
 
 _RULES: tuple[_Rule, ...] = (
     _Rule(
@@ -150,21 +153,21 @@ _RULES: tuple[_Rule, ...] = (
     _Rule(
         "start",
         TaskStatus.ACCEPTED,
-        frozenset({OWNER}),
+        _OWNER_ONLY,
         _start_guard,
         lambda t, _c: replace(t, status=TaskStatus.IN_PROGRESS),
     ),
     _Rule(
         "performed",
         TaskStatus.IN_PROGRESS,
-        frozenset({OWNER}),
+        _OWNER_ONLY,
         _performed_guard,
         lambda t, _c: replace(t, business_status=BusinessStatus.PROVEDENO),
     ),
     _Rule(
         "result_delivered",
         TaskStatus.IN_PROGRESS,
-        frozenset({OWNER, Role.SYSTEM}),
+        _OWNER_SYSTEM,
         _result_guard,
         lambda t, c: replace(
             t,
@@ -188,7 +191,7 @@ _RULES: tuple[_Rule, ...] = (
         _Rule(
             "cancel",
             s,
-            frozenset({Role.COORD}),
+            _COORD_ONLY,
             _reason,
             lambda t, _c: replace(t, status=TaskStatus.CANCELLED),
         )

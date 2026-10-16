@@ -1,6 +1,6 @@
 """Steps of the case (CT in KOC 1, EUS-FNB, labs, histology, …) with owner, place and due date.
 
-The task state machine, overdue detection and escalation are P4's work (#3).
+The task state machine, overdue detection and escalation live in `app.domain.task_machine`.
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from enum import StrEnum
 
 from pydantic import AwareDatetime, Field
 
-from app.domain.common import BUSINESS_ID_PATTERN, DomainModel, PartyRef
+from app.domain.common import BUSINESS_ID_PATTERN, DomainModel, PartyRef, Role
 
 
 class TaskStatus(StrEnum):
@@ -42,4 +42,12 @@ class Task(DomainModel):
     location: str | None = Field(None, description="Workplace where the step happens.")
     depends_on: list[str] = Field(default_factory=list, description="Task ids that must finish first.")
     note: str | None = None
-    # TODO(#3): transitions (requested -> … -> completed / failed / cancelled), overdue detection, escalation.
+    # Workflow fields below are owned by the task state machine; all are additive.
+    owner_role: Role | None = Field(None, description="Role that updates the step when no concrete `owner` is set.")
+    scheduled_at: AwareDatetime | None = Field(None, description="Confirmed date/time of the step (order confirmed).")
+    result_doc_id: str | None = Field(None, description="Document id of the delivered result.")
+    sla_due: AwareDatetime | None = Field(
+        None, description="Agreed deadline; may be earlier than `due`. Drives escalation."
+    )
+    escalated_at: AwareDatetime | None = Field(None, description="When the overdue escalation fired (fires once).")
+    demo_assumption: bool = Field(False, description="`due` comes from a demo template, not from clinical guidance.")

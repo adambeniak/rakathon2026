@@ -1,0 +1,521 @@
+{
+  "resourceType": "PlanDefinition",
+  "id": "pancreas-dx",
+  "url": "https://stafeta.example/fhir/PlanDefinition/pancreas-dx",
+  "version": "0.1.0",
+  "name": "KarcinomPankreatuDiagnostika",
+  "title": "Karcinom pankreatu – diagnostika",
+  "status": "draft",
+  "experimental": true,
+  "type": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/plan-definition-type",
+        "code": "clinical-protocol"
+      }
+    ]
+  },
+  "description": "DEMO ASSUMPTION: Šablona diagnostické cesty pro demo Štafeta. Pořadí kroků a výchozí termíny (due-rule) jsou předpoklady pro demonstraci, nejsou klinickým doporučením ani doporučeným postupem.",
+  "useContext": [
+    {
+      "code": {
+        "system": "http://terminology.hl7.org/CodeSystem/usage-context-type",
+        "code": "focus"
+      },
+      "valueCodeableConcept": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/sid/icd-10",
+            "code": "C25"
+          }
+        ]
+      }
+    }
+  ],
+  "extension": [
+    {
+      "url": "https://stafeta.example/fhir/StructureDefinition/mdt-required-items",
+      "extension": [
+        {
+          "url": "item",
+          "valueString": "histology"
+        },
+        {
+          "url": "item",
+          "valueString": "ct_staging"
+        },
+        {
+          "url": "item",
+          "valueString": "tumour_markers"
+        },
+        {
+          "url": "item",
+          "valueString": "comorbidities"
+        },
+        {
+          "url": "item",
+          "valueString": "performance_status"
+        },
+        {
+          "url": "item",
+          "valueString": "mdt_question"
+        }
+      ]
+    }
+  ],
+  "action": [
+    {
+      "id": "ct",
+      "title": "CT hrudníku a břicha (pankreatický protokol)",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín do 6 kalendářních dnů od zahájení cesty; provádí KOC 1, protože v KOC 2 není volný termín.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "ct-thorax-abdomen",
+              "display": "CT hrudníku a břicha (pankreatický protokol)"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "coordinator"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "start"
+            },
+            {
+              "url": "days",
+              "valueInteger": 6
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 1 – Nemocnice Severní, radiologie"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "coordinator"
+        }
+      ]
+    },
+    {
+      "id": "eus_fnb",
+      "title": "EUS-FNB (biopsie)",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín 4 kalendářní dny po CT.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "eus-fnb",
+              "display": "EUS-FNB (biopsie)"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "coordinator"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "action:ct"
+            },
+            {
+              "url": "days",
+              "valueInteger": 4
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 2 – Nemocnice Lipová, endoskopie"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "coordinator"
+        }
+      ],
+      "relatedAction": [
+        {
+          "actionId": "ct",
+          "relationship": "after-end"
+        }
+      ]
+    },
+    {
+      "id": "labs",
+      "title": "Kontrolní odběry (KO, biochemie, CA 19-9)",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín 3 kalendářní dny po EUS-FNB.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "labs-dx",
+              "display": "Kontrolní odběry (KO, biochemie, CA 19-9)"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "coordinator"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "action:eus_fnb"
+            },
+            {
+              "url": "days",
+              "valueInteger": 3
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 2 – Nemocnice Lipová, laboratoř"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "coordinator"
+        }
+      ],
+      "relatedAction": [
+        {
+          "actionId": "eus_fnb",
+          "relationship": "after-end"
+        }
+      ]
+    },
+    {
+      "id": "histology",
+      "title": "Histologie",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): plánovaný termín výsledku 7 kalendářních dnů po EUS-FNB; dohodnutý SLA slib laboratoře je 3 pracovní dny od odběru (sla-rule), eskalace následuje první den po jeho překročení.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "histology",
+              "display": "Histologie"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "coordinator"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "action:eus_fnb"
+            },
+            {
+              "url": "days",
+              "valueInteger": 7
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 2 – Nemocnice Lipová, patologie"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "coordinator"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/sla-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "action:eus_fnb"
+            },
+            {
+              "url": "days",
+              "valueInteger": 3
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": true
+            }
+          ]
+        }
+      ],
+      "relatedAction": [
+        {
+          "actionId": "eus_fnb",
+          "relationship": "after-end"
+        }
+      ]
+    },
+    {
+      "id": "algesiology",
+      "title": "Algeziologické vyšetření",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín 5 kalendářních dnů po MDT; není podmínkou připravenosti MDT.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "algesiology",
+              "display": "Algeziologické vyšetření"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "coordinator"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "mdt"
+            },
+            {
+              "url": "days",
+              "valueInteger": 5
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 1 – Nemocnice Severní, léčba bolesti"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "coordinator"
+        }
+      ],
+      "relatedAction": [
+        {
+          "actionId": "ct",
+          "relationship": "after-end"
+        }
+      ]
+    },
+    {
+      "id": "psychooncology",
+      "title": "Klinický psycholog (psychoonkologie)",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín 6 kalendářních dnů po MDT; není podmínkou připravenosti MDT.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "psychooncology",
+              "display": "Klinický psycholog (psychoonkologie)"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "coordinator"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "mdt"
+            },
+            {
+              "url": "days",
+              "valueInteger": 6
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 2 – Nemocnice Lipová, psychoonkologie"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "coordinator"
+        }
+      ],
+      "relatedAction": [
+        {
+          "actionId": "ct",
+          "relationship": "after-end"
+        }
+      ]
+    },
+    {
+      "id": "mdt",
+      "title": "MDT",
+      "description": "DEMO ASSUMPTION (není klinické doporučení): termín MDT je dán případem (parametr mdt_start), nikoli šablonou; vyžaduje CT, histologii a odběry.",
+      "code": [
+        {
+          "coding": [
+            {
+              "system": "https://stafeta.example/fhir/CodeSystem/pathway-action",
+              "code": "mdt",
+              "display": "MDT"
+            }
+          ]
+        }
+      ],
+      "participant": [
+        {
+          "type": "practitioner",
+          "role": {
+            "coding": [
+              {
+                "system": "https://stafeta.example/fhir/CodeSystem/stafeta-role",
+                "code": "koc_physician"
+              }
+            ]
+          }
+        }
+      ],
+      "extension": [
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/due-rule",
+          "extension": [
+            {
+              "url": "anchor",
+              "valueString": "mdt"
+            },
+            {
+              "url": "days",
+              "valueInteger": 0
+            },
+            {
+              "url": "workdays",
+              "valueBoolean": false
+            }
+          ]
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/place",
+          "valueString": "KOC 2 – Nemocnice Lipová"
+        },
+        {
+          "url": "https://stafeta.example/fhir/StructureDefinition/owner-role",
+          "valueString": "koc_physician"
+        }
+      ],
+      "relatedAction": [
+        {
+          "actionId": "ct",
+          "relationship": "after-end"
+        },
+        {
+          "actionId": "histology",
+          "relationship": "after-end"
+        },
+        {
+          "actionId": "labs",
+          "relationship": "after-end"
+        }
+      ]
+    }
+  ]
+}

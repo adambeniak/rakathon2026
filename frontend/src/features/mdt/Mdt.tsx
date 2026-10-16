@@ -2,6 +2,7 @@ import { BadgeCheck, CircleAlert, Info, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { EmptyState, ErrorState } from '@/components/EmptyState'
+import { EvidenceChip } from '@/components/EvidenceChip'
 import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill, pillForHandover } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
@@ -49,7 +50,8 @@ export function Mdt() {
   const q = useMdt(id, asOf)
   const gen = useGenerateMdt(id, asOf)
   const send = useSendFeedback(id)
-  const generated = Boolean(q.data?.generatedAt) || gen.isSuccess
+  // Generation belongs to the selected cutoff: a different as-of is not generated yet.
+  const generated = q.data?.generatedAt === asOf
 
   return (
     <div className="space-y-5">
@@ -80,7 +82,7 @@ export function Mdt() {
               {t.generate}
             </Button>
           )}
-          {send.isSuccess && <p role="status" className="mt-1 text-xs text-verified">{t.feedbackSent}</p>}
+          {send.isSuccess && generated && <p role="status" className="mt-1 text-xs text-verified">{t.feedbackSent}</p>}
           {q.data && !generated && !q.data.ready && <p className="mt-1 text-xs text-missing">{t.generateBlocked}</p>}
         </div>
       </div>
@@ -128,6 +130,13 @@ export function Mdt() {
                     ))}
                     {s.rows.length > 4 && <li className="text-muted">… {s.rows.length - 4}</li>}
                   </ul>
+                  {s.evidence.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {s.evidence.map((e, i) => (
+                        <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={q.data.included.find((d) => d.id === e.docId)} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               <div className="border-t border-hairline pt-2">

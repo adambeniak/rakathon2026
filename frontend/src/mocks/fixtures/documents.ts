@@ -29,6 +29,12 @@ export const DOCUMENTS: DocumentInfo[] = RAW.map(([id, title, place, authored, r
   afterAsOf: new Date(received).getTime() > new Date(AS_OF_DEFAULT).getTime(),
 }))
 
+/** As-of rule: authored <= as_of AND received <= as_of. */
+export function includedAt(asOf: string): DocumentInfo[] {
+  const t = new Date(asOf).getTime()
+  return DOCUMENTS.filter((d) => new Date(`${d.authored}T00:00:00+02:00`).getTime() <= t && new Date(d.received).getTime() <= t)
+}
+
 export function documentById(id: string): DocumentInfo | undefined {
   return DOCUMENTS.find((d) => d.id === id)
 }

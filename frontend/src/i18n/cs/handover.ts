@@ -3,6 +3,7 @@ export const handover = {
   asOf: 'Stav k termínu',
   confirmSection: 'Potvrdit sekci',
   confirmSectionAria: (title: string) => `Potvrdit sekci: ${title}`,
+  physicianOnly: 'Potvrdit sekci může pouze lékař. Přepněte roli na „Lékař KOC 2“.',
   confirmAll: 'Potvrdit všechny dostupné sekce',
   confirmedBy: (who: string) => `Potvrdil(a) ${who}`,
   cannotConfirm: 'Chybějící údaj nelze potvrdit',

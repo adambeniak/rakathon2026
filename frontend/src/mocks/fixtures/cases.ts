@@ -8,7 +8,7 @@ import { nextDeadline } from './tasks'
 export const ALENA_ID = 'rakathon-2026-prochazkova'
 
 export interface MockStore {
-  claimed: boolean
+  claimed: string[]
   acknowledged: string[]
   feedbackSent: boolean
   mdtGeneratedAt: string | null
@@ -17,7 +17,7 @@ export interface MockStore {
 }
 
 export function newStore(): MockStore {
-  return { claimed: false, acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] }
+  return { claimed: [], acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] }
 }
 
 const COORD = 'Bc. Dvořáková'
@@ -43,7 +43,7 @@ function alena(today: string, s: MockStore): CaseDetail | null {
     state = 'complete'
     subStatus = 'Kompletní – čeká na potvrzení sekcí lékařem'
     baton = { name: 'MUDr. Havelka (lékař KOC 2)', action: 'Potvrdit handover', due: '2026-10-21' }
-  } else if (today === '2026-10-02' && !s.claimed) {
+  } else if (today === '2026-10-02' && !s.claimed.includes(ALENA_ID)) {
     state = 'sent'
     subStatus = 'Nová žádost od PL – čeká na převzetí'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Převzít případ', due: '2026-10-05' }
@@ -90,7 +90,9 @@ const OTHERS: CaseDetail[] = [
 export function allCases(today: string, s: MockStore): CaseDetail[] {
   const a = alena(today, s)
   const others = OTHERS.filter((c) => c.referredAt <= today).map((c) =>
-    c.state === 'feedback_sent' && s.acknowledged.includes(c.id)
+    c.state === 'sent' && s.claimed.includes(c.id)
+      ? { ...c, state: 'triage' as const, subStatus: 'V triage – posuzuje koordinátorka', baton: { name: `${COORD} (koordinátorka KOC 2)`, action: 'Dokončit triage', due: c.baton.due } }
+      : c.state === 'feedback_sent' && s.acknowledged.includes(c.id)
       ? { ...c, state: 'closed' as const, subStatus: 'Uzavřeno – převzetí potvrzeno PL', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null } }
       : c,
   )

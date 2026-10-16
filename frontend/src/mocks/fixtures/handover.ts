@@ -1,6 +1,7 @@
 // MOCK copy – replaced by API in F2/F3
 import type { HandoverSection, HandoverStatus } from '@/lib/domain'
 import { formatDate } from '@/lib/date'
+import { AS_OF_DEFAULT, includedAt } from './documents'
 import { golden } from './golden'
 
 type Row = HandoverSection['rows'][number]
@@ -40,7 +41,7 @@ const arr = (v: unknown): Array<Record<string, unknown>> => (Array.isArray(v) ? 
 
 const SEX: Record<string, string> = { female: 'žena', male: 'muž' }
 
-function rowsFor(key: string, f: Gf): Row[] {
+function rowsFor(key: string, f: Gf, inc: Set<string>): Row[] {
   const v = obj(f.value)
   switch (key) {
     case '1_patient':
@@ -67,13 +68,7 @@ function rowsFor(key: string, f: Gf): Row[] {
         { label: 'Histologicky ověřeno', value: formatDate(S(v.verified_histologically_on)) },
       ]
     case '4_epicrisis':
-      return [
-        // MOCK copy – replaced by API in F2/F3 (AI epikríza draft)
-        {
-          value:
-            'V dokumentaci uvedeno: od poloviny srpna 2026 bolesti v epigastriu, v laboratoři cholestáza; UZ břicha 29. 9. 2026 – ložisko hlavy pankreatu suspektní z malignity; CT 8. 10. 2026 – tumor hlavy pankreatu 35 mm; EUS-FNB 12. 10. 2026; histologie vydána 19. 10. 2026 – duktální adenokarcinom; CA 19-9 312 kU/l (15. 10. 2026).',
-        },
-      ]
+      return [] // composed in buildSections from the documents available at the cutoff
     case '5_mdt_question':
       return [{ value: S(f.value) }]
     case '6_comorbidities':
@@ -96,9 +91,11 @@ function rowsFor(key: string, f: Gf): Row[] {
         ...((v.items as string[] | undefined) ?? []).map((i) => ({ value: i })),
       ]
     case '12_examinations':
-      return arr(f.value).map((e) => ({ label: formatDate(S(e.date)), value: `${S(e.type)} – ${S(e.place)}` }))
+      return arr(f.value)
+        .filter((e) => inc.has(S(e.doc)))
+        .map((e) => ({ label: formatDate(S(e.date)), value: `${S(e.type)} – ${S(e.place)}` }))
     case '13_labs':
-      return (f.key_values ?? []).map((l) => ({
+      return (f.key_values ?? []).filter((l) => inc.has(l.doc)).map((l) => ({
         label: `${l.test} (${formatDate(l.date)})`,
         value: `${String(l.value).replace('.', ',')} ${l.unit}${l.flag ? ` ${l.flag}` : ''}`,
       }))
@@ -124,26 +121,83 @@ const MISSING_LABEL: Record<string, string> = {
   tnm_clinical_stage: 'Klinické TNM',
 }
 
-export function buildSections(confirmed: Record<string, string>): HandoverSection[] {
+const DOC = {
+  uz: '06_UZ_bricha_2026-09-29',
+  ct: '08_CT_KOC1_2026-10-08',
+  eus: '09_Biopsie_vykon_KOC2_2026-10-12',
+  labs: '10_Laborator_KOC2_2026-10-15',
+  hist: '11_Histologie_KOC2_2026-10-19',
+  referral: '07_PL_zadost_KOC2_2026-10-02',
+  lab1: '02_Laborator_2026-09-01',
+} as const
+
+const quoteOf = (key: string, doc: string): string | undefined => golden.fields[key]?.evidence?.find((e) => e.doc === doc)?.quote
+const findingQuote = (id: string, i: number): string | undefined => golden.expected_findings.find((x) => x.id === id)?.quotes?.[i]
+
+/** AI epikríza draft: every statement is paired with evidence from a document available at the cutoff. */
+function epicrisis(inc: Set<string>): Pick<HandoverSection, 'rows' | 'evidence'> {
+  const parts: Array<{ text: string; ev: HandoverSection['evidence'][number] }> = [
+    { text: 'od poloviny srpna 2026 bolesti v epigastriu a pravém podžebří', ev: { docId: DOC.referral, quote: quoteOf('11_symptoms', DOC.referral) } },
+    { text: 'bilirubin celkový 38 µmol/l H (1. 9. 2026)', ev: { docId: DOC.lab1 } },
+    { text: 'UZ břicha 29. 9. 2026', ev: { docId: DOC.uz } },
+    { text: 'ložisko hlavy pankreatu suspektní z malignity', ev: { docId: DOC.referral, quote: quoteOf('4_epicrisis', DOC.referral) } },
+    { text: 'CT 8. 10. 2026 – tumor hlavy pankreatu 35 mm', ev: { docId: DOC.ct, quote: quoteOf('4_epicrisis', DOC.ct) } },
+    { text: 'EUS-FNB 12. 10. 2026', ev: { docId: DOC.eus, quote: findingQuote('C1', 0) } },
+    { text: 'CA 19-9 312 kU/l H (15. 10. 2026)', ev: { docId: DOC.labs } },
+    { text: 'histologie vydána 19. 10. 2026 – duktální adenokarcinom pankreatu', ev: { docId: DOC.hist, quote: quoteOf('3_diagnosis', DOC.hist) } },
+  ]
+  const used = parts.filter((p) => inc.has(p.ev.docId))
+  return {
+    rows: [{ value: `V dokumentaci uvedeno: ${used.map((p) => p.text).join('; ')}.` }],
+    evidence: used.map((p) => p.ev),
+  }
+}
+
+export function buildSections(confirmed: Record<string, string>, asOf: string = AS_OF_DEFAULT): HandoverSection[] {
+  const inc = new Set(includedAt(asOf).map((d) => d.id))
+  const hasHistology = inc.has(DOC.hist)
   return Object.entries(golden.fields).map(([key, f]) => {
     const number = Number(key.split('_')[0])
+    const evidenceAll: HandoverSection['evidence'] = [
+      ...(f.evidence ?? []).map((e) => ({ docId: e.doc, quote: e.quote })),
+      ...(f.key_values ? [...new Set(f.key_values.map((k) => k.doc))].map((docId) => ({ docId })) : []),
+      ...(key === '12_examinations' ? [...new Set(arr(f.value).map((e) => S(e.doc)))].map((docId) => ({ docId })) : []),
+    ]
+    let rows = rowsFor(key, f, inc)
+    let evidence = evidenceAll.filter((e) => inc.has(e.docId))
+    let status = f.status as HandoverStatus
+    let findingIds = FINDING_LINKS[key] ?? []
+
+    if (key === '4_epicrisis') ({ rows, evidence } = epicrisis(inc))
+    if (key === '3_diagnosis' && !hasHistology) {
+      // Before the histology report only the suspected diagnosis from the referral may be shown.
+      rows = [
+        { label: 'MKN-10', value: S(obj(f.value).icd10) },
+        { label: 'Popis', value: 'suspektní tumor hlavy pankreatu' },
+      ]
+      evidence = [{ docId: DOC.referral, quote: 'C25.0 – suspektní tumor hlavy pankreatu' }]
+    }
+    if (key === '14_histology' && !hasHistology) {
+      rows = [{ value: 'Neuvedeno' }]
+      status = 'missing'
+      findingIds = []
+    }
+    // A section whose every source lies beyond the cutoff has no supported value.
+    if (evidenceAll.length > 0 && evidence.length === 0 && key !== '14_histology') {
+      rows = [{ value: 'Neuvedeno' }]
+      status = 'missing'
+      findingIds = []
+    }
+
     return {
       key,
       number,
       title: TITLES[key] ?? key,
-      status: f.status as HandoverStatus,
-      rows: rowsFor(key, f),
+      status,
+      rows,
       missing: (f.missing ?? []).map((m) => MISSING_LABEL[m] ?? m),
-      evidence: [
-        ...(f.evidence ?? []).map((e) => ({ docId: e.doc, quote: e.quote })),
-        ...(f.key_values
-          ? [...new Set(f.key_values.map((k) => k.doc))].map((docId) => ({ docId }))
-          : []),
-        ...(key === '12_examinations'
-          ? [...new Set(arr(f.value).map((e) => S(e.doc)))].map((docId) => ({ docId }))
-          : []),
-      ],
-      findingIds: FINDING_LINKS[key] ?? [],
+      evidence,
+      findingIds,
       confirmed: key in confirmed,
       confirmedBy: confirmed[key],
     }

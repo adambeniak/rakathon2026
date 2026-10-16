@@ -6,7 +6,14 @@ export interface ParsedReferral {
   insurer: string
   diagnosis: string
   urgent: boolean
-  evidence: { docId: string; quote: string }
+  evidence: Record<'patientName' | 'birthDate' | 'birthNumber' | 'insurer' | 'diagnosis' | 'urgent', ReferralEvidence>
+}
+import type { DocumentInfo } from '@/lib/domain'
+
+export interface ReferralEvidence {
+  docId: string
+  quote: string
+  doc: DocumentInfo
 }
 export interface Koc {
   id: string

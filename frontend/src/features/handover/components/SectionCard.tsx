@@ -16,16 +16,18 @@ export function SectionCard({
   findings,
   onConfirm,
   busy,
+  canConfirm: roleAllowed,
 }: {
   s: HandoverSection
   docs: DocumentInfo[]
   findings: Finding[]
   onConfirm: (key: string) => void
   busy: boolean
+  canConfirm: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const pills = pillForHandover(s.status, s.confirmed)
-  const canConfirm = s.status !== 'missing' && !s.confirmed
+  const canConfirm = roleAllowed && s.status !== 'missing' && !s.confirmed
 
   async function copy() {
     try {
@@ -55,7 +57,7 @@ export function SectionCard({
       <dl className="mt-3 space-y-1">
         {s.rows.map((r, i) => (
           <div key={i} className="flex flex-wrap gap-x-3">
-            {r.label && <dt className="w-44 shrink-0 text-muted">{r.label}</dt>}
+            {r.label ? <dt className="w-44 shrink-0 text-muted">{r.label}</dt> : <dt className="sr-only">{s.title}</dt>}
             <dd className="min-w-0 flex-1">
               {r.value}
               {r.note && <span className="ml-2 text-xs text-muted">{r.note}</span>}
@@ -101,7 +103,7 @@ export function SectionCard({
             disabled={!canConfirm || busy}
             onClick={() => onConfirm(s.key)}
             aria-label={t.confirmSectionAria(s.title)}
-            title={s.status === 'missing' ? t.cannotConfirm : undefined}
+            title={!roleAllowed ? t.physicianOnly : s.status === 'missing' ? t.cannotConfirm : undefined}
           >
             {t.confirmSection}
           </Button>

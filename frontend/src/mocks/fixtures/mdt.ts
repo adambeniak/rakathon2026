@@ -1,7 +1,6 @@
 // MOCK copy – replaced by API in F2/F3
 import type { DocumentInfo, HandoverSection } from '@/lib/domain'
-import { isOnOrBefore } from '@/lib/date'
-import { DOCUMENTS } from './documents'
+import { DOCUMENTS, includedAt } from './documents'
 import { activeFindings } from './findings'
 import { CONFIRMABLE } from './handover'
 
@@ -23,7 +22,7 @@ export interface MdtView {
 
 export function buildMdt(asOf: string, sections: HandoverSection[], generatedAt: string | null): MdtView {
   const day = asOf.slice(0, 10)
-  const included = DOCUMENTS.filter((d) => isOnOrBefore(d.authored + 'T00:00:00+02:00', asOf) && isOnOrBefore(d.received, asOf))
+  const included = includedAt(asOf)
   const excluded = DOCUMENTS.filter((d) => !included.includes(d)).map((d) => ({
     ...d,
     reason: 'po MDT – vznik nebo přijetí po termínu as-of',

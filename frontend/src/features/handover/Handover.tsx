@@ -3,6 +3,7 @@ import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
+import { useDemo } from '@/app/DemoContext'
 import { useDocuments, useFindings } from '@/features/cases/api'
 import { handover as t } from '@/i18n/cs/handover'
 import { formatDateTime } from '@/lib/date'
@@ -11,6 +12,8 @@ import { useConfirmAll, useConfirmSection, useHandover } from './api'
 
 export function Handover() {
   const { id = '' } = useParams()
+  const { role } = useDemo()
+  const isPhysician = role === 'physician'
   const q = useHandover(id)
   const docs = useDocuments(id)
   const findings = useFindings(id)
@@ -32,9 +35,11 @@ export function Handover() {
           <p className="text-sm text-muted">
             {t.asOf}: {formatDateTime(q.data.asOf)} · {t.sectionsDone(done, confirmable.length)}
           </p>
+          {!isPhysician && <p className="text-sm text-conflict">{t.physicianOnly}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" disabled={confirmAll.isPending || done === confirmable.length} onClick={() => confirmAll.mutate()}>
+          <Button variant="secondary" disabled={!isPhysician || confirmAll.isPending || done === confirmable.length}
+            title={isPhysician ? undefined : t.physicianOnly} onClick={() => confirmAll.mutate()}>
             {t.confirmAll}
           </Button>
           <Button asChild variant="primary">
@@ -50,6 +55,7 @@ export function Handover() {
           docs={docs.data ?? []}
           findings={(findings.data ?? []).filter((f) => s.findingIds.includes(f.id))}
           busy={confirm.isPending}
+          canConfirm={isPhysician}
           onConfirm={(key) => confirm.mutate(key)}
         />
       ))}

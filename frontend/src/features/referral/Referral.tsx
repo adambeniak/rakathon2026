@@ -8,7 +8,12 @@ import { Button } from '@/components/ui/button'
 import { referral as t } from '@/i18n/cs/referral'
 import { formatDate } from '@/lib/date'
 import { cn } from '@/lib/cn'
+import type { ReferralEvidence } from './types'
 import { useKocDirectory, useParseReferral, useSubmitReferral } from './api'
+
+function Chip({ e }: { e: ReferralEvidence }) {
+  return <EvidenceChip docId={e.docId} quote={e.quote} doc={e.doc} />
+}
 
 export function Referral() {
   const input = useRef<HTMLInputElement>(null)
@@ -91,20 +96,35 @@ export function Referral() {
           <p className="text-sm text-muted">{t.summaryHint}</p>
           <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[10rem_1fr]">
             <dt className="text-muted">{t.fields.patient}</dt>
-            <dd className="font-medium">{parsed.patientName}</dd>
+            <dd className="flex flex-wrap items-center gap-2 font-medium">
+              {parsed.patientName}
+              <Chip e={parsed.evidence.patientName} />
+            </dd>
             <dt className="text-muted">{t.fields.birthDate}</dt>
-            <dd>{formatDate(parsed.birthDate)}</dd>
+            <dd className="flex flex-wrap items-center gap-2">
+              {formatDate(parsed.birthDate)}
+              <Chip e={parsed.evidence.birthDate} />
+            </dd>
             <dt className="text-muted">{t.fields.birthNumber}</dt>
-            <dd>{parsed.birthNumber}</dd>
+            <dd className="flex flex-wrap items-center gap-2">
+              {parsed.birthNumber}
+              <Chip e={parsed.evidence.birthNumber} />
+            </dd>
             <dt className="text-muted">{t.fields.insurer}</dt>
-            <dd>{parsed.insurer}</dd>
+            <dd className="flex flex-wrap items-center gap-2">
+              {parsed.insurer}
+              <Chip e={parsed.evidence.insurer} />
+            </dd>
             <dt className="text-muted">{t.fields.diagnosis}</dt>
             <dd className="flex flex-wrap items-center gap-2">
               {parsed.diagnosis}
-              <EvidenceChip docId={parsed.evidence.docId} quote={parsed.evidence.quote} />
+              <Chip e={parsed.evidence.diagnosis} />
             </dd>
             <dt className="text-muted">{t.fields.urgency}</dt>
-            <dd>{parsed.urgent ? t.urgent : '—'}</dd>
+            <dd className="flex flex-wrap items-center gap-2">
+              {parsed.urgent ? t.urgent : '—'}
+              <Chip e={parsed.evidence.urgent} />
+            </dd>
           </dl>
         </section>
       )}

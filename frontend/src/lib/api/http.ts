@@ -16,7 +16,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   if (!url.searchParams.has('today')) url.searchParams.set('today', getDemo().today)
   const res = await fetch(url, {
     method,
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: { 'X-Demo-Role': getDemo().role, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!res.ok) {

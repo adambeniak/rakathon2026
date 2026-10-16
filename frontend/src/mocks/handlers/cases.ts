@@ -33,7 +33,8 @@ export const handlers = [
     HttpResponse.json(isAlena(params.id) ? AUDIT.filter((a) => a.at.slice(0, 10) <= todayOf(request)) : []),
   ),
   http.post('/api/cases/:id/claim', ({ params }) => {
-    if (isAlena(params.id)) store.claimed = true
+    const id = String(params.id)
+    if (!store.claimed.includes(id)) store.claimed.push(id)
     return HttpResponse.json({ ok: true })
   }),
   http.post('/api/cases/:id/acknowledge', ({ params }) => {
@@ -42,7 +43,7 @@ export const handlers = [
     return HttpResponse.json({ ok: true })
   }),
   http.post('/api/mock/reset', () => {
-    Object.assign(store, { claimed: false, acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] })
+    Object.assign(store, { claimed: [], acknowledged: [], feedbackSent: false, mdtGeneratedAt: null, confirmed: {}, extraCases: [] })
     return HttpResponse.json({ ok: true, cases: allCases('2026-10-16', store).length })
   }),
 ]

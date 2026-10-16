@@ -40,7 +40,8 @@ back to the GP with proof of delivery. Demo case: fictitious patient Alena Proch
 ## Commands (run from repo root)
 | Task | Command |
 | --- | --- |
-| Start everything locally | `make up` (docker compose; password in `.iris/password.txt`) |
+| Start backend + mailpit (against the IRIS in `.env`, team ACI) | `make up` |
+| Same + local IRIS container (demo fallback) | `make up-local` (password in `.iris/password.txt`) |
 | Bootstrap IRIS (idempotent) | `make iris-bootstrap` |
 | Seed demo case | `make seed` |
 | Lint + types + unit tests | `make check` |

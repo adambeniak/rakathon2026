@@ -4,7 +4,8 @@ import { LoadingBlock } from '@/components/Skeleton'
 import { Button } from '@/components/ui/button'
 import { cases as t } from '@/i18n/cs/cases'
 import { EvidenceChip } from '@/components/EvidenceChip'
-import { useDocumentRequests, useDocuments, useRequestDocuments } from '../api'
+import { useDocuments } from '@/features/documents/api'
+import { useDocumentRequests, useRequestDocuments } from '../api'
 
 /** Demo step 2: proposed document requests as one checklist, sent with a single click. */
 export function TriagePanel({ caseId, canAct }: { caseId: string; canAct: boolean }) {

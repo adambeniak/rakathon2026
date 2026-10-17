@@ -5748,11 +5748,28 @@
           {
             "event": "missing_found",
             "reason": "chybí CT"
+          },
+          {
+            "conclusion": "Závěr MDT dle zápisu.",
+            "event": "record_mdt_conclusion"
           }
         ],
         "properties": {
+          "conclusion": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by record_mdt_conclusion. The signing clinician is the acting user (`confirmed_by`).",
+            "title": "Conclusion"
+          },
           "event": {
-            "description": "accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume. Other machine events are refused (422) until their endpoints exist.",
+            "description": "accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician) | send_feedback (coordinator) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator). Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.",
             "maxLength": 40,
             "title": "Event",
             "type": "string"
@@ -5769,6 +5786,19 @@
             ],
             "description": "Required by missing_found and postpone.",
             "title": "Reason"
+          },
+          "receipt_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by delivery_confirmed.",
+            "title": "Receipt Id"
           },
           "resume_on": {
             "anyOf": [
@@ -7770,7 +7800,7 @@
     },
     "/api/cases/{case_id}/transitions": {
       "post": {
-        "description": "Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode).",
+        "description": "Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician; the GP recipient of `send_feedback` is the referring GP of the case. Every event writes one AuditEvent.",
         "operationId": "cases-transition_case",
         "parameters": [
           {
@@ -7835,6 +7865,16 @@
               }
             },
             "description": "Actor not identified (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
           },
           "404": {
             "content": {

@@ -35,9 +35,24 @@ from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_TASK_CODE, SID_REQUEST_TASK, SID_SOURCE_DOCUMENT, TASK_CODE_REQUEST_REPORT
 from app.security.actor import SYSTEM_ACTOR
 
-# Events whose guards need data that has no endpoint yet; they are refused instead of being half-supported.
+# Events whose guards need data that has no endpoint yet (`mark_ready_mdt`: the readiness gate input) are refused
+# instead of being half-supported. `delivery_confirmed` is system-only in the machine and `system` cannot be picked
+# over HTTP, so only internal callers (notify) can fire it.
 SUPPORTED_EVENTS = frozenset(
-    {"accept", "request_documents", "mark_complete", "docs_received", "missing_found", "postpone", "resume"}
+    {
+        "accept",
+        "request_documents",
+        "mark_complete",
+        "docs_received",
+        "missing_found",
+        "postpone",
+        "resume",
+        "record_mdt_conclusion",
+        "send_feedback",
+        "delivery_confirmed",
+        "gp_opened",
+        "close",
+    }
 )
 OPEN_TASK_STATUSES = "requested,accepted,in-progress"
 OPEN_STATUSES = frozenset(OPEN_TASK_STATUSES.split(","))
@@ -126,14 +141,26 @@ class CaseWorkflow:
         now: datetime,
         reason: str | None = None,
         resume_on: str | None = None,
+        conclusion: str | None = None,
+        receipt_id: str | None = None,
     ) -> TransitionOutcome:
         if event not in SUPPORTED_EVENTS:
             raise InvalidInputError(f"event {event!r} is not available through this endpoint")
         loaded = await self._reader.load(case_id)
         authorize_case(loaded, actor, directory)
         open_requests = await self.open_request_count(loaded)
+        requester = _requester(loaded, directory)
         ctx = case_machine.CaseContext(
-            reason=reason, resume_on=resume_on, open_request_tasks=open_requests, missing_blockers=open_requests
+            reason=reason,
+            resume_on=resume_on,
+            open_request_tasks=open_requests,
+            missing_blockers=open_requests,
+            conclusion=conclusion,
+            # Sign-off is the acting clinician, never a client-supplied id; the machine checks the role.
+            confirmed_by=actor.id if event == "record_mdt_conclusion" else None,
+            # The feedback goes to the referring GP of the case, not to an address the client names.
+            gp_recipient=requester.role.id if requester else None,
+            receipt_id=receipt_id,
         )
         result = case_machine.transition(loaded.case, event, actor.role, ctx, now)
         new_case = assign_holder(result.case, actor, directory, loaded)

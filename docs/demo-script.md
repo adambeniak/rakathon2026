@@ -19,9 +19,8 @@ Presenter lines are Czech (spoken); everything else is English. All data is fict
 | **Doplněno lékařem** | a missing value filled in by the physician (button **Upravit**) |
 | **Chybí**, **Nesouhlasí**, **Zastaralé**, **Po MDT** | data-quality chips |
 
-Never say or show **"Ověřeno"** or "Ověřeno lékařem". The string still exists in `frontend/src/i18n/cs/common.ts`
-(`status.verified`); the handover overrides it with **Potvrzeno lékařem**, so it should not appear (check once in the
-rehearsal; #123). Presenter wording stays neutral: "v dokumentaci uvedeno…", "nesoulad mezi…", "chybí…". The AI never
+Never say or show **"Ověřeno"**, "Ověřeno lékařem" or "Zkontrolováno" (`frontend/src/i18n/wording.test.ts` fails if a UI
+string contains them; #123). Presenter wording stays neutral: "v dokumentaci uvedeno…", "nesoulad mezi…", "chybí…". The AI never
 recommends treatment, doses or a diagnosis; never improvise clinical statements.
 
 ## Setup (once, before going on stage)

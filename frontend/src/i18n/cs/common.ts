@@ -23,7 +23,7 @@ export const common = {
     missing: 'Chybí',
     conflict: 'Nesouhlasí',
     stale: 'Zastaralé',
-    verified: 'Ověřeno lékařem',
+    verified: 'Potvrzeno lékařem',
     ai: 'Návrh AI',
     complete: 'Úplné',
     partial: 'Neúplné',

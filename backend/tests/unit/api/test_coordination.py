@@ -635,6 +635,19 @@ def test_unknown_or_unselectable_roles_are_401(harness: Harness) -> None:
     assert harness.store.resources == {}
 
 
+def test_the_seeded_reviewer_can_log_in_but_sees_no_case_content(harness: Harness) -> None:
+    reviewer = {"X-Demo-Role": "reviewer"}
+
+    kocs = harness.client.get("/api/directory/kocs", headers=reviewer)
+    board = harness.client.get(f"/api/cases/{CASE_ID}/board", headers=reviewer)
+    alerts = harness.client.get(f"/api/cases/{CASE_ID}/alerts", headers=reviewer)
+
+    assert kocs.status_code == 200
+    assert board.status_code == 403
+    assert alerts.status_code == 403
+    assert harness.launch(headers=reviewer).status_code == 403
+
+
 OUTSIDER = PartyRef(id="fiala-daniel@koc1-nemocnice-severni", display="MUDr. Fiala", role=Role.EXTERNAL_WORKPLACE)
 
 

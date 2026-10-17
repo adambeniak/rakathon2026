@@ -36,7 +36,14 @@ def feedback_communication_to_fhir(
     sent_at: datetime,
     message_id: str,
     body: str,
+    conclusion_reference: str | None = None,
 ) -> Resource:
+    """`sent` is when the SMTP relay accepted the message: a hand-over for delivery, not proof that the GP read it
+    (`received` is deliberately not set; the GP opening the feedback is the separate `gp_opened` event).
+    `conclusion_reference` names the signed MDT conclusion that was announced (traceability of the proof)."""
+    about = [{"reference": episode_reference}]
+    if conclusion_reference:
+        about.append({"reference": conclusion_reference})
     return {
         "resourceType": "Communication",
         "identifier": [
@@ -45,9 +52,9 @@ def feedback_communication_to_fhir(
         ],
         "status": "completed",
         "category": [{"coding": [{"system": CS_COMMUNICATION_CATEGORY, "code": "mdt-feedback"}]}],
-        "medium": [{"coding": [{"system": V3_PARTICIPATION_MODE, "code": "EMAILWRIT", "display": "e-mail"}]}],
+        "medium": [{"coding": [{"system": V3_PARTICIPATION_MODE, "code": "EMAILWRIT", "display": "email"}]}],
         "subject": {"reference": patient_reference},
-        "about": [{"reference": episode_reference}],
+        "about": about,
         "sent": sent_at.isoformat(),
         "sender": party_reference(sender, sender_reference),
         "recipient": [{"reference": recipient_reference}],

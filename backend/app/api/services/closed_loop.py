@@ -11,11 +11,17 @@ that carry data or a side effect and delegates every other event to the base cla
   case Task (state `zpetna_vazba_odeslana`, delivery receipt), the AuditEvent of `send_feedback` (the coordinator),
   the AuditEvent of `delivery_confirmed` (the system actor, receipt = SMTP Message-ID) and the `Communication`.
   If SMTP fails the case stays in `zaver_mdt` and the coordinator can retry; the e-mail holds no clinical text.
+  The receipt means "the relay accepted the message" (handed over for delivery), not that the GP got or read it;
+  the GP opening the feedback is the separate `gp_opened` event. If the write fails AFTER a successful send, the
+  mail is out but nothing is recorded: the Message-ID is logged and a retry would send a second mail (see PR risks).
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
+
+import structlog
 
 from app.domain import case_machine
 from app.domain.case import CaseState
@@ -25,12 +31,14 @@ from app.domain.events import EventKind
 from app.fhir.audit import build_domain_audit_event
 from app.fhir.bundles import BundleBuilder
 from app.fhir.cases import CaseReader, LoadedCase
+from app.fhir.client import Resource
 from app.fhir.directory import Directory, RoleEntry
 from app.fhir.mappers.feedback import feedback_communication_to_fhir
 from app.fhir.mappers.mdt_conclusion import (
     TYPE_MDT_CONCLUSION,
     MdtConclusionRecord,
     is_conclusion_of,
+    latest_conclusion,
     mdt_conclusion_from_fhir,
     mdt_conclusion_provenance,
     mdt_conclusion_to_fhir,
@@ -41,6 +49,8 @@ from app.fhir.workflow import CaseWorkflow, TransitionOutcome, assign_holder, au
 from app.notify.feedback_mail import FeedbackMailInput, build_feedback_mail
 from app.notify.mailer import Mailer, new_message_id
 from app.security.actor import SYSTEM_ACTOR
+
+log = structlog.get_logger(__name__)
 
 # The GP may read the conclusion only once the feedback has been sent to them.
 GP_VISIBLE_STATES = frozenset({CaseState.ZPETNA_VAZBA_ODESLANA, CaseState.UZAVRENO})
@@ -112,6 +122,15 @@ class ClosedLoopWorkflow(CaseWorkflow):
         authorize_case(loaded, actor, directory)
         if actor.role is Role.GP and loaded.case.state not in GP_VISIBLE_STATES:
             raise ForbiddenError("the feedback has not been sent yet")
+        latest = await self._latest_conclusion(loaded, case_id)
+        if latest is None:
+            raise NotFoundError("MDT conclusion", case_id)
+        await self._repo.audit_read([f"Composition/{latest['id']}"])
+        record = mdt_conclusion_from_fhir(latest)
+        signer = directory.role(record.signer_id)  # the role comes from the directory, it is not assumed
+        return replace(record, signer_role=signer.role.role if signer else None)
+
+    async def _latest_conclusion(self, loaded: LoadedCase, case_id: str) -> Resource | None:
         found = await self._repo.search(
             "Composition",
             {
@@ -121,11 +140,7 @@ class ClosedLoopWorkflow(CaseWorkflow):
             },
         )
         mine = [c for c in found if is_conclusion_of(c, case_id)]
-        if not mine:
-            raise NotFoundError("MDT conclusion", case_id)
-        latest = max(mine, key=lambda c: str(c["date"]))
-        await self._repo.audit_read([f"Composition/{latest['id']}"])
-        return mdt_conclusion_from_fhir(latest)
+        return latest_conclusion(mine) if mine else None
 
     async def send_feedback(
         self, case_id: str, *, actor: PartyRef, directory: Directory, now: datetime
@@ -162,8 +177,8 @@ class ClosedLoopWorkflow(CaseWorkflow):
             ),
             message_id=message_id,
         )
-        receipt = await self._mailer.send(message)  # MailDeliveryError: nothing written, the coordinator may retry
-
+        # Everything that can fail on our side is built BEFORE the send, so a send is followed only by the write.
+        conclusion = await self._latest_conclusion(loaded, case_id)  # metadata only: its text is not read here
         new_case = assign_holder(delivered.case, actor, directory, loaded)
         builder = BundleBuilder()
         builder.post(
@@ -175,15 +190,24 @@ class ClosedLoopWorkflow(CaseWorkflow):
                 sender_reference=sender.ref,
                 recipient_reference=gp.ref,
                 sent_at=now,
-                message_id=receipt,
+                message_id=message_id,
                 body=message.body,
+                conclusion_reference=f"Composition/{conclusion['id']}" if conclusion else None,
             )
         )
         task_reference = f"Task/{loaded.task['id']}"
         for event in delivered.events:  # delivery is confirmed by the system, not by the coordinator who clicked
             if event.kind is EventKind.AUDIT:
                 builder.post(build_domain_audit_event(event, actor=SYSTEM_ACTOR, entities=[task_reference]))
-        await self.save_case(loaded, new_case, sent.events, actor=actor, directory=directory, bundle=builder)
+
+        await self._mailer.send(message)  # MailDeliveryError: nothing written, the coordinator may retry
+        try:
+            await self.save_case(loaded, new_case, sent.events, actor=actor, directory=directory, bundle=builder)
+        except Exception:
+            # The relay accepted the mail but the case was not updated (e.g. a concurrent write, IRIS down). Keep the
+            # only trace there is: ids, no addresses or text.
+            log.error("feedback_mail_sent_but_state_not_saved", message_id=message_id)
+            raise
         return TransitionOutcome(new_case, (*sent.events, *delivered.events))
 
 

@@ -267,6 +267,8 @@ def test_feedback_mails_the_gp_confirms_delivery_and_records_the_communication(
     assert communication["status"] == "completed"
     assert message.message_id in [i["value"] for i in communication["identifier"]]
     assert communication["payload"][0]["contentString"] == message.body
+    [composition] = store.of_type("Composition")
+    assert {"reference": f"Composition/{composition['id']}"} in communication["about"]
     audits = {a["subtype"][0]["code"]: a for a in store.of_type("AuditEvent")}
     assert audits["send_feedback"]["agent"][0]["who"]["identifier"]["value"] == "dvorakova-lucie@koc2-nemocnice-lipova"
     assert audits["delivery_confirmed"]["agent"][0]["who"]["identifier"]["value"] == "system"
@@ -348,3 +350,40 @@ def test_delivery_cannot_be_confirmed_by_a_user_and_the_gp_receipt_then_close_co
     assert _state(store) == "uzavreno"
     actions = [a["action"] for a in store.of_type("AuditEvent") if a["subtype"][0]["code"] == "gp_opened"]
     assert actions == ["R"]
+
+
+def test_a_failed_write_after_a_sent_mail_is_an_error_and_leaves_the_state_alone(
+    client: TestClient, store: MemoryFhir, mailer: FakeMailer
+) -> None:
+    _sign_off(client)
+    original = store.transaction
+
+    async def failing(bundle: Resource, **kwargs: object) -> Resource:
+        raise RuntimeError("412 If-Match")
+
+    store.transaction = failing  # type: ignore[method-assign]
+
+    response = _post(client, "send_feedback", COORDINATOR_HEADERS)
+
+    store.transaction = original  # type: ignore[method-assign]
+    assert response.status_code == 500  # surfaced, not swallowed
+    assert len(mailer.sent) == 1  # the mail is out (the Message-ID is logged); nothing was recorded
+    assert _state(store) == "zaver_mdt"
+    assert store.of_type("Communication") == []
+
+
+@pytest.mark.parametrize(
+    ("headers", "status"),
+    [(COORDINATOR_HEADERS, 409), (GP_HEADERS, 409), (PHYSICIAN_HEADERS, 409), (REVIEWER_HEADERS, 403)],
+)
+def test_no_demo_role_can_confirm_delivery_or_supply_a_receipt(
+    client: TestClient, store: MemoryFhir, headers: dict[str, str], status: int
+) -> None:
+    _sign_off(client)
+    _post(client, "send_feedback", COORDINATOR_HEADERS)
+    before = store.resources[("Task", "5")]["meta"]["versionId"]
+
+    response = _post(client, "delivery_confirmed", headers, receipt_id="forged")
+
+    assert response.status_code == status
+    assert store.resources[("Task", "5")]["meta"]["versionId"] == before  # nothing written

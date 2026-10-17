@@ -10,7 +10,7 @@ from app.domain.common import Role
 class SignedBy(BaseModel):
     id: str = Field(description="PractitionerRole business id of the signing physician.")
     display: str
-    role: Role
+    role: Role | None = Field(None, description="Role of the signer in the directory; null if unknown.")
 
 
 class MdtConclusionOut(BaseModel):

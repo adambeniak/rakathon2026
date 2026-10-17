@@ -11,7 +11,7 @@ from datetime import datetime
 
 from app.domain.directory import PractitionerRole
 from app.notify.mailer import MailMessage
-from app.settings import Settings
+from app.settings import PRAGUE, Settings
 
 SENDER_NAME = "Štafeta"
 SENDER_ADDRESS = "stafeta@demo.stafeta.example"
@@ -20,13 +20,13 @@ PORTAL_PATH = "/gp"
 SUBJECT = "Štafeta: zpětná vazba z MDT je k dispozici"
 BODY = """Dobrý den,
 
-{koc} Vám zasílá zpětnou vazbu z multioborového semináře (MDT){mdt_date}.
+{koc} Vám zasílá zpětnou vazbu z jednání multidisciplinárního týmu (MDT){mdt_date}.
 
 Zpětná vazba je k dispozici v portálu Štafeta: {portal_url}
 
 Obsah zprávy záměrně neuvádíme e-mailem. Do portálu se přihlaste svým účtem.
 
-Kontakt na koordinátora: {coordinator}
+Kontakt na koordinaci KOC: {coordinator}
 
 Toto je automatická zpráva ze systému Štafeta (prototyp, fiktivní data). Na tuto zprávu neodpovídejte.
 """
@@ -57,7 +57,7 @@ class FeedbackMailInput:
 
 
 def build_feedback_mail(data: FeedbackMailInput, *, message_id: str) -> MailMessage:
-    mdt_date = f" konaného {data.mdt_start.strftime('%-d. %-m. %Y')}" if data.mdt_start else ""
+    mdt_date = _czech_date(data.mdt_start) if data.mdt_start else ""
     body = BODY.format(
         koc=data.koc_name, mdt_date=mdt_date, portal_url=data.portal_url, coordinator=data.coordinator_display
     )
@@ -69,3 +69,9 @@ def build_feedback_mail(data: FeedbackMailInput, *, message_id: str) -> MailMess
         body=body,
         message_id=message_id,
     )
+
+
+def _czech_date(moment: datetime) -> str:
+    """' konaného 21. 10. 2026' in Europe/Prague, whatever offset the stored instant carries."""
+    local = moment.astimezone(PRAGUE)
+    return f" konaného {local.day}. {local.month}. {local.year}"

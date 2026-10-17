@@ -1,4 +1,7 @@
-"""Outgoing e-mail: a small port (`Mailer`) and the SMTP adapter used with Mailpit (demo) or a real relay.
+"""Outgoing e-mail: a small port (`Mailer`) and the SMTP adapter used with Mailpit (demo).
+
+The adapter speaks plain SMTP (no STARTTLS, no authentication): fine for the loopback/compose Mailpit, NOT for a real
+relay (issue #77). The returned receipt means "the relay accepted the message", not that the recipient got or read it.
 
 The message id is chosen by the caller before sending, so it can be recorded as the delivery receipt
 (`Communication.identifier`, `delivery_confirmed.receipt_id`). Nothing here logs addresses or bodies.
@@ -70,14 +73,14 @@ class SmtpMailer:
         self._timeout = timeout
 
     async def send(self, message: MailMessage) -> str:
-        email = to_email(message)
         try:
-            await asyncio.to_thread(self._deliver, email)
-        except (OSError, smtplib.SMTPException) as exc:
+            email = to_email(message)  # the header policy refuses control characters in any header value
+            await asyncio.to_thread(self._deliver, email, message.recipient_address)
+        except (OSError, ValueError, smtplib.SMTPException) as exc:
             log.warning("mail_delivery_failed", error=type(exc).__name__, message_id=message.message_id)
             raise MailDeliveryError from exc
         return message.message_id
 
-    def _deliver(self, email: EmailMessage) -> None:
+    def _deliver(self, email: EmailMessage, recipient: str) -> None:
         with smtplib.SMTP(self._host, self._port, timeout=self._timeout) as smtp:
-            smtp.send_message(email)
+            smtp.send_message(email, to_addrs=[recipient])  # explicit envelope recipient, not parsed from headers

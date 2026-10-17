@@ -6,7 +6,7 @@ import socket
 import socketserver
 import threading
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import UTC, datetime
 from email import message_from_bytes
 from email.message import Message
 
@@ -121,6 +121,33 @@ async def test_smtp_mailer_raises_when_nobody_listens() -> None:
 
     with pytest.raises(MailDeliveryError):
         await SmtpMailer("127.0.0.1", port, timeout=2).send(_message())
+
+
+async def test_a_header_value_with_control_characters_is_refused_before_the_wire(smtp_server: _Server) -> None:
+    mailer = SmtpMailer("127.0.0.1", smtp_server.server_address[1])
+    hostile = MailMessage(**{**_message().__dict__, "subject": "ahoj\r\nBcc: someone@example.org"})
+
+    with pytest.raises(MailDeliveryError):
+        await mailer.send(hostile)
+
+    assert smtp_server.received == []
+
+
+def test_the_mdt_date_is_shown_in_prague_time_whatever_offset_it_carries() -> None:
+    near_midnight_utc = datetime(2026, 10, 20, 22, 30, tzinfo=UTC)  # 21. 10. 00:30 in Prague
+
+    mail = build_feedback_mail(
+        FeedbackMailInput(
+            recipient=GP.role,
+            koc_name="KOC",
+            coordinator_display="K",
+            portal_url="http://x/gp",
+            mdt_start=near_midnight_utc,
+        ),
+        message_id="<m@stafeta.example>",
+    )
+
+    assert "konaného 21. 10. 2026" in mail.body
 
 
 def test_feedback_mail_holds_no_clinical_content() -> None:

@@ -122,7 +122,7 @@ async def test_conclusion_and_feedback_are_accepted_and_read_back(live: tuple[Fh
     [stored] = [c for c in found if is_conclusion_of(c, case_id)]
     record = mdt_conclusion_from_fhir(stored)
     assert record.text == TEXT
-    assert record.signed_by.id == signer.id
+    assert record.signer_id == signer.id
     assert record.signed_at == signed_at
 
     [provenance] = await repo.search("Provenance", {"target": f"Composition/{stored['id']}"})  # urn:uuid was rewritten

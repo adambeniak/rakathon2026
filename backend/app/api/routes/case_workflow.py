@@ -39,8 +39,9 @@ CaseId = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2
     "guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). "
     "`record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with "
     "`GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case "
-    "(no clinical text, link to the GP portal) and, once the mail relay accepted it, the system confirms the "
-    "delivery (`delivery_confirmed`); a mail failure answers 503 `mail-unavailable` and changes nothing. "
+    "(no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records "
+    "it as handed over for delivery (`delivery_confirmed`, receipt = SMTP Message-ID; the GP opening the feedback is "
+    "recorded separately by `gp_opened`); a mail failure answers 503 `mail-unavailable` and changes nothing. "
     "Every event writes an AuditEvent.",
     responses=problem_responses(401, 403, 404, 409, 422, 502, 503),
 )

@@ -27,8 +27,8 @@ class TransitionRequest(BaseModel):
         max_length=40,
         description="accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | "
         "record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and "
-        "records the delivery) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the "
-        "referring GP) | close (coordinator). "
+        "records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | "
+        "gp_opened (the referring GP) | close (coordinator). "
         "Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.",
     )
     reason: str | None = Field(None, max_length=500, description="Required by missing_found and postpone.")

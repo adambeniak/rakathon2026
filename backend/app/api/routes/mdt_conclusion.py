@@ -19,7 +19,8 @@ CaseId = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2
     response_model=MdtConclusionOut,
     summary="The signed MDT conclusion of the case",
     description="404 until a KOC physician has signed the conclusion (`record_mdt_conclusion`). Participants of the "
-    "case only; the referring GP can read it once the feedback has been sent. Every read is audited.",
+    "case only; the referring GP can read it once the feedback has been sent. Every read is audited, but a read does "
+    "not record `gp_opened`: the GP portal sends `POST /cases/{id}/transitions {event: gp_opened}` after showing it.",
     responses=problem_responses(401, 403, 404, 502, 503),
 )
 async def get_mdt_conclusion(
@@ -28,6 +29,6 @@ async def get_mdt_conclusion(
     record = await workflow.get_conclusion(case_id, actor=actor, directory=await provider.get())
     return MdtConclusionOut(
         text=record.text,
-        signed_by=SignedBy(id=record.signed_by.id, display=record.signed_by.display, role=record.signed_by.role),
+        signed_by=SignedBy(id=record.signer_id, display=record.signer_display, role=record.signer_role),
         signed_at=record.signed_at,
     )

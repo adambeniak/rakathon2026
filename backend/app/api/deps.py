@@ -19,6 +19,7 @@ from app.domain.common import PartyRef
 from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
 from app.extraction.llm import LLMClient
 from app.extraction.pipeline import CompletionClient
+from app.fhir.case_records import CaseRecordsReader
 from app.fhir.cases import CaseReader
 from app.fhir.directory import DirectoryProvider
 from app.fhir.handover_store import HandoverStore
@@ -58,6 +59,13 @@ def get_case_reader(repository: RepositoryDep) -> CaseReader:
 
 
 CaseReaderDep = Annotated[CaseReader, Depends(get_case_reader)]
+
+
+def get_case_records(repository: RepositoryDep) -> CaseRecordsReader:
+    return CaseRecordsReader(repository)
+
+
+CaseRecordsDep = Annotated[CaseRecordsReader, Depends(get_case_records)]
 
 
 def get_mailer(settings: SettingsDep) -> Mailer:

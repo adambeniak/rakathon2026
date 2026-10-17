@@ -57,3 +57,120 @@ export const documentRequestsCreated = z.object({
   case: caseSummary,
   requests: z.array(documentRequest),
 })
+
+// --- Case activity: audit trail, timeline, messages (KOC team of the case) ---
+
+const role = z.enum([
+  'gp',
+  'coordinator',
+  'koc_physician',
+  'koc_staff',
+  'external_workplace',
+  'patient',
+  'reviewer',
+  'system',
+])
+
+export const caseAuditTrail = z.object({
+  case_id: z.string(),
+  items: z.array(
+    z.object({
+      recorded: z.string(),
+      actor: z.string().nullish(),
+      actor_role: role.nullish(),
+      on_behalf_of: z.string().nullish(),
+      action: z.enum(['C', 'R', 'U', 'D', 'E']),
+      operation: z.string(),
+      workflow_event: z.boolean(),
+      entity_types: z.array(z.string()),
+      outcome: z.enum(['success', 'failure']),
+    }),
+  ),
+  total: z.number(),
+  offset: z.number(),
+  limit: z.number(),
+  truncated: z.boolean(),
+}) satisfies z.ZodType<Schemas['CaseAuditTrail']>
+
+const timelineKind = z.enum([
+  'document_authored',
+  'document_received',
+  'case_event',
+  'request_sent',
+  'request_fulfilled',
+  'step_scheduled',
+  'step_result_delivered',
+  'step_escalated',
+  'step_cancelled',
+  'mdt_meeting',
+  'mdt_conclusion',
+  'feedback_sent',
+  'feedback_delivered',
+  'gp_opened',
+])
+
+export const caseTimeline = z.object({
+  case_id: z.string(),
+  as_of: z.string().nullish(),
+  now: z.string(),
+  events: z.array(
+    z.object({
+      id: z.string(),
+      kind: timelineKind,
+      at: z.string(),
+      date_only: z.boolean(),
+      event: z.string().nullish(),
+      title: z.string().nullish(),
+      place: z.string().nullish(),
+      actor: z.string().nullish(),
+      doc_id: z.string().nullish(),
+      task_id: z.string().nullish(),
+      from_state: z.string().nullish(),
+      to_state: z.string().nullish(),
+      receipt_id: z.string().nullish(),
+      planned: z.boolean(),
+      excluded_from_handover: z.boolean().nullish(),
+    }),
+  ),
+}) satisfies z.ZodType<Schemas['CaseTimeline']>
+
+export const caseMessages = z.array(
+  z.object({
+    id: z.string(),
+    kind: z.enum(['document_request', 'mdt_feedback']),
+    status: z.enum(['open', 'fulfilled', 'cancelled', 'sent']),
+    sent_at: z.string().nullish(),
+    sender: z.string().nullish(),
+    recipient: z.string().nullish(),
+    text: z.string(),
+    request: z
+      .object({
+        request_id: z.string(),
+        status: z.enum([
+          'requested',
+          'accepted',
+          'in_progress',
+          'completed',
+          'failed',
+          'cancelled',
+        ]),
+        due: z.string().nullish(),
+        exam_date: z.string().nullish(),
+        result_doc_id: z.string().nullish(),
+      })
+      .nullish(),
+    delivery: z
+      .object({
+        channel: z.literal('email'),
+        receipt_id: z.string().nullish(),
+        gp_opened_at: z.string().nullish(),
+      })
+      .nullish(),
+  }),
+) satisfies z.ZodType<Schemas['CaseMessage'][]>
+
+export type CaseAuditTrail = z.output<typeof caseAuditTrail>
+export type AuditItem = CaseAuditTrail['items'][number]
+export type CaseTimeline = z.output<typeof caseTimeline>
+export type TimelineEntry = CaseTimeline['events'][number]
+export type CaseMessage = z.output<typeof caseMessages>[number]

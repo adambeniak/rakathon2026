@@ -179,3 +179,13 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: merge #207 → #211 → #214 (#214 already merged with main and contract regenerated, additive only); after merge a human walks steps 1–4 on local IRIS (`make demo-reset`, advance to 16. 10.) and checks Mailpit holds 3 SMS once each; Chromium needs libnspr4/libnss3 (agents used LD_LIBRARY_PATH to libs extracted in their scratchpad)
   Risks: SMS consent not modelled (#205); exam label + workplace in SMS is health data on an unencrypted channel; insurer numbers are fictitious (notice always shown); demo-case CT/biopsy order date 2. 10. is a labelled demo assumption awaiting product-owner OK; P1 to confirm the contract addition
   Issues: #194, #196 (P3), #203, #205, #209, #210 (P4), #191, #212, #213 (P2)
+- 2026-10-17 · claude (P4) · feat/case-audit-timeline-messages · #47: GET /api/cases/{id}/audit|timeline|messages (KOC team only, audited reads, codes only, as-of flag from the backend); Audit / Časová osa / Komunikace tabs on the generated client + zod, MSW mocks in contract shapes; ADR XXXX-case-audit-timeline-messages
+  Verified: ruff, mypy app, backend pytest -m "not iris" 1169 passed (before rebase) + 20 targeted after rebase; frontend lint, typecheck, vitest 187 passed (before rebase) + targeted after rebase
+  Next: #199 (security/clinical review, make e2e, screenshot), #197 (verify AuditEvent entity OR-search on make up-local), #198 (repository clock = demo clock)
+  Risks: IRIS search patterns unverified; audit trail read whole per request; audit times mix wall/demo clock
+  Issues: refs #47; #197, #198, #199 new
+- 2026-10-17 · claude (P4/QA) · qa/live-dress-rehearsal · live dress rehearsal on a local IRIS (make up-local demo-start): all 6 demo steps PASS over the API with X-Demo-Role; live Playwright project rewritten to follow the runbook (case id from URL, 3b via clock PUT, advance, 21. 10. snapshot, Mailpit, queue path Aktivní) and passed steps 1–2 + step 3 uploads live; mock project still green
+  Verified: API driver run steps 1–6 (all 2xx as expected, 409 guard_failed then waiver 200); `make e2e` mock 1 passed; live run see PR; IRIS used 1.98/2 GiB, backend ~1 GiB
+  Next: finish live steps 3–6 on an idle machine and run make test-iris-local (#202); #163 discriminating iris test
+  Risks: under heavy machine load one FHIR transaction took 155 s; each live e2e run needs a fresh make up-local
+  Issues: #175 (closed by PR), #202 new; #99/#163/#61 commented with evidence, still open

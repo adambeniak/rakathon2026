@@ -29,12 +29,15 @@ _DASH: Final = " – "
 # Title prefixes that only name the kind of report; the examination is what follows the dash.
 _GENERIC_TITLE_PREFIXES: Final = ("výsledek vyšetření", "výsledky vyšetření", "protokol o výkonu")
 _CONTACT = re.compile(r"@|https?://|www\.|\btel\b|\bfax\b|\+\d{3}", re.IGNORECASE)
-_PATHOLOGY_TITLE = re.compile(r"\b(?:bioptick|histologick)\w*\s+(?:nález|vyšetření)", re.IGNORECASE)
+# Anchored: "Bioptický nález", "Histologické vyšetření"; never a request form ("Žádanka o histologické vyšetření").
+_PATHOLOGY_TITLE = re.compile(r"^(?:bioptick|histologick)\w*\s+(?:nález|vyšetření)", re.IGNORECASE)
 _REPORT_ID = re.compile(r"^Číslo vyšetření:\s*(\S*\d\S*)$")
 _ISSUED = re.compile(r"^(?:Datum vydání|Vydáno):\s*(.+)$")
 _PROCEDURE = re.compile(r"^Datum výkonu:\s*(.+)$")
-# Specimen collection with an explicit year: "Odběr: 15. 10. 2026 7:45", "(odběr 20. 10. 2026)".
-_SPECIMEN = re.compile(r"\bodběr:?\s+(?:dne\s+)?(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})", re.IGNORECASE)
+# Specimen collection with an explicit year, only on a specimen line: "Odběr: 15. 10. 2026 7:45",
+# "Materiál: … (odběr 20. 10. 2026)". A line naming several specimens keeps all their dates.
+_SPECIMEN_LINE = re.compile(r"^(?:Materiál|(?:Datum\s+)?odběru?)\s*:", re.IGNORECASE)
+_SPECIMEN = re.compile(r"\bodběru?:?\s+(?:dne\s+)?(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -47,12 +50,20 @@ class HeaderValue:
     @property
     def pathology_title(self) -> bool:
         """The title line names a histological report ("Bioptický nález", "Histologické vyšetření")."""
-        return any(_PATHOLOGY_TITLE.search(ev.quote) for ev in self.evidence)
+        return _PATHOLOGY_TITLE.match(self.text) is not None
 
 
 @dataclass(frozen=True)
 class HeaderDate:
     date: date
+    evidence: Evidence
+
+
+@dataclass(frozen=True)
+class HeaderDates:
+    """All explicit-year dates of one quoted line (a specimen line may name several specimens)."""
+
+    dates: tuple[date, ...]
     evidence: Evidence
 
 
@@ -63,7 +74,7 @@ class DocumentHeader:
     place: HeaderValue | None = None
     report_id: HeaderValue | None = None
     issued: HeaderDate | None = None
-    specimen: HeaderDate | None = None
+    specimen: HeaderDates | None = None
     procedure: HeaderDate | None = None
 
 
@@ -116,7 +127,7 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
     blocks = _header_blocks(doc)
     report_id: HeaderValue | None = None
     issued: HeaderDate | None = None
-    specimen: HeaderDate | None = None
+    specimen: HeaderDates | None = None
     procedure: HeaderDate | None = None
     for block in blocks:
         if report_id is None and (m := _REPORT_ID.match(block.text)):
@@ -127,8 +138,10 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
             issued = HeaderDate(day, _evidence(doc.doc_id, block))
         if procedure is None and (m := _PROCEDURE.match(block.text)) and (day := _single_date(m.group(1))):
             procedure = HeaderDate(day, _evidence(doc.doc_id, block))
-        if specimen is None and (m := _SPECIMEN.search(block.text)) and (day := _single_date(m.group(1))):
-            specimen = HeaderDate(day, _evidence(doc.doc_id, block))
+        if specimen is None and _SPECIMEN_LINE.match(block.text):
+            days = tuple(d for m in _SPECIMEN.finditer(block.text) for d in find_dates(m.group(1)))
+            if days:
+                specimen = HeaderDates(days, _evidence(doc.doc_id, block))
 
     # Letterhead: lines before the patient line; the address (postcode) separates the workplace from the title.
     letterhead: list[Block] = []

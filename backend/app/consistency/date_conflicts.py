@@ -23,6 +23,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from typing import Final
 
+from app.documents.doc_type import PATHOLOGY
 from app.documents.normalize import find_dates
 from app.domain.evidence import Certainty, Evidence, Fact, FactType
 from app.domain.finding import Finding, FindingKind, Severity
@@ -168,23 +169,38 @@ def _specimen_vs_report(
     facts: Sequence[Fact], headers: Mapping[str, DocumentHeader], type_codes: Mapping[str, str | None]
 ) -> list[Finding]:
     found: dict[str, list[Finding]] = {}
-    # Pathology reports: the header lines decide (whole quoted lines, explicit years only).
+    seen: set[tuple[str, date, date]] = set()  # (document, specimen date, issue date)
+    # Pathology reports: the header issue date is the anchor (whole quoted line, explicit year), compared with the
+    # header specimen line, else with the specimen dates quoted in that report's facts.
     for doc_id in sorted(headers):
         h = headers[doc_id]
-        if h.issued is None or h.specimen is None or not is_pathology_report(h, type_codes.get(doc_id)):
+        if h.issued is None or not is_pathology_report(h, type_codes.get(doc_id)):
             continue
-        if h.specimen.date > h.issued.date:
-            procedures = _procedures(facts, headers, doc_id)
-            found[doc_id] = [_c2(h.specimen.evidence, h.issued.evidence, procedures)]
-    from_header = set(found)
-    # Quoted facts for every other document (and a pathology report whose header shows no conflict).
+        issued = h.issued
+        samples: list[tuple[date, Fact | Evidence]] = (
+            [(max(h.specimen.dates), h.specimen.evidence)]
+            if h.specimen is not None
+            else [(d, f) for f in facts if f.doc_id == doc_id and (d := _specimen_date(f)) is not None]
+        )
+        for specimen_date, sample in samples:
+            if specimen_date > issued.date and (doc_id, specimen_date, issued.date) not in seen:
+                seen.add((doc_id, specimen_date, issued.date))
+                found.setdefault(doc_id, []).append(_c2(sample, issued.evidence, _procedures(facts, headers, doc_id)))
+    # Quoted facts (the model extracted both dates); a pair already reported from the header is not repeated, and a
+    # document typed as something other than pathology is never compared (the finding belongs to field 14).
     for issue in facts:
         issue_date = _anchor_date(issue, _ISSUE_DATE_LABEL)
-        if issue_date is None or issue.doc_id in from_header:
+        type_code = type_codes.get(issue.doc_id)
+        if issue_date is None or (type_code is not None and type_code != PATHOLOGY):
             continue
         for sample in (f for f in facts if f.doc_id == issue.doc_id and f is not issue):
-            specimen_date = _quoted_date(_SPECIMEN, sample) if sample.certainty is Certainty.STATED else None
-            if specimen_date is None or specimen_date <= issue_date:
+            quoted = _specimen_date(sample)
+            if quoted is None or quoted <= issue_date or (issue.doc_id, quoted, issue_date) in seen:
                 continue
+            seen.add((issue.doc_id, quoted, issue_date))
             found.setdefault(issue.doc_id, []).append(_c2(sample, issue, _procedures(facts, headers, issue.doc_id)))
     return [f for doc_id in sorted(found) for f in found[doc_id]]
+
+
+def _specimen_date(fact: Fact) -> date | None:
+    return _quoted_date(_SPECIMEN, fact) if fact.certainty is Certainty.STATED else None

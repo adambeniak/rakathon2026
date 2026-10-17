@@ -8,8 +8,11 @@ from datetime import date
 
 from app.consistency import detect_findings
 from app.documents.normalize import NormalizedDoc, doc_from_text
-from app.domain.handover import HandoverStatus
-from app.extraction.handover.headers import parse_headers
+from app.domain.evidence import Evidence
+from app.domain.finding import Finding, FindingKind, Severity
+from app.domain.handover import HandoverFieldBase, HandoverStatus
+from app.extraction.handover.assemble import apply_findings, assemble_handover
+from app.extraction.handover.headers import DocumentHeader, parse_headers
 from app.extraction.handover.service import build_handover
 from tests.unit.consistency.test_date_conflicts import (
     DOC09,
@@ -123,3 +126,71 @@ def test_build_handover_flags_14_and_records_c2_on_field_3_without_extracted_dat
     assert diagnosis.value.verified_histologically_on == date(2026, 10, 19)
     assert diagnosis.conflicts == ["C2"]
     assert diagnosis.status is not HandoverStatus.COMPLETE_WITH_CONFLICT  # related field: id recorded, status kept
+
+
+def _pathology(*lines: str, title: str = "Bioptický nález") -> dict[str, DocumentHeader]:
+    text = "\n".join(["Ústav patologie", "Ulice 1, 100 00 Praha", title, *lines, "MIKROSKOPICKY"])
+    return parse_headers({DOC11: doc_from_text(DOC11, text, date(2026, 10, 19))})
+
+
+def test_any_later_specimen_on_a_multi_specimen_line_is_a_conflict() -> None:
+    line = "Materiál: A (odběr 12. 10. 2026), B (odběr 20. 10. 2026)"
+    (c2,) = detect_findings([], _pathology(line, "Datum vydání: 19. 10. 2026"), {DOC11: PATHOLOGY})
+    assert quotes(c2) == [line, "Datum vydání: 19. 10. 2026"]
+
+
+def test_only_a_specimen_line_counts_as_specimen() -> None:
+    headers = _pathology("Klinické údaje: kontrolní odběr 25. 10. 2026 plánován", "Datum vydání: 19. 10. 2026")
+    assert detect_findings([], headers, {DOC11: PATHOLOGY}) == []
+
+
+def test_request_form_title_is_not_a_pathology_report() -> None:
+    lines = ("Odběr: 20. 10. 2026", "Vydáno: 19. 10. 2026")
+    headers = _pathology(*lines, title="Žádanka o histologické vyšetření")
+    assert detect_findings([], headers, {DOC11: None}) == []
+    assert detect_findings([], _pathology(*lines), {DOC11: None}) != []
+
+
+def test_header_issue_date_against_a_quoted_specimen_fact() -> None:
+    """No specimen line in the header: the quoted specimen fact is compared with the header issue date, so the
+    model need not have extracted the issue date."""
+    (c2,) = detect_findings([specimen()], _pathology("Datum vydání: 19. 10. 2026"), {DOC11: PATHOLOGY})
+    assert quotes(c2) == [SPECIMEN_QUOTE, "Datum vydání: 19. 10. 2026"]
+
+
+def test_fact_rule_skips_documents_typed_as_something_else() -> None:
+    assert detect_findings([specimen(), issue()], {}, {DOC11: LAB}) == []
+    assert [x.id for x in detect_findings([specimen(), issue()], {}, {DOC11: PATHOLOGY})] == ["C2"]
+
+
+def _diagnosis_with_c2(status: HandoverStatus, evidence: list[Evidence]) -> HandoverFieldBase:
+    finding = Finding(
+        id="C2",
+        kind=FindingKind.DATE_CONFLICT,
+        severity=Severity.HIGH,
+        message="Nesoulad mezi …",
+        field="14_histology",
+        evidence=[
+            Evidence(doc_id=DOC11, quote=SPECIMEN_QUOTE),
+            Evidence(doc_id=DOC11, quote=ISSUE_QUOTE),
+            Evidence(doc_id=DOC09, quote=PROCEDURE_QUOTE),
+        ],
+    )
+    h = assemble_handover("case-h", AS_OF, [], {}, findings=[finding])
+    fields = h.fields.model_copy(
+        update={"diagnosis": h.fields.diagnosis.model_copy(update={"status": status, "evidence": evidence})}
+    )
+    return apply_findings(fields, [finding]).diagnosis
+
+
+def test_related_field_complete_becomes_complete_with_conflict_partial_is_kept() -> None:
+    issue_ev = [Evidence(doc_id=DOC11, quote=ISSUE_QUOTE)]
+    done = _diagnosis_with_c2(HandoverStatus.COMPLETE, issue_ev)
+    assert (done.status, done.conflicts) == (HandoverStatus.COMPLETE_WITH_CONFLICT, ["C2"])
+    partial = _diagnosis_with_c2(HandoverStatus.PARTIAL, issue_ev)
+    assert (partial.status, partial.conflicts) == (HandoverStatus.PARTIAL, ["C2"])
+
+
+def test_related_field_is_not_tagged_for_a_comparison_quote() -> None:
+    other = _diagnosis_with_c2(HandoverStatus.COMPLETE, [Evidence(doc_id=DOC09, quote=PROCEDURE_QUOTE)])
+    assert (other.status, other.conflicts) == (HandoverStatus.COMPLETE, [])

@@ -4,12 +4,13 @@ import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
 import { useDemo } from '@/app/DemoContext'
-import { useCase, useFindings } from '@/features/cases/api'
+import { useCase } from '@/features/cases/api'
 import { useDocuments } from '@/features/documents/api'
 import { handover as t } from '@/i18n/cs/handover'
+import { problemTitle } from '@/lib/api/problem'
 import { formatDateTime } from '@/lib/date'
 import { SectionCard } from './components/SectionCard'
-import { useConfirmAll, useConfirmSection, useEditSection, useHandover } from './api'
+import { useHandover, useReviewSection } from './api'
 
 export function Handover() {
   const { id = '' } = useParams()
@@ -17,21 +18,19 @@ export function Handover() {
   const isPhysician = role === 'physician'
   const q = useHandover(id)
   const docs = useDocuments(id)
-  const findings = useFindings(id)
   const caseQ = useCase(id)
-  const confirm = useConfirmSection(id)
-  const confirmAll = useConfirmAll(id)
-  const edit = useEditSection(id)
+  const review = useReviewSection(id)
 
   if (q.isPending) return <LoadingBlock lines={8} />
   if (q.isError) return <ErrorState onRetry={() => void q.refetch()} />
   if (q.data.sections.length === 0) return <EmptyState title={t.empty} hint={t.emptyHint} />
 
-  const confirmable = q.data.sections.filter((s) => s.status !== 'missing')
-  const done = confirmable.filter((s) => s.confirmed).length
-  // The draft label stays until the server has recorded the last confirmation (confirm.isPending).
-  const allConfirmed = confirmable.length > 0 && done === confirmable.length && !confirm.isPending
-  const missingSections = q.data.sections.length - confirmable.length
+  // The Composition is final when every one of the sections is confirmed or accepted as missing.
+  const total = q.data.sections.length
+  const done = q.data.sections.filter((x) => x.confirmed).length
+  // The draft label stays until the server has recorded the last confirmation (review.isPending).
+  const allConfirmed = done === total && !review.isPending
+  const accepted = q.data.sections.filter((x) => x.acceptedMissing).length
   // Same numbers as the case header; not computed / still loading shows "—", never 0.
   const counts = { missing: caseQ.data?.counts.missing ?? null, conflict: caseQ.data?.counts.conflict ?? null }
 
@@ -41,15 +40,11 @@ export function Handover() {
         <div>
           <h2 className="text-2xl">{t.title}</h2>
           <p className="text-sm text-muted">
-            {t.asOf}: {formatDateTime(q.data.asOf)} · {t.sectionsDone(done, confirmable.length)}
+            {t.asOf}: {formatDateTime(q.data.asOf)}
           </p>
           {!isPhysician && <p className="text-sm text-conflict">{t.physicianOnly}</p>}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={allConfirmed ? 'secondary' : 'primary'} disabled={!isPhysician || confirmAll.isPending || allConfirmed}
-            title={isPhysician ? undefined : t.physicianOnly} onClick={() => confirmAll.mutate()}>
-            {t.confirmAll}
-          </Button>
           {/* Primary only once every section is confirmed, so the primary action never invites skipping confirmation. */}
           <Button asChild variant={allConfirmed ? 'primary' : 'secondary'}>
             <Link to={`/cases/${id}/mdt`}>{t.prepareMdt}</Link>
@@ -62,7 +57,7 @@ export function Handover() {
         aria-label={t.summary}
         className="sticky top-0 z-30 flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border border-hairline bg-card/95 px-4 py-2 shadow-sm backdrop-blur"
       >
-        <span className="font-medium">{t.confirmedCount(done, confirmable.length)}</span>
+        <span className="font-medium">{t.confirmedCount(done, total)}</span>
         <span className="inline-flex items-center gap-1.5">
           <StatusPill kind="missing" />
           <span className="font-mono text-sm font-semibold">{counts.missing ?? '—'}</span>
@@ -71,15 +66,20 @@ export function Handover() {
           <StatusPill kind="conflict" />
           <span className="font-mono text-sm font-semibold">{counts.conflict ?? '—'}</span>
         </span>
+        {review.isError && (
+          <span role="alert" className="text-sm text-missing">
+            {t.actionError(problemTitle(review.error))}
+          </span>
+        )}
         <span className="ml-auto">
-          {confirm.isPending && (
+          {review.isPending && (
             <span role="status" className="mr-2 text-sm text-muted">
               {t.saving}
             </span>
           )}
           {allConfirmed ? (
             <span role="status" className="text-sm font-medium text-verified">
-              {t.allConfirmed(missingSections)}
+              {t.allConfirmed(accepted)}
             </span>
           ) : (
             <StatusPill kind="ai" label={t.draftLabel} />
@@ -91,13 +91,12 @@ export function Handover() {
         <SectionCard
           key={s.key}
           s={s}
-          editError={edit.isError}
-          onEdit={(sectionKey, rows, reason) => edit.mutateAsync({ sectionKey, rows, reason })}
+          editError={review.isError && review.variables?.kind === 'edit' && review.variables.section.key === s.key}
+          onReview={(r) => review.mutateAsync(r)}
           docs={docs.data ?? []}
-          findings={(findings.data ?? []).filter((f) => s.findingIds.includes(f.id))}
-          busy={confirm.isPending}
+          busy={review.isPending}
+          saving={review.isPending && review.variables?.section.key === s.key}
           canConfirm={isPhysician}
-          onConfirm={(section) => confirm.mutate(section)}
         />
       ))}
 

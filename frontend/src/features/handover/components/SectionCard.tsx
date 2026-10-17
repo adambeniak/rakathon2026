@@ -1,53 +1,90 @@
 import { Copy, Pencil } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EvidenceChip } from '@/components/EvidenceChip'
 import { StatusPill, pillForHandover } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
 import { handover as t } from '@/i18n/cs/handover'
-import type { DocumentInfo, Finding, HandoverSection } from '@/lib/domain'
+import type { DocumentInfo } from '@/lib/domain'
+import type { SectionReview } from '../api'
 
-function toText(s: HandoverSection): string {
-  return [`${s.number}. ${s.title}`, ...s.rows.map((r) => (r.label ? `${r.label}: ${r.value}` : r.value)), ...s.missing.map((m) => `${t.missingLabel}: ${m}`)].join('\n')
+/** Label the API gives the item that carries the physician's own value (backend `EDITED_LABEL`). */
+const EDITED_LABEL = 'Upraveno lékařem'
+import type { RowEvidence, SectionView } from '../types'
+
+/** Document ids cited by the section and by its values, each once, for the copied text. */
+function sourceIds(s: SectionView): string[] {
+  return [...new Set([...s.evidence.map((e) => e.docId), ...s.rows.flatMap((r) => (r.evidence ?? []).map((e) => e.docId))])]
+}
+
+/**
+ * Copied text keeps its origin: an unconfirmed section is labelled as an AI draft, a confirmed one says it was
+ * assembled with AI and by whom it was confirmed, and the cited documents travel with the values.
+ */
+function toText(s: SectionView): string {
+  const sources = s.edited ? [] : sourceIds(s)
+  return [
+    s.confirmed ? (s.confirmedBy ? t.copyHeader(s.confirmedBy) : '') : t.draftPrefix,
+    `${s.number}. ${s.title}`,
+    ...s.rows.map((r) => (r.label ? `${r.label}: ${r.value}` : r.value)),
+    ...s.missingItems.map((m) => `${t.missingLabel}: ${m.label} – ${m.reason}${m.owner ? ` (${t.missingOwner(m.owner)})` : ''}`),
+    ...(sources.length > 0 ? [t.copySources(sources.join(', '))] : []),
+  ]
+    .filter((line) => line !== '')
+    .join('\n')
+}
+
+/** The document list gives the title; without it the dates the API sent with the value are enough for the chip. */
+function sourceOf(e: RowEvidence, docs: DocumentInfo[]): DocumentInfo | undefined {
+  return docs.find((d) => d.id === e.docId) ?? (e.authored && e.received ? { id: e.docId, title: e.docId, place: '', authored: e.authored, received: e.received } : undefined)
 }
 
 export function SectionCard({
   s,
   docs,
-  findings,
-  onConfirm,
-  onEdit,
+  onReview,
   editError,
   busy,
+  saving: confirming,
   canConfirm: roleAllowed,
 }: {
-  s: HandoverSection
+  s: SectionView
   docs: DocumentInfo[]
-  findings: Finding[]
-  onConfirm: (section: HandoverSection) => void
-  onEdit: (key: string, rows: Record<number, string>, reason: string) => Promise<unknown>
+  onReview: (r: SectionReview) => Promise<unknown>
   editError: boolean
   busy: boolean
+  /** The server is recording a review of this very section. */
+  saving: boolean
   canConfirm: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState<Record<number, string>>({})
-  const [reason, setReason] = useState('')
+  const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
-  const changed = Object.entries(draft).filter(([i, v]) => v !== s.rows[Number(i)]?.value)
-  const canEdit = roleAllowed && s.rows.some((r) => !r.readOnly)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const field = useRef<HTMLTextAreaElement>(null)
+  // The edit button disappears while editing: focus goes to the field, and back to the heading when the form closes.
+  useEffect(() => {
+    if (editing) field.current?.focus()
+  }, [editing])
+  function closeEdit() {
+    setEditing(false)
+    heading.current?.focus()
+  }
+  // Only plain-text sections can be edited inline; the edit is saved and confirmed in one call.
+  const canEdit = roleAllowed && s.editableText !== undefined && !!s.valueHash && !saving
+  const missingSection = s.status === 'missing'
+  const reviewed = s.confirmed // confirmed or accepted as missing
 
   function startEdit() {
-    setDraft(Object.fromEntries(s.rows.flatMap((r, i) => (r.readOnly ? [] : [[i, r.value]]))))
-    setReason('')
+    setDraft(s.editableText ?? '')
     setEditing(true)
   }
 
   async function save() {
     setSaving(true)
     try {
-      await onEdit(s.key, Object.fromEntries(changed.map(([i, v]) => [Number(i), v])), reason.trim())
-      setEditing(false)
+      await onReview({ kind: 'edit', section: s, text: draft.trim() })
+      closeEdit()
     } catch {
       /* the error flag from the mutation is shown below; keep the form open */
     } finally {
@@ -56,9 +93,10 @@ export function SectionCard({
   }
 
   // "Chybí" only when a field is actually listed as missing; a partial section otherwise shows just "Neúplné".
-  const edited = s.edited === true || s.rows.some((r) => r.note?.startsWith('Upraveno lékařem'))
-  const pills = pillForHandover(s.status, s.confirmed).filter((p) => p !== 'missing' || s.status === 'missing' || s.missing.length > 0)
-  const canConfirm = roleAllowed && s.status !== 'missing' && !s.confirmed
+  const pills = s.acceptedMissing
+    ? (['missing'] as const)
+    : pillForHandover(s.status, s.confirmed).filter((p) => p !== 'missing' || missingSection || s.missingItems.length > 0)
+  const canAct = roleAllowed && !!s.valueHash && !reviewed
 
   async function copy() {
     try {
@@ -73,16 +111,29 @@ export function SectionCard({
   return (
     <section aria-labelledby={`s-${s.key}`} className="rounded-lg border border-hairline bg-card p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <h2 id={`s-${s.key}`} className="text-xl">
+        <h2 id={`s-${s.key}`} ref={heading} tabIndex={-1} className="text-xl outline-none focus-visible:underline">
           <span className="mr-2 font-mono text-sm text-muted">{s.number}</span>
           {s.title}
         </h2>
         <span className="flex flex-wrap gap-1">
-          {pills.map((p) =>
-            p === 'ai' && edited ? <StatusPill key={p} kind="clarify" label={t.editedPill} /> : <StatusPill key={p} kind={p} />,
+          {pills.map((p) => (
+            <StatusPill key={p} kind={p} />
+          ))}
+          {s.edited && (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-hairline px-2.5 py-0.5 text-xs font-medium">
+              <Pencil aria-hidden className="h-3.5 w-3.5" />
+              {t.editedPill}
+            </span>
           )}
         </span>
-        {s.confirmed && s.confirmedBy && <span className="text-xs text-muted">{t.confirmedBy(s.confirmedBy)}</span>}
+        {confirming && (
+          <span role="status" className="text-xs text-muted">
+            {t.saving}
+          </span>
+        )}
+        {s.confirmed && s.confirmedBy && (
+          <span className="text-xs text-muted">{s.acceptedMissing ? t.acceptedMissingBy(s.confirmedBy) : t.confirmedBy(s.confirmedBy)}</span>
+        )}
       </header>
 
       <dl className="mt-3 space-y-1">
@@ -90,35 +141,32 @@ export function SectionCard({
           <div key={i} className="flex flex-wrap gap-x-3">
             {r.label ? <dt className="w-44 shrink-0 text-muted">{r.label}</dt> : <dt className="sr-only">{s.title}</dt>}
             <dd className="min-w-0 flex-1">
-              {editing && !r.readOnly ? (
-                <input
-                  value={draft[i] ?? ''}
-                  onChange={(e) => setDraft({ ...draft, [i]: e.target.value })}
-                  aria-label={t.editValueAria(r.label ?? s.title)}
-                  className="min-h-9 w-full rounded border border-hairline bg-card px-2"
-                />
-              ) : (
-                <>
-                  {r.value}
-                  {r.note && <span className="ml-2 text-xs text-muted">{r.note}</span>}
-                  {r.readOnly && (
-                    <span className="ml-2 inline-flex flex-wrap items-center gap-1 align-middle">
-                      <span className="text-xs text-muted">{t.readOnly}</span>
-                      {r.evidence?.map((e, k) => (
-                        <EvidenceChip key={k} docId={e.docId} quote={e.quote} doc={docs.find((d) => d.id === e.docId)} />
-                      ))}
-                    </span>
-                  )}
-                </>
+              {r.value}
+              {r.note && <span className="ml-2 text-xs text-muted">{r.note}</span>}
+              {r.readOnly && <span className="ml-2 text-xs text-muted">{t.readOnly}</span>}
+              {s.edited && r.label === EDITED_LABEL && <span className="ml-2 text-xs text-muted">{t.editedRowNote}</span>}
+              {!r.evidence && !r.readOnly && !(s.edited && r.label === EDITED_LABEL) && s.status !== 'missing' && s.key !== '12_examinations' && (
+                <span className="ml-2 text-xs text-muted">{t.noRowSource}</span>
+              )}
+              {r.evidence && (
+                <span className="ml-2 inline-flex flex-wrap items-center gap-1 align-middle">
+                  {r.evidence.map((e, k) => (
+                    <EvidenceChip key={k} row docId={e.docId} quote={e.quote} doc={sourceOf(e, docs)} />
+                  ))}
+                </span>
               )}
             </dd>
           </div>
         ))}
-        {s.missing.map((m) => (
-          <div key={m} className="flex flex-wrap items-center gap-x-3">
+        {s.missingItems.map((m) => (
+          <div key={m.key} className="flex flex-wrap items-center gap-x-3">
             <dt className="w-44 shrink-0 text-muted">{t.missingLabel}</dt>
             <dd>
-              <StatusPill kind="missing" /> <span className="ml-1">{m}</span>
+              <StatusPill kind="missing" /> <span className="ml-1">{m.label}</span>
+              <span className="ml-2 text-sm text-muted">
+                {m.reason}
+                {m.owner && ` · ${t.missingOwner(m.owner)}`}
+              </span>
             </dd>
           </div>
         ))}
@@ -128,20 +176,21 @@ export function SectionCard({
       {editing && (
         <div className="mt-3 space-y-2 rounded bg-accent-soft/50 p-3">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium">{t.reasonLabel}</span>
-            <input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              required
-              className="min-h-9 rounded border border-hairline bg-card px-2"
+            <span className="font-medium">{t.editValueAria(s.title)}</span>
+            <textarea
+              ref={field}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              className="rounded border border-hairline bg-card px-2 py-1"
             />
           </label>
           <p className="text-xs text-muted">{t.editHint}</p>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="primary" disabled={saving || changed.length === 0 || reason.trim() === ''} onClick={() => void save()}>
+            <Button variant="primary" disabled={saving || draft.trim() === '' || draft.trim() === (s.editableText ?? '')} onClick={() => void save()}>
               {t.saveEdit}
             </Button>
-            <Button variant="ghost" onClick={() => setEditing(false)}>
+            <Button variant="ghost" onClick={closeEdit}>
               {t.cancelEdit}
             </Button>
             {editError && (
@@ -153,18 +202,22 @@ export function SectionCard({
         </div>
       )}
 
-      {findings.length > 0 && (
+      {s.findings.length > 0 && (
         <ul aria-label={t.findings} className="mt-3 space-y-1 text-sm">
-          {findings.map((f) => (
-            <li key={f.id} className="rounded bg-conflict-bg/60 px-2 py-1">
-              {f.detail}
+          {s.findings.map((f) => (
+            <li key={f.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded bg-conflict-bg/60 px-2 py-1">
+              <StatusPill kind="conflict" />
+              <span>{f.message}</span>
+              {f.evidence.map((e, k) => (
+                <EvidenceChip key={k} row docId={e.docId} quote={e.quote} doc={docs.find((d) => d.id === e.docId)} />
+              ))}
             </li>
           ))}
         </ul>
       )}
 
       <footer className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
-        <span className="text-xs text-muted">{t.evidence}:</span>
+        <span className="text-xs text-muted">{s.edited ? t.editedSources : t.evidenceSummary}:</span>
         {s.evidence.length === 0 && <span className="text-xs text-muted">{t.noEvidence}</span>}
         {s.evidence.map((e, i) => (
           <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={docs.find((d) => d.id === e.docId)} />
@@ -183,15 +236,27 @@ export function SectionCard({
             <Copy aria-hidden className="h-4 w-4" />
             {t.copy}
           </Button>
-          <Button
-            variant="secondary"
-            disabled={!canConfirm || busy}
-            onClick={() => onConfirm(s)}
-            aria-label={t.confirmSectionAria(s.title)}
-            title={!roleAllowed ? t.physicianOnly : s.status === 'missing' ? t.cannotConfirm : undefined}
-          >
-            {t.confirmSection}
-          </Button>
+          {missingSection && !reviewed ? (
+            <Button
+              variant="secondary"
+              disabled={!canAct || busy}
+              onClick={() => void onReview({ kind: 'accept_missing', section: s }).catch(() => undefined)}
+              aria-label={t.acceptMissingAria(s.title)}
+              title={!roleAllowed ? t.physicianOnly : t.acceptMissingHint}
+            >
+              {t.acceptMissing}
+            </Button>
+          ) : (
+            <Button
+              variant="secondary"
+              disabled={!canAct || busy}
+              onClick={() => void onReview({ kind: 'confirm', section: s }).catch(() => undefined)}
+              aria-label={t.confirmSectionAria(s.title)}
+              title={!roleAllowed ? t.physicianOnly : undefined}
+            >
+              {t.confirmSection}
+            </Button>
+          )}
         </span>
       </footer>
     </section>

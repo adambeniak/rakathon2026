@@ -55,7 +55,9 @@ describe('adaptHandover', () => {
         label: 'CA 19-9',
         value: '312,5 kU/l',
         note: '15. 10. 2026',
-        evidence: [{ docId: '10_Laborator_KOC2_2026-10-15', quote: 'CA 19-9 312,5 kU/l' }],
+        evidence: [
+          { docId: '10_Laborator_KOC2_2026-10-15', quote: 'CA 19-9 312,5 kU/l', authored: '2026-10-15', received: '2026-10-15T16:00:00+02:00' },
+        ],
         readOnly: undefined,
       },
     ])
@@ -71,7 +73,7 @@ describe('adaptHandover', () => {
     )
     const ps = v.sections.find((s) => s.key === '9_performance_status')!
     expect(ps).toMatchObject({ status: 'missing', rows: [], findingIds: ['M1'], note: 'Uvedeno pouze „Soběstačná“; ECOG se nedovozuje.' })
-    expect(ps.missing).toEqual(['ecog', 'Klinické TNM']) // unknown keys are shown as delivered
+    expect(ps.missing).toEqual(['Stav výkonnosti (ECOG)', 'Klinické TNM'])
   })
 
   it('reads the review state: confirmed by whom, edited, and a draft that is not confirmed', () => {
@@ -99,5 +101,56 @@ describe('adaptHandover', () => {
     const v = adaptHandover(wire({}, { included_documents: [] }))
     expect(v.sections).toEqual([])
     expect(v.excluded).toHaveLength(1)
+  })
+
+  it('shows each missing item with the API reason and the Czech label of the suggested owner', () => {
+    const v = adaptHandover(
+      wire({
+        '9_performance_status': {
+          ...emptyField,
+          missing: ['ecog'],
+          missing_items: [{ item: 'ecog', reason: 'v dokumentaci neuvedeno', suggested_owner: 'koc_physician' }],
+        },
+        '2_contacts': { ...emptyField, status: 'partial', missing: ['patient_email', 'unknown_key'], missing_items: [{ item: 'patient_email', reason: 'v dokumentaci neuvedeno', suggested_owner: 'coordinator' }] },
+      }),
+    )
+    expect(v.sections.find((s) => s.key === '9_performance_status')!.missingItems).toEqual([
+      { key: 'ecog', label: 'Stav výkonnosti (ECOG)', reason: 'v dokumentaci neuvedeno', owner: 'lékař KOC' },
+    ])
+    // A key the API lists without detail still shows, but no owner is invented for it.
+    expect(v.sections.find((s) => s.key === '2_contacts')!.missingItems).toEqual([
+      { key: 'patient_email', label: 'E-mail pacientky', reason: 'v dokumentaci neuvedeno', owner: 'koordinace KOC' },
+      { key: 'unknown_key', label: 'unknown_key', reason: 'v dokumentaci neuvedeno' },
+    ])
+  })
+
+  it('takes the findings of a section from Handover.findings by conflict id, with the API wording', () => {
+    const v = adaptHandover(
+      wire(
+        { '7_medications': { ...emptyField, status: 'complete_with_conflict', conflicts: ['C1', 'ZZ'] } },
+        { findings: [{ id: 'C1', kind: 'date_conflict', severity: 'high', message: 'Nesoulad mezi datem výkonu a vysazením apixabanu.' }] },
+      ),
+    )
+    expect(v.sections.find((s) => s.key === '7_medications')!.findings).toEqual([{ id: 'C1', message: 'Nesoulad mezi datem výkonu a vysazením apixabanu.', evidence: [] }])
+  })
+
+  it('counts a section accepted as missing as reviewed and marks it', () => {
+    const by = { display: 'MUDr. Havelka', id: 'havelka', role: 'koc_physician' }
+    const v = adaptHandover(wire({ '9_performance_status': { ...emptyField, review: { state: 'accepted_missing', by, edited: false } } }))
+    expect(v.sections.find((s) => s.key === '9_performance_status')).toMatchObject({ confirmed: true, acceptedMissing: true, confirmedBy: 'MUDr. Havelka' })
+  })
+
+  it('offers inline edit only for plain-text sections', () => {
+    const v = adaptHandover(
+      wire({
+        '8_allergies': { ...emptyField, status: 'complete', value: 'Bez alergií.' },
+        '5_mdt_question': { ...emptyField },
+        '7_medications': { ...emptyField, status: 'complete', value: null },
+      }),
+    )
+    const editable = (key: string) => v.sections.find((s) => s.key === key)!.editableText
+    expect(editable('8_allergies')).toBe('Bez alergií.')
+    expect(editable('5_mdt_question')).toBe('')
+    expect(editable('7_medications')).toBeUndefined()
   })
 })

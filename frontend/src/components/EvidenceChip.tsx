@@ -19,14 +19,25 @@ function Quote({ quote }: { quote?: string }) {
 function Meta({ info }: { info: DocumentInfo }) {
   return (
     <p className="text-xs text-muted">
-      {info.place} · {common.evidence.authored} {formatDate(info.authored)} · {common.evidence.received}{' '}
+      {info.place ? `${info.place} · ` : ''}{common.evidence.authored} {formatDate(info.authored)} · {common.evidence.received}{' '}
       {formatDate(info.received)}
     </p>
   )
 }
 
 /** Every AI-derived value is rendered with its source: document, date and verbatim quote. */
-export function EvidenceChip({ docId, quote, doc }: { docId: string; quote?: string; doc?: DocumentInfo }) {
+export function EvidenceChip({
+  docId,
+  quote,
+  doc,
+  row,
+}: {
+  docId: string
+  quote?: string
+  doc?: DocumentInfo
+  /** Compact variant for one value of a section: document number and date only; the title is in the tooltip. */
+  row?: boolean
+}) {
   const info = doc
   const [panel, setPanel] = useState(false)
   const [pop, setPop] = useState(false)
@@ -42,7 +53,7 @@ export function EvidenceChip({ docId, quote, doc }: { docId: string; quote?: str
         >
           <FileText aria-hidden className="h-3 w-3 text-accent" />
           <span className="font-mono">{number}</span>
-          <span className="max-w-[16ch] truncate">{title}</span>
+          {!row && <span className="max-w-[16ch] truncate">{title}</span>}
           {info && <span className="text-muted">{formatDate(info.authored)}</span>}
         </Popover.Trigger>
         <Popover.Portal>

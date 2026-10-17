@@ -4,6 +4,7 @@ import { StatusPill } from '@/components/StatusPill'
 import { cases as t } from '@/i18n/cs/cases'
 import { formatDate } from '@/lib/date'
 import { useDocuments } from '../api'
+import { DocumentUpload } from './DocumentUpload'
 
 const th = 'px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted'
 const td = 'px-3 py-2 align-top'
@@ -14,6 +15,7 @@ export function DocumentsPanel({ caseId }: { caseId: string }) {
   return (
     <section aria-label={t.documents.title} className="space-y-3">
       <h2 className="text-2xl">{t.documents.title}</h2>
+      <DocumentUpload caseId={caseId} />
       {q.isPending && <LoadingBlock />}
       {q.isError && <ErrorState onRetry={() => void q.refetch()} />}
       {q.data && q.data.length === 0 && <EmptyState title={t.documents.empty} hint={t.documents.emptyHint} />}

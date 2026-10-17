@@ -136,6 +136,24 @@ function epicrisis(inc: Set<string>): Pick<HandoverSection, 'rows' | 'evidence'>
   }
 }
 
+/** Mock stand-in for the API's evidence per value: labs and examinations cite their own document, other rows the section's quote that contains them. */
+function withRowEvidence(key: string, rows: Row[], f: Gf, inc: Set<string>, evidence: HandoverSection['evidence']): Row[] {
+  const docs =
+    key === '13_labs'
+      ? (f.key_values ?? []).filter((l) => inc.has(l.doc)).map((l) => l.doc)
+      : key === '12_examinations'
+        ? arr(f.value).filter((e) => inc.has(S(e.doc))).map((e) => S(e.doc))
+        : undefined
+  return rows.map((r, i) => {
+    if (r.evidence || r.value === 'Neuvedeno') return r
+    if (docs) return docs[i] ? { ...r, evidence: [{ docId: docs[i]! }] } : r
+    const cited = evidence.filter((e) => e.quote && e.quote.includes(r.value))
+    // A quote is attached only to the value it contains; a lone value is derived from the whole section's evidence.
+    const own = cited.length > 0 ? cited : rows.length === 1 ? evidence : []
+    return own.length > 0 ? { ...r, evidence: own } : r
+  })
+}
+
 export function buildSections(confirmed: Record<string, string>, asOf: string = AS_OF_DEFAULT): HandoverSection[] {
   const inc = new Set(includedAt(asOf).map((d) => d.id))
   const hasHistology = inc.has(DOC.hist)
@@ -172,6 +190,8 @@ export function buildSections(confirmed: Record<string, string>, asOf: string = 
       findingIds = []
     }
 
+    rows = withRowEvidence(key, rows, f, inc, evidence)
+
     return {
       key,
       number,
@@ -205,7 +225,7 @@ export function applyEdits(sections: HandoverSection[], edits: Record<string, Re
       ...s,
       rows: s.rows.map((r, i) => {
         const e = rowEdits[i]
-        return e ? { ...r, value: e.value, note: t.editedNote(e.by, e.at, e.reason) } : r
+        return e ? { ...r, value: e.value, note: t.editedNote(e.by, e.at), evidence: undefined } : r
       }),
     }
   })

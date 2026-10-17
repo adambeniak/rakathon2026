@@ -2,7 +2,7 @@ import { adaptHandover } from '@/features/handover/adapter'
 import { api } from '@/lib/api/http'
 import { setDemo } from '@/lib/demo'
 import type { components } from '@/lib/api/schema'
-import type { HandoverSection } from '@/lib/domain'
+import type { SectionView as HandoverSection } from '@/features/handover/types'
 import { resetStore } from '../fixtures/store'
 
 const CASE = '/api/cases/rakathon-2026-prochazkova'
@@ -11,42 +11,58 @@ type Wire = components['schemas']['Handover']
 const section = (sections: HandoverSection[], key: string) => sections.find((s) => s.key === key)!
 const handover = async () => adaptHandover(await api.get<Wire>(`${CASE}/handover`))
 
-describe('clinician edits in the mock handover', () => {
+const confirmBody = (sec: HandoverSection, extra: Record<string, unknown> = {}) => ({ expected_value_hash: sec.valueHash, ...extra })
+
+describe('section review in the mock handover (contract confirm route)', () => {
   beforeEach(() => {
     resetStore()
     setDemo({ role: 'physician', today: '2026-10-21' })
   })
 
-  it('keeps the reason, author and time of every corrected row', async () => {
-    await api.post(`${CASE}/handover/sections/10_weight_height/edit`, { rows: { 0: '171 cm' }, reason: 'Změřeno při příjmu' })
-    await api.post(`${CASE}/handover/sections/10_weight_height/edit`, { rows: { 1: '61 kg' }, reason: 'Převáženo na oddělení' })
-    const [height, weight] = section((await handover()).sections, '10_weight_height').rows
-    expect(height).toMatchObject({ value: '171 cm' })
-    expect(height?.note).toContain('Změřeno při příjmu')
-    expect(weight).toMatchObject({ value: '61 kg' })
-    expect(weight?.note).toContain('Převáženo na oddělení')
-    expect(weight?.note).not.toContain('Změřeno při příjmu')
+  it('has no bulk confirmation and no provisional edit route', async () => {
+    await expect(api.post(`${CASE}/handover/confirm-all`)).rejects.toBeDefined()
+    await expect(api.post(`${CASE}/handover/sections/8_allergies/edit`, { rows: {}, reason: 'x' })).rejects.toBeDefined()
   })
 
-  it('edit → reconfirm → MDT shows the corrected value, not the original', async () => {
-    const original = section((await handover()).sections, '8_allergies').rows[0]!.value
-    await api.post(`${CASE}/handover/sections/8_allergies/edit`, { rows: { 0: 'Bez známých alergií' }, reason: 'Upřesněno s pacientkou' })
-    // The contract confirms by section number and returns the hash of the value as shown.
+  it('answers a confirmation with the whole handover and the section confirmed', async () => {
+    const sec = section((await handover()).sections, '8_allergies')
+    const wire = await api.post<Wire>(`${CASE}/handover/sections/${sec.number}/confirm`, confirmBody(sec))
+    expect(section(adaptHandover(wire).sections, '8_allergies')).toMatchObject({ confirmed: true, acceptedMissing: false })
+  })
+
+  it('refuses a missing section without accept_missing or a value, and accept_missing on a section that is not missing', async () => {
+    const view = (await handover()).sections
+    const ecog = section(view, '9_performance_status')
+    const allergies = section(view, '8_allergies')
+    expect(ecog.status).toBe('missing')
+    await expect(api.post(`${CASE}/handover/sections/9/confirm`, confirmBody(ecog))).rejects.toMatchObject({ status: 409 })
+    await expect(api.post(`${CASE}/handover/sections/8/confirm`, confirmBody(allergies, { accept_missing: true }))).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('accept_missing counts as reviewed and is reported as accepted_missing', async () => {
+    const ecog = section((await handover()).sections, '9_performance_status')
+    await api.post(`${CASE}/handover/sections/9/confirm`, confirmBody(ecog, { accept_missing: true }))
+    expect(section((await handover()).sections, '9_performance_status')).toMatchObject({ confirmed: true, acceptedMissing: true })
+  })
+
+  it('an edited value is saved and confirmed in one call and shown as edited by the physician', async () => {
+    const sec = section((await handover()).sections, '8_allergies')
+    await api.post(`${CASE}/handover/sections/8/confirm`, confirmBody(sec, { edited_value: 'Bez známých alergií' }))
     const edited = section((await handover()).sections, '8_allergies')
-    await api.post(`${CASE}/handover/sections/${edited.number}/confirm`, { expected_value_hash: edited.valueHash })
+    expect(edited).toMatchObject({ confirmed: true, edited: true, editableText: 'Bez známých alergií' })
+    expect(edited.rows).toEqual([expect.objectContaining({ label: 'Upraveno lékařem', value: 'Bez známých alergií', evidence: undefined })])
     const mdt = await api.get<{ sections: HandoverSection[] }>(`${CASE}/mdt`)
-    const allergies = section(mdt.sections, '8_allergies')
-    expect(original).not.toBe('Bez známých alergií')
-    expect(allergies.confirmed).toBe(true)
-    expect(allergies.rows[0]).toMatchObject({ value: 'Bez známých alergií' })
-    expect(allergies.rows[0]?.note).toContain('Upřesněno s pacientkou')
+    expect(section(mdt.sections, '8_allergies').rows[0]).toMatchObject({ value: 'Bez známých alergií' })
+  })
+
+  it('refuses an edited value for a section whose value is not plain text', async () => {
+    const sec = section((await handover()).sections, '7_medications')
+    await expect(api.post(`${CASE}/handover/sections/7/confirm`, confirmBody(sec, { edited_value: 'x' }))).rejects.toMatchObject({ status: 422 })
   })
 
   it('refuses a confirmation of a value that changed since the physician saw it', async () => {
     const shown = section((await handover()).sections, '8_allergies')
-    await api.post(`${CASE}/handover/sections/8_allergies/edit`, { rows: { 0: 'Bez známých alergií' }, reason: 'Upřesněno s pacientkou' })
-    await expect(
-      api.post(`${CASE}/handover/sections/${shown.number}/confirm`, { expected_value_hash: shown.valueHash }),
-    ).rejects.toMatchObject({ status: 409 })
+    await api.post(`${CASE}/handover/sections/8/confirm`, confirmBody(shown, { edited_value: 'Bez známých alergií' }))
+    await expect(api.post(`${CASE}/handover/sections/8/confirm`, confirmBody(shown))).rejects.toMatchObject({ status: 409 })
   })
 })

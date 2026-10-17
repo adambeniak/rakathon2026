@@ -115,28 +115,31 @@ describe('handover review', () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
     const bar = await screen.findByRole('group', { name: 'Souhrn handoveru' })
     expect(within(bar).getByText('Návrh AI – čeká na potvrzení lékařem')).toBeInTheDocument()
-    expect(within(bar).getByText(/^Potvrzeno: 0 z /)).toBeInTheDocument()
+    expect(within(bar).getByText(/^Zkontrolováno: 0 z /)).toBeInTheDocument()
     expect(within(bar).getByText('Chybí').nextElementSibling).toHaveTextContent('3')
     expect(within(bar).getByText('Nesouhlasí').nextElementSibling).toHaveTextContent('2')
-    await userEvent.click(screen.getByRole('button', { name: 'Potvrdit všechny dostupné sekce' }))
-    await within(bar).findByText(/Dostupné sekce potvrzeny lékařem · chybí údaje v sekcích: \d+/)
+    // There is no bulk confirmation: the physician confirms the sections one by one and accepts the missing one.
+    expect(screen.queryByRole('button', { name: /Potvrdit všechny/ })).toBeNull()
+    const names = screen.getAllByRole('button', { name: /^Potvrdit sekci:/ }).map((b) => b.getAttribute('aria-label')!)
+    for (const name of names) await userEvent.click(screen.getByRole('button', { name }))
+    await userEvent.click(screen.getByRole('button', { name: 'Ponechat údaj v sekci Stav výkonnosti jako chybějící' }))
+    await within(bar).findByText('Všechny sekce zkontrolovány lékařem · ponecháno jako chybějící: 1')
     expect(within(bar).queryByText('Návrh AI – čeká na potvrzení lékařem')).toBeNull()
+    expect(within(bar).getByText('Zkontrolováno: 15 z 15')).toBeInTheDocument()
   })
 
-  it('inline edit needs a reason, is recorded on the value and resets the confirmation', async () => {
+  it('inline edit of a plain-text section saves and confirms in one step, without a reason field', async () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
-    await userEvent.click(await screen.findByRole('button', { name: 'Potvrdit sekci: Alergie' }))
-    await screen.findByText('Potvrdil(a) MUDr. Havelka')
-    await userEvent.click(screen.getByRole('button', { name: 'Upravit sekci: Alergie' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Upravit sekci: Alergie' }))
     const section = screen.getByRole('region', { name: /Alergie/ })
-    const input = within(section).getAllByRole('textbox', { name: /^Hodnota:/ })[0]!
+    expect(within(section).queryByLabelText('Důvod změny')).toBeNull()
+    const input = within(section).getByRole('textbox', { name: /^Hodnota:/ })
     await userEvent.clear(input)
     await userEvent.type(input, 'Bez známých alergií')
-    expect(within(section).getByRole('button', { name: 'Uložit změnu' })).toBeDisabled() // no reason yet
-    await userEvent.type(within(section).getByLabelText('Důvod změny'), 'Upřesněno s pacientkou')
-    await userEvent.click(within(section).getByRole('button', { name: 'Uložit změnu' }))
-    expect(await within(section).findByText(/Upraveno lékařem .*důvod: Upřesněno s pacientkou/)).toBeInTheDocument()
-    expect(within(section).queryByText('Potvrdil(a) MUDr. Havelka')).toBeNull()
+    await userEvent.click(within(section).getByRole('button', { name: 'Uložit a potvrdit' }))
+    expect(await within(section).findByText('Bez známých alergií')).toBeInTheDocument()
+    expect(within(section).getByText('Upraveno lékařem', { selector: 'span' })).toBeInTheDocument()
+    expect(within(section).getByText('Potvrdil(a) MUDr. Havelka')).toBeInTheDocument()
   })
 
   it('evidence chip opens the source document in a side panel', async () => {
@@ -150,16 +153,13 @@ describe('handover review', () => {
 })
 
 describe('API-decided rendering', () => {
-  it('consent rows are read-only and show their source chip', async () => {
+  it('consent rows are read-only: shown with their source chip, the section has no edit', async () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
-    await userEvent.click(await screen.findByRole('button', { name: 'Upravit sekci: Jiná sdělení' }))
-    const section = screen.getByRole('region', { name: /Jiná sdělení/ })
+    const section = await screen.findByRole('region', { name: /Jiná sdělení/ })
     expect(within(section).getByText('Souhlasí se sdílením informací s dcerou.')).toBeInTheDocument()
     expect(within(section).getByText('Souhlas pacienta – nelze upravit')).toBeInTheDocument()
-    // The consent row has a source chip and no input; the other rows are editable.
-    const inputs = within(section).getAllByRole('textbox', { name: /^Hodnota:/ })
-    expect(inputs.length).toBeGreaterThan(0)
-    expect(inputs.some((i) => (i as HTMLInputElement).value.startsWith('Souhlasí'))).toBe(false)
+    expect(within(section).getAllByRole('button', { name: /^Zdroj:/ }).length).toBeGreaterThan(0)
+    expect(within(section).queryByRole('button', { name: /^Upravit sekci/ })).toBeNull()
   })
 
   it('triage hint shows the evidence chip returned with the proposals', async () => {

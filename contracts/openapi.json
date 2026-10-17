@@ -30,6 +30,28 @@
         "title": "Address",
         "type": "object"
       },
+      "AdvancedStep": {
+        "properties": {
+          "events": {
+            "description": "Task-machine events applied, in order (e.g. order_confirmed, accept, …).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "events"
+        ],
+        "title": "AdvancedStep",
+        "type": "object"
+      },
       "AlertKind": {
         "enum": [
           "sla_breach",
@@ -1576,6 +1598,74 @@
           "owner_role"
         ],
         "title": "CreateTaskRequest",
+        "type": "object"
+      },
+      "DemoAdvanced": {
+        "examples": [
+          {
+            "applied": [
+              {
+                "events": [
+                  "order_confirmed",
+                  "accept",
+                  "start",
+                  "performed"
+                ],
+                "task_id": "c1.ct"
+              }
+            ],
+            "escalated": [
+              "c1.histology"
+            ],
+            "now": "2026-10-16T09:00:00+02:00",
+            "overridden": true,
+            "skipped": []
+          }
+        ],
+        "properties": {
+          "applied": {
+            "description": "Story steps replayed by this call; empty when it was repeated.",
+            "items": {
+              "$ref": "#/components/schemas/AdvancedStep"
+            },
+            "title": "Applied",
+            "type": "array"
+          },
+          "escalated": {
+            "description": "Tasks the watchdog escalated at the new time (once each).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Escalated",
+            "type": "array"
+          },
+          "now": {
+            "description": "The backend's current time (Europe/Prague) that all deadlines use.",
+            "format": "date-time",
+            "title": "Now",
+            "type": "string"
+          },
+          "overridden": {
+            "description": "True when the clock was moved with PUT; false = start value or wall clock.",
+            "title": "Overridden",
+            "type": "boolean"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedStep"
+            },
+            "title": "Skipped",
+            "type": "array"
+          }
+        },
+        "required": [
+          "now",
+          "overridden",
+          "applied",
+          "skipped",
+          "escalated"
+        ],
+        "title": "DemoAdvanced",
         "type": "object"
       },
       "DemoClock": {
@@ -4699,6 +4789,25 @@
         "title": "Sex",
         "type": "string"
       },
+      "SkippedStep": {
+        "properties": {
+          "reason": {
+            "description": "Czech, e.g. the result document is not uploaded for the patient yet.",
+            "title": "Reason",
+            "type": "string"
+          },
+          "task_id": {
+            "title": "Task Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id",
+          "reason"
+        ],
+        "title": "SkippedStep",
+        "type": "object"
+      },
       "Symptoms": {
         "additionalProperties": false,
         "properties": {
@@ -7781,6 +7890,145 @@
         "summary": "Apply a case event (state machine)",
         "tags": [
           "cases"
+        ]
+      }
+    },
+    "/api/demo/advance": {
+      "post": {
+        "description": "Brings CT, EUS-FNB, labs (and histology's order) of the case to where the story had them at `to`, through the task state machine, then moves the clock and runs one watchdog round. At 2026-10-16 only the histology is overdue. Idempotent. Coordinator only; the result documents must be uploaded for the patient.",
+        "operationId": "demo-advance",
+        "parameters": [
+          {
+            "description": "The demo case.",
+            "in": "query",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "description": "The demo case.",
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "YYYY-MM-DD (09:00 Prague) or an ISO 8601 timestamp; years 2020–2035.",
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "description": "YYYY-MM-DD (09:00 Prague) or an ISO 8601 timestamp; years 2020–2035.",
+              "examples": [
+                "2026-10-16"
+              ],
+              "maxLength": 40,
+              "title": "To",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoAdvanced"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not allowed in the current state (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "Move the demo clock and replay the story steps up to it (demo mode only)",
+        "tags": [
+          "demo"
         ]
       }
     },

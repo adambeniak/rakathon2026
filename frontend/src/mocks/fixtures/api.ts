@@ -8,6 +8,29 @@ import { DOCUMENTS } from './documents'
 type ApiCase = components['schemas']['CaseSummary']
 type ApiDetail = components['schemas']['CaseDetail']
 type Role = components['schemas']['Role']
+type ApiIntervals = components['schemas']['TimeToTreatmentIntervals']
+
+// Like backend/app/timeline/intervals.py: the MDT counts once it was held; the first GP visit and the oncology consult
+// are not recorded (#188, #189), so T1 is `not_recorded` and T3 `running` after the MDT. No golden values here.
+const MDT_HELD: ReadonlySet<CaseState> = new Set(['zaver_mdt', 'zpetna_vazba_odeslana', 'uzavreno'])
+
+const addDays = (iso: string, days: number) => {
+  const d = new Date(`${iso}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+export function toApiIntervals(c: MockCase): ApiIntervals {
+  const referral = c.referredAt
+  const mdt = MDT_HELD.has(c.state) && c.t.t2 !== null ? addDays(referral, c.t.t2) : null
+  return {
+    t1: { days: null, status: 'not_recorded', start: null, end: referral },
+    t2: mdt
+      ? { days: c.t.t2, status: 'measured', start: referral, end: mdt }
+      : { days: null, status: 'running', start: referral, end: null },
+    t3: mdt ? { days: null, status: 'running', start: mdt, end: null } : { days: null, status: 'not_started', start: null, end: null },
+  }
+}
 
 // Baton role after entering a state (contracts/case-states.md).
 const BATON_ROLE: Record<CaseState, Role | null> = {
@@ -72,5 +95,6 @@ export function toApiDetail(c: MockCase, today: string): ApiDetail {
             received_at: d.received,
           }))
         : [],
+    intervals: toApiIntervals(c),
   }
 }

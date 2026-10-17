@@ -50,7 +50,15 @@ class TransitionResult:
     events: tuple[DomainEvent, ...]
 
 
-Guard = Callable[[Case, CaseContext, datetime], str | None]
+@dataclass(frozen=True)
+class GuardFailure:
+    """A guard refusal that also names the blocking items (readiness item keys) in structured form."""
+
+    detail: str
+    blocking_items: tuple[str, ...]
+
+
+Guard = Callable[[Case, CaseContext, datetime], str | GuardFailure | None]
 
 
 @dataclass(frozen=True)
@@ -94,12 +102,12 @@ def _g_reason(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
     return None if _nonblank(ctx.reason) else "Důvod je povinný"
 
 
-def _g_ready(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
+def _g_ready(_c: Case, ctx: CaseContext, _n: datetime) -> str | GuardFailure | None:
     r = ctx.readiness
     if r is None:
         return "Chybí výsledek kontroly připravenosti k MDT"
     if not r.ready:
-        return f"Připravenost k MDT není splněna, chybí: {', '.join(r.missing)}"
+        return GuardFailure(f"Připravenost k MDT není splněna, chybí: {', '.join(r.missing)}", r.missing)
     for w in r.waived:  # defence in depth; readiness_gate already validates
         if w.by_role is not Role.KOC_PHYSICIAN or not _nonblank(w.reason) or not _nonblank(w.by):
             return "Prominutí položky není platné"
@@ -212,6 +220,12 @@ def _fail(code: str, detail: str) -> TransitionError:
     return TransitionError(code, detail)
 
 
+def _guard_failed(problem: str | GuardFailure) -> TransitionError:
+    if isinstance(problem, GuardFailure):
+        return TransitionError("guard_failed", problem.detail, problem.blocking_items)
+    return TransitionError("guard_failed", problem)
+
+
 def _events(
     rule: _Rule, old: Case | None, new: Case, actor: Role, ctx: CaseContext, now: datetime
 ) -> tuple[DomainEvent, ...]:
@@ -267,7 +281,7 @@ def submit_referral(
     draft = Case(id=case_id, patient=patient, state=S.ODESLANO, opened_at=now, mdt_start=mdt_start)
     problem = rule.guard(draft, ctx, now) if rule.guard else None
     if problem:
-        raise _fail("guard_failed", problem)
+        raise _guard_failed(problem)
     new = draft.model_copy(update={"baton_role": _COORD})
     return TransitionResult(new, _events(rule, None, new, actor, ctx, now))
 
@@ -290,7 +304,7 @@ def transition(
         raise _fail("forbidden_role", f"Role {actor.value!r} nemůže provést akci {event!r}")
     problem = rule.guard(case, ctx, now) if rule.guard else None
     if problem:
-        raise _fail("guard_failed", problem)
+        raise _guard_failed(problem)
 
     changes: dict[str, object] = dict(rule.set_)
     if rule.to is not None:

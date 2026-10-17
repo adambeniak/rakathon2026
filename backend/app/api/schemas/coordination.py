@@ -169,9 +169,9 @@ class TransitionRequest(BaseModel):
     @model_validator(mode="after")
     def _event_needs(self) -> Self:
         if self.event == "deliver_result" and not self.document_id:
-            raise ValueError("document_id is required to deliver a result")
+            raise ValueError("Pro doručení výsledku je nutné zadat document_id.")
         if self.event in {"fail", "cancel"} and not (self.note and self.note.strip()):
-            raise ValueError("note is required to fail or cancel a task")
+            raise ValueError("Pro neúspěšné ukončení nebo zrušení úkolu je nutná poznámka (note).")
         return self
 
 
@@ -192,5 +192,6 @@ class CreateTaskRequest(BaseModel):
     @model_validator(mode="after")
     def _owner_role_is_assignable(self) -> Self:
         if self.owner_role not in ALLOWED_OWNER_ROLES:
-            raise ValueError(f"owner_role must be one of {sorted(r.value for r in ALLOWED_OWNER_ROLES)}")
+            allowed = ", ".join(sorted(r.value for r in ALLOWED_OWNER_ROLES))
+            raise ValueError(f"owner_role musí být jedna z hodnot: {allowed}.")
         return self

@@ -190,9 +190,21 @@ def test_unwaived_gate_blocks_and_coordinator_cannot_move_case() -> None:
     with pytest.raises(TransitionError) as e:
         transition(make_case(S.KOMPLETNI), "mark_ready_mdt", R.KOC_PHYSICIAN, CaseContext(readiness=gate), NOW)
     assert e.value.code == "guard_failed"
+    assert e.value.blocking_items == ("performance_status",)  # structured, #140; the sentence is for people only
+    assert e.value.detail == "Připravenost k MDT není splněna, chybí: performance_status"
     with pytest.raises(TransitionError) as e:
         transition(make_case(S.KOMPLETNI), "mark_ready_mdt", R.COORDINATOR, CaseContext(readiness=OK), NOW)
     assert e.value.code == "forbidden_role"
+
+
+def test_guards_without_structured_items_leave_blocking_items_unset() -> None:
+    with pytest.raises(TransitionError) as e:
+        transition(make_case(S.KOMPLETNI), "mark_ready_mdt", R.KOC_PHYSICIAN, CaseContext(readiness=None), NOW)
+    assert e.value.code == "guard_failed"
+    assert e.value.blocking_items is None
+    with pytest.raises(TransitionError) as e:
+        transition(make_case(S.KOMPLETNI), "missing_found", R.COORDINATOR, CaseContext(), NOW)
+    assert e.value.blocking_items is None
 
 
 # --- postponement, buckets, baton ----------------------------------------------------------------

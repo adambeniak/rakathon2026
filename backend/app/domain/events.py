@@ -6,7 +6,7 @@ Payloads carry ids and states only — never patient names or clinical content.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
@@ -32,9 +32,14 @@ class DomainEvent:
 
 
 class TransitionError(ConflictError):
-    """Forbidden transition. `code` + `detail` map 1:1 to an RFC 7807 problem later."""
+    """Forbidden transition. `code` + `detail` map 1:1 to an RFC 7807 problem later.
 
-    def __init__(self, code: str, detail: str) -> None:
+    `blocking_items` (readiness item keys) is set only when a guard can name what blocks it in structured form
+    (`mark_ready_mdt`); `detail` is a human sentence and must never be parsed.
+    """
+
+    def __init__(self, code: str, detail: str, blocking_items: Sequence[str] | None = None) -> None:
         super().__init__(f"{code}: {detail}")
         self.code = code
         self.detail = detail
+        self.blocking_items: tuple[str, ...] | None = tuple(blocking_items) if blocking_items is not None else None

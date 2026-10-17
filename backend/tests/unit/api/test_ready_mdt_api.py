@@ -208,7 +208,8 @@ def test_missing_section_blocks_and_names_the_item(make_client: Any) -> None:
     assert response.status_code == 409
     body = response.json()
     assert body["code"] == "guard_failed"
-    # The frontend reads the blocking items from this sentence (MarkReady `blockingItems`); keep both in step.
+    # Structured keys for the waiver form (#140); the Czech sentence stays unchanged for people.
+    assert body["blocking_items"] == ["performance_status"]
     assert body["detail"] == "Připravenost k MDT není splněna, chybí: performance_status"
     assert _state(store) == "kompletni"
     assert store.transactions == 0
@@ -245,6 +246,7 @@ def test_a_waiver_does_not_cover_other_blocking_items(make_client: Any) -> None:
     assert response.status_code == 409
     assert "histology" in response.json()["detail"]
     assert "performance_status" not in response.json()["detail"]
+    assert response.json()["blocking_items"] == ["histology"]  # the waived item is no longer blocking
     assert store.transactions == 0
 
 
@@ -302,6 +304,7 @@ def test_readiness_that_cannot_be_established_fails_closed(
     assert response.status_code == 409
     assert response.json()["code"] == "guard_failed"
     assert detail in response.json()["detail"]
+    assert "blocking_items" not in response.json()  # no structured items when readiness is unknown
     assert _state(store) == "kompletni"
 
 

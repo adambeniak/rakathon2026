@@ -79,7 +79,7 @@ class ConfirmSection(BaseModel):
     @classmethod
     def _bounded(cls, value: JsonValue | None) -> JsonValue | None:
         if value is not None and len(json.dumps(value, ensure_ascii=False)) > MAX_EDITED_VALUE_CHARS:
-            raise ValueError(f"edited_value is longer than {MAX_EDITED_VALUE_CHARS} characters")
+            raise ValueError(f"Hodnota edited_value je příliš dlouhá (maximální délka: {MAX_EDITED_VALUE_CHARS}).")
         return value
 
 

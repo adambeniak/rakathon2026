@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 
+from app.consistency.date_conflicts import RELATED_FIELDS
 from app.domain.document import SourceDocument
 from app.domain.evidence import Fact
 from app.domain.finding import Finding, FindingKind
@@ -137,12 +138,24 @@ def apply_findings(built: HandoverFields, findings: Sequence[Finding]) -> Handov
         prefix = key.split("_", 1)[0] + "_"
         ids = [x.id for x in findings if x.kind in CONFLICT_KINDS and x.field and x.field.startswith(prefix)]
         current: HandoverFieldBase = getattr(built, name)
-        if not ids:
+        related = [x.id for x in findings if x.id not in ids and _shows_anchor(key, current, x)]
+        if not ids and not related:
             continue
         # The ids are always recorded; the status changes only where a value exists that the finding contradicts
-        # (a stale or needs_clarification status says more than "conflict" and is kept).
-        update: dict[str, object] = {"conflicts": sorted({*current.conflicts, *ids})}
-        if current.status in _CONFLICT_ELIGIBLE:
+        # (a stale or needs_clarification status says more than "conflict" and is kept). A related field only
+        # shows the same quoted date (field 3 shows the C2 issue date): the id is recorded, its status is kept.
+        update: dict[str, object] = {"conflicts": sorted({*current.conflicts, *ids, *related})}
+        if ids and current.status in _CONFLICT_ELIGIBLE:
             update["status"] = HandoverStatus.COMPLETE_WITH_CONFLICT
         updates[name] = current.model_copy(update=update)
     return built.model_copy(update=updates) if updates else built
+
+
+def _shows_anchor(key: str, field: HandoverFieldBase, finding: Finding) -> bool:
+    """`key` is a related field of the finding's field (`RELATED_FIELDS`) and cites one of the finding's quotes."""
+    if finding.kind not in CONFLICT_KINDS or not finding.field:
+        return False
+    if key not in RELATED_FIELDS.get(finding.field.split(".", 1)[0], ()):
+        return False
+    quotes = {(e.doc_id, e.quote) for e in finding.evidence}
+    return any((e.doc_id, e.quote) in quotes for e in field.evidence)

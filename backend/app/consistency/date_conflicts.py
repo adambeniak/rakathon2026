@@ -3,9 +3,12 @@
 C1  drug pause vs procedure date: a quote gives the "last dose" of a drug after the procedure date of the same
     document (handover field 7). A quote of the same document that names the drug and a "resume from" date is
     shown verbatim as context.
-C2  specimen date vs report date: a quote gives the specimen collection ("odběr") after the report's issue date
-    ("Datum vydání") in the same document (handover field 14). Procedure dates stated in other documents are shown
-    verbatim for comparison.
+C2  specimen date vs report date: the specimen collection ("odběr") is after the report's issue date ("Datum vydání")
+    in the same document (handover field 14; field 3 shows the same issue date as the verification date, see
+    `RELATED_FIELDS`). For a pathology report the deterministically parsed header lines decide
+    (`app.extraction.handover.headers`, whole quoted lines), so the rule does not depend on the model having
+    extracted the issue date as a fact; otherwise the quoted facts are used. Procedure dates stated in other
+    documents are shown verbatim for comparison.
 
 Only `stated` facts trigger a rule, and only dates with an explicit year that directly follow the cue phrase in the
 quote are read (labels in the model's value are not trusted), so nothing is guessed. The input must
@@ -16,15 +19,20 @@ right or what should be done. A second conflict of the same kind gets the id `C1
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date
+from typing import Final
 
 from app.documents.normalize import find_dates
-from app.domain.evidence import Certainty, Fact, FactType
+from app.domain.evidence import Certainty, Evidence, Fact, FactType
 from app.domain.finding import Finding, FindingKind, Severity
+from app.extraction.handover.headers import DocumentHeader, is_pathology_report
 
 C1_FIELD = "7_medications"
 C2_FIELD = "14_histology"
+# Fields that show a finding's anchor date without being its primary field: the finding id is recorded on them when
+# their evidence cites the same quote (no status change; `assemble.apply_findings`).
+RELATED_FIELDS: Final[Mapping[str, tuple[str, ...]]] = {C2_FIELD: ("3_diagnosis",)}
 VERIFY_ACTION = "flag_and_create_verification_task"
 
 _PROCEDURE_DATE_LABEL = "datum výkonu"
@@ -35,10 +43,19 @@ _RESUME = re.compile(rf"znovu\s+od\s+{_DATE}", re.IGNORECASE)
 _SPECIMEN = re.compile(rf"\bodběr:?\s+(?:dne\s+)?{_DATE}", re.IGNORECASE)
 
 
-def detect_findings(facts: Sequence[Fact]) -> list[Finding]:
-    """All C1 and C2 findings for already as-of-filtered facts, in doc_id order."""
+def detect_findings(
+    facts: Sequence[Fact],
+    headers: Mapping[str, DocumentHeader] | None = None,
+    type_codes: Mapping[str, str | None] | None = None,
+) -> list[Finding]:
+    """All C1 and C2 findings for already as-of-filtered facts and header lines, in doc_id order.
+
+    `headers` (doc_id -> parsed header) and `type_codes` (doc_id -> LOINC document type) must cover the same
+    as-of-included documents as `facts`.
+    """
     ordered = sorted(facts, key=lambda f: f.doc_id)
-    return [*_numbered("C1", _drug_pause_vs_procedure(ordered)), *_numbered("C2", _specimen_vs_report(ordered))]
+    c2 = _specimen_vs_report(ordered, headers or {}, type_codes or {})
+    return [*_numbered("C1", _drug_pause_vs_procedure(ordered)), *_numbered("C2", c2)]
 
 
 def _numbered(base: str, findings: Sequence[Finding]) -> list[Finding]:
@@ -53,8 +70,8 @@ def _quote(fact: Fact) -> str:
     return fact.evidence[0].quote
 
 
-def _cited(fact: Fact) -> str:
-    return f"„{_quote(fact)}“"
+def _cited(fact: Fact | Evidence) -> str:
+    return f"„{fact.quote if isinstance(fact, Evidence) else _quote(fact)}“"
 
 
 def _anchor_date(fact: Fact, label: str) -> date | None:
@@ -81,15 +98,16 @@ def _drug_name(fact: Fact) -> str | None:
     return drug.casefold() if isinstance(drug, str) and drug.strip() else None
 
 
-def _finding(kind_id: str, field: str, message: str, used: Sequence[Fact]) -> Finding:
+def _finding(kind_id: str, field: str, message: str, used: Sequence[Fact | Evidence]) -> Finding:
+    evidence = [u if isinstance(u, Evidence) else u.evidence[0] for u in used]
     return Finding(
         id=kind_id,
         kind=FindingKind.DATE_CONFLICT,
         severity=Severity.HIGH,
         message=message,
         field=field,
-        docs=sorted({f.doc_id for f in used}),
-        evidence=[f.evidence[0] for f in used],
+        docs=sorted({e.doc_id for e in evidence}),
+        evidence=evidence,
         suggested_action=VERIFY_ACTION,
     )
 
@@ -127,19 +145,46 @@ def _drug_pause_vs_procedure(facts: Sequence[Fact]) -> list[Finding]:
     return found
 
 
-def _specimen_vs_report(facts: Sequence[Fact]) -> list[Finding]:
-    found: list[Finding] = []
+def _procedures(facts: Sequence[Fact], headers: Mapping[str, DocumentHeader], exclude: str) -> list[Fact | Evidence]:
+    """Quoted procedure dates ("Datum výkonu: …") of the other documents: header line, else the stated fact."""
+    by_doc: dict[str, Fact | Evidence] = {
+        doc_id: h.procedure.evidence for doc_id, h in headers.items() if h.procedure is not None and doc_id != exclude
+    }
+    for f in facts:
+        if f.doc_id != exclude and f.doc_id not in by_doc and _anchor_date(f, _PROCEDURE_DATE_LABEL):
+            by_doc[f.doc_id] = f
+    return [by_doc[d] for d in sorted(by_doc)]
+
+
+def _c2(sample: Fact | Evidence, issue: Fact | Evidence, procedures: Sequence[Fact | Evidence]) -> Finding:
+    doc_id = issue.doc_id
+    message = f"Nesoulad mezi {_cited(sample)} a {_cited(issue)} (dok. {_doc_no(doc_id)})." + "".join(
+        f" Pro srovnání: v dok. {_doc_no(p.doc_id)} uvedeno {_cited(p)}." for p in procedures
+    )
+    return _finding("C2", C2_FIELD, message, [sample, issue, *procedures])
+
+
+def _specimen_vs_report(
+    facts: Sequence[Fact], headers: Mapping[str, DocumentHeader], type_codes: Mapping[str, str | None]
+) -> list[Finding]:
+    found: dict[str, list[Finding]] = {}
+    # Pathology reports: the header lines decide (whole quoted lines, explicit years only).
+    for doc_id in sorted(headers):
+        h = headers[doc_id]
+        if h.issued is None or h.specimen is None or not is_pathology_report(h, type_codes.get(doc_id)):
+            continue
+        if h.specimen.date > h.issued.date:
+            procedures = _procedures(facts, headers, doc_id)
+            found[doc_id] = [_c2(h.specimen.evidence, h.issued.evidence, procedures)]
+    from_header = set(found)
+    # Quoted facts for every other document (and a pathology report whose header shows no conflict).
     for issue in facts:
         issue_date = _anchor_date(issue, _ISSUE_DATE_LABEL)
-        if issue_date is None:
+        if issue_date is None or issue.doc_id in from_header:
             continue
         for sample in (f for f in facts if f.doc_id == issue.doc_id and f is not issue):
             specimen_date = _quoted_date(_SPECIMEN, sample) if sample.certainty is Certainty.STATED else None
             if specimen_date is None or specimen_date <= issue_date:
                 continue
-            procedures = [f for f in facts if f.doc_id != issue.doc_id and _anchor_date(f, _PROCEDURE_DATE_LABEL)]
-            message = f"Nesoulad mezi {_cited(sample)} a {_cited(issue)} (dok. {_doc_no(issue.doc_id)})." + "".join(
-                f" Pro srovnání: v dok. {_doc_no(f.doc_id)} uvedeno {_cited(f)}." for f in procedures
-            )
-            found.append(_finding("C2", C2_FIELD, message, [sample, issue, *procedures]))
-    return found
+            found.setdefault(issue.doc_id, []).append(_c2(sample, issue, _procedures(facts, headers, issue.doc_id)))
+    return [f for doc_id in sorted(found) for f in found[doc_id]]

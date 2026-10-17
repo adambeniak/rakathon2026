@@ -1,8 +1,8 @@
 """Handover eval vs the golden set (used by `make eval` via test_handover_eval.py).
 
 Runs the cached extraction, the epicrisis (cached LLM, else the cited fallback) and `assemble_handover` for the
-demo case, then compares field statuses and key values with data/golden. Findings are NOT fed in: the eval never
-consumes golden-derived findings (the consistency detector F3-1 plugs in via `assemble_handover(findings=...)`).
+demo case, then compares field statuses and key values with data/golden. Findings come from the deterministic
+consistency rules over the as-of-filtered facts (`detect_findings`); the eval never consumes golden-derived findings.
 Results are merged into eval/report.json under "handover".
 """
 
@@ -15,6 +15,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
+from app.consistency import detect_findings
 from app.documents.normalize import NormalizedDoc, normalize
 from app.domain.document import SourceDocument
 from app.domain.evidence import Fact
@@ -32,9 +33,8 @@ from app.seed.demo_case import DOCUMENTS, ORGANIZATIONS, PATIENT  # isort: skip
 
 CASE_ID = "rakathon-2026-prochazkova"
 LATER_AS_OF = datetime(2026, 10, 28, 8, 0, tzinfo=PRAGUE)
-# TODO(#13): raise to 14/15 when the C1/C2 rules land (F3-1). Fields 7 and 14 are complete_with_conflict in the
-# golden set only because of findings C1/C2, which this eval deliberately does not inject.
-FIELD_STATUS_GATE = 13
+# Fields 7 and 14 are complete_with_conflict in the golden set because of findings C1/C2 (app.consistency).
+FIELD_STATUS_GATE = 14
 
 # Values computed by a deterministic rule from a stated value, or document metadata: not expected in a quote.
 DERIVED_KEYS = frozenset(
@@ -74,7 +74,8 @@ async def build(facts: list[Fact], epicrisis_client: CompletionClient, as_of: da
     included, _ = split_documents(documents, as_of)
     known = included_facts(facts, included)
     field4 = await generate_epicrisis(known, included, epicrisis_client, case_id=CASE_ID)
-    handover = assemble_handover(CASE_ID, as_of, known, documents, patient=PATIENT, epicrisis=field4)
+    findings = detect_findings(known)
+    handover = assemble_handover(CASE_ID, as_of, known, documents, patient=PATIENT, findings=findings, epicrisis=field4)
     return handover, known
 
 
@@ -95,6 +96,12 @@ def evidence_problems(h: Handover, fresh: dict[str, NormalizedDoc]) -> list[dict
             span_ok = ev.char_start is not None and text[ev.char_start : ev.char_end] == ev.quote
             if not span_ok or " ".join(ev.quote.split()) not in " ".join(text.split()):
                 problems.append({"field": key, "doc": ev.doc_id, "quote": ev.quote[:80]})
+    for finding in h.findings:
+        for ev in finding.evidence:
+            text = fresh[ev.doc_id].text
+            span_ok = ev.char_start is not None and text[ev.char_start : ev.char_end] == ev.quote
+            if not span_ok or " ".join(ev.quote.split()) not in " ".join(text.split()):
+                problems.append({"field": f"finding {finding.id}", "doc": ev.doc_id, "quote": ev.quote[:80]})
     return problems
 
 
@@ -239,6 +246,8 @@ async def run(extraction: CompletionClient, epicrisis_client: CompletionClient) 
         | ({e.doc_id for e in handover.fields.examinations.value or []} & excluded)
         | ({r.doc_id for r in handover.fields.labs.value or []} & excluded)
         | (set(handover.included_documents) & excluded)
+        | ({ev.doc_id for x in handover.findings for ev in x.evidence} & excluded)
+        | ({d for x in handover.findings for d in x.docs} & excluded)
     )
     evidence_bad = evidence_problems(handover, fresh)
     halluc = hallucinations(handover)
@@ -247,7 +256,7 @@ async def run(extraction: CompletionClient, epicrisis_client: CompletionClient) 
     kv = key_values(handover, golden)
     evidence_total = sum(
         len(field.evidence) + sum(len(i.evidence) for i in field.items) for _, field in _fields(handover)
-    )
+    ) + sum(len(x.evidence) for x in handover.findings)
     as_of_rule = {
         "excluded_at_2026-10-21": sorted(e.doc_id for e in handover.excluded_documents),
         "excluded_at_2026-10-28": sorted(e.doc_id for e in later.excluded_documents),
@@ -293,7 +302,7 @@ async def run(extraction: CompletionClient, epicrisis_client: CompletionClient) 
 def format_table(rep: dict[str, Any]) -> str:
     m, g = rep["metrics"], rep["gates"]
     rows = [
-        ("Field status accuracy", m["field_status_accuracy"], f"gate ≥ {FIELD_STATUS_GATE}/15 (#13: 14/15 after F3-1)"),
+        ("Field status accuracy", m["field_status_accuracy"], f"gate ≥ {FIELD_STATUS_GATE}/15"),
         ("Evidence validity", m["evidence_validity"], f"gate 100 % ({m['evidence_items']} quotes)"),
         ("As-of leakage", m["as_of_leakage"], "gate 0"),
         ("Hallucinations", m["hallucinations"], "gate 0"),

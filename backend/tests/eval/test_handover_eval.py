@@ -1,6 +1,6 @@
 """`make eval`: handover assembly vs the golden set, from the committed LLM cache (no network).
 
-Gates: field status ≥ 13/15 (#13: 14/15 once F3-1 provides C1/C2), evidence validity 100 %, as-of leakage 0,
+Gates: field status ≥ 14/15 (fields 7 and 14 via the C1/C2 rules), evidence validity 100 %, as-of leakage 0,
 hallucinations 0, every epicrisis sentence cited, reports 12-13 excluded at 21. 10. and included at 28. 10.
 """
 
@@ -37,7 +37,6 @@ def test_print_handover_metrics(report: dict[str, Any], capsys: pytest.CaptureFi
 
 
 def test_field_status_gate(report: dict[str, Any]) -> None:
-    # TODO(#13): FIELD_STATUS_GATE -> 14 when the C1/C2 rules land (F3-1).
     assert report["metrics"]["field_status_correct"] >= FIELD_STATUS_GATE, report["field_status"]
 
 

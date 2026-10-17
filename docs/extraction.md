@@ -249,6 +249,9 @@ validity 100 %, hallucinations 0, leakage 0 (68 facts filtered), injection smoke
 ### Date-quote lock (#25, commit `253cabd`), from cache
 A `value.kind = date` fact is accepted only when its own quote supports the date (document header dates no longer count; `clinical_date` still may use them). Numbers unchanged: key value recall **98.2 % (53/54)**, facts raw / accepted / in handover 487 / 479 / 411, evidence validity 100 %, hallucinations 0, leakage 0, field status 13/15, injection smoke pass. No fact newly rejected.
 
+### Consistency rules C1/C2 (#28, `app/consistency/date_conflicts.py`), from cache
+Deterministic rules over the as-of-filtered accepted facts, no LLM; only `stated` facts trigger, dates are read from the quote. C1: "poslední dávka" of a drug after the "Datum výkonu" of the same document (field 7). C2: "odběr" after "Datum vydání" of the same document (field 14). Each finding quotes its sources verbatim. The eval now also checks the evidence of findings (span check, as-of leakage). Field status **15/15** (gate raised to 14/15; fields 7 and 14 are `complete_with_conflict`), recall 53/54, evidence validity 100 % (476 quotes, 6 of them in findings), hallucinations 0, leakage 0, facts unchanged (487 / 479 / 411).
+
 ## Handover assembly (F2-2, `app/extraction/handover/`, ADR-0004)
 `assemble_handover(case_id, as_of, facts, documents, *, patient, findings, epicrisis, rules)` is a pure function. It
 splits the documents by the as-of rule (`excluded_documents` with a Czech reason), drops facts from excluded documents,

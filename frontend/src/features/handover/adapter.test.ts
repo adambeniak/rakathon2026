@@ -65,10 +65,10 @@ describe('adaptHandover', () => {
     expect(labs.valueHash).toBe('abc')
   })
 
-  it('maps missing sub-items, conflicts and the section note, and never invents a value for a missing field', () => {
+  it('maps missing sub-items, linked findings and the section note, and never invents a value for a missing field', () => {
     const v = adaptHandover(
       wire({
-        '9_performance_status': { ...emptyField, note: 'Uvedeno pouze „Soběstačná“; ECOG se nedovozuje.', conflicts: ['M1'], missing: ['ecog', 'tnm_clinical_stage'] },
+        '9_performance_status': { ...emptyField, note: 'Uvedeno pouze „Soběstačná“; ECOG se nedovozuje.', finding_ids: ['M1'], missing: ['ecog', 'tnm_clinical_stage'] },
       }),
     )
     const ps = v.sections.find((s) => s.key === '9_performance_status')!

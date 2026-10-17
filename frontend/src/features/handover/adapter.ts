@@ -49,6 +49,8 @@ function adaptField(key: SectionKey, f: Field, findings: ReadonlyMap<string, Fin
   const state = review?.state
   const text = (f as { value?: unknown }).value
   const missingItems = adaptMissing(f)
+  // Every finding about the section (any kind); `conflicts` is the contradicting subset, kept for older payloads.
+  const linked = [...new Set([...(f.finding_ids ?? []), ...(f.conflicts ?? [])])]
   return {
     key,
     number: Number(key.split('_')[0]),
@@ -58,8 +60,8 @@ function adaptField(key: SectionKey, f: Field, findings: ReadonlyMap<string, Fin
     missing: missingItems.map((m) => m.label),
     missingItems,
     evidence: (f.evidence ?? []).map((e) => ({ docId: e.doc_id, quote: e.quote || undefined })),
-    findingIds: f.conflicts ?? [],
-    findings: (f.conflicts ?? []).flatMap((id) => findings.get(id) ?? []),
+    findingIds: linked,
+    findings: linked.flatMap((id) => findings.get(id) ?? []),
     // Accepting a missing section counts as reviewed: the Composition is final at 15 of 15.
     confirmed: state === 'confirmed' || state === 'accepted_missing',
     acceptedMissing: state === 'accepted_missing',

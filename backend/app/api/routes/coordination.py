@@ -59,7 +59,8 @@ async def get_alerts(service: CoordinationDep, actor: ActorDep, case_id: str = C
     status_code=201,
     response_model=TaskOut,
     summary="Create a single (ad-hoc) task",
-    responses=problem_responses(403, 404, 422, 500, 502, 503),
+    description="Coordinator only (403 otherwise). A closed case (`uzavreno`) takes no new tasks: 409 `conflict`.",
+    responses=problem_responses(403, 404, 409, 422, 500, 502, 503),
 )
 async def create_task(
     request: CreateTaskRequest, service: CoordinationDep, actor: ActorDep, case_id: str = CaseId

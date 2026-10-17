@@ -280,7 +280,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a single (ad-hoc) task */
+        /**
+         * Create a single (ad-hoc) task
+         * @description Coordinator only (403 otherwise). A closed case (`uzavreno`) takes no new tasks: 409 `conflict`.
+         */
         post: operations["coordination-create_task"];
         delete?: never;
         options?: never;
@@ -796,6 +799,23 @@ export interface components {
             letter: string;
         };
         /**
+         * CaseAction
+         * @description Next step on the case as a whole, for the queue card ("Na tahu: … – <action>"). Labels live in the UI i18n.
+         * @enum {string}
+         */
+        CaseAction: "accept_case" | "triage" | "complete_documents" | "review_handover" | "hold_mdt" | "send_feedback" | "confirm_receipt" | "close_case" | "await_external" | "none";
+        /**
+         * CaseBaton
+         * @description Who must act next on the case as a whole and what that step is; computed by the backend from the case state,
+         *     the machine's baton role and the postponed flag (contracts/case-states.md).
+         */
+        CaseBaton: {
+            /** @description Next step: accept_case | triage | complete_documents | review_handover | hold_mdt | send_feedback | confirm_receipt (GP, feedback not yet confirmed as delivered) | close_case (coordinator, after delivery_confirmed) | await_external (postponed) | none (closed). */
+            action: components["schemas"]["CaseAction"];
+            /** @description Role holding the baton; null when the case is closed. */
+            role: components["schemas"]["Role"] | null;
+        };
+        /**
          * CaseCounts
          * @description Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé).
          */
@@ -810,6 +830,10 @@ export interface components {
         /**
          * CaseDetail
          * @example {
+         *       "baton": {
+         *         "action": "hold_mdt",
+         *         "role": "koc_physician"
+         *       },
          *       "baton_holder": {
          *         "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
          *         "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -848,6 +872,8 @@ export interface components {
          *     }
          */
         CaseDetail: {
+            /** @description Baton role and next action of the case; the UI renders `action`, it never derives it. */
+            baton?: components["schemas"]["CaseBaton"] | null;
             /** @description 'Na tahu' — who must act next on the case. */
             baton_holder?: components["schemas"]["BatonHolder"] | null;
             /**
@@ -925,6 +951,10 @@ export interface components {
         /**
          * CaseSummary
          * @example {
+         *       "baton": {
+         *         "action": "hold_mdt",
+         *         "role": "koc_physician"
+         *       },
          *       "baton_holder": {
          *         "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
          *         "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -952,6 +982,8 @@ export interface components {
          *     }
          */
         CaseSummary: {
+            /** @description Baton role and next action of the case; the UI renders `action`, it never derives it. */
+            baton?: components["schemas"]["CaseBaton"] | null;
             /** @description 'Na tahu' — who must act next on the case. */
             baton_holder?: components["schemas"]["BatonHolder"] | null;
             /**
@@ -1047,6 +1079,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -1129,6 +1166,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -1301,6 +1343,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -1461,6 +1508,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -1662,6 +1714,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -1919,6 +1976,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2040,6 +2102,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2146,6 +2213,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2235,6 +2307,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2336,6 +2413,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2677,6 +2759,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2820,6 +2907,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2859,6 +2951,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2930,6 +3027,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -4452,6 +4554,15 @@ export interface operations {
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

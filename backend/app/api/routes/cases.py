@@ -9,6 +9,7 @@ from fastapi import APIRouter, Path
 from app.api.deps import CaseReaderDep, HandoverStoreDep, LlmClientsDep, SettingsDep
 from app.api.schemas.cases import (
     BatonHolder,
+    CaseBaton,
     CaseCounts,
     CaseDetail,
     CaseSummary,
@@ -44,6 +45,7 @@ def summary_fields(
         ),
         "state": case.state,
         "baton_holder": BatonHolder(**case.baton_holder.model_dump()) if case.baton_holder else None,
+        "baton": CaseBaton(role=case.current_baton_role, action=case.next_action),
         "next_deadline": case.next_deadline,
         "opened_at": case.opened_at,
         "postponed": case.odlozeny,

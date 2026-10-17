@@ -23,7 +23,7 @@ export function adaptCase(c: ApiCase): CaseSummary {
     state: c.state,
     column: COLUMN[c.bucket],
     baton: c.baton_holder
-      ? { name: c.baton_holder.display, action: common.batonActions[c.state], due: c.next_deadline ?? null }
+      ? { name: c.baton_holder.display, action: c.baton ? common.caseActions[c.baton.action] : common.unknown, due: c.next_deadline ?? null }
       : null,
     counts: {
       missing: c.counts?.missing ?? c.missing_count ?? null,

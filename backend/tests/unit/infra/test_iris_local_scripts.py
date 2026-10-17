@@ -19,6 +19,7 @@ from app.settings import REPO_ROOT
 SCRIPTS = REPO_ROOT / "scripts"
 PREPARE = SCRIPTS / "iris_local_prepare.sh"
 UP_LOCAL = SCRIPTS / "up_local.sh"
+TEST_LOCAL = SCRIPTS / "test_iris_local.sh"
 PASSWORD = "local-Pa55word_ok"
 BASH = shutil.which("bash") or "/bin/bash"
 COMPOSE = "compose -f docker-compose.yml -f docker-compose.local-iris.yml"
@@ -42,6 +43,7 @@ echo "uv $* :: cwd=$(basename "$PWD") IRIS_HOST=${IRIS_HOST-unset}" \\
      "FHIR_BASE_URL=${FHIR_BASE_URL-unset} STAFETA_ENV=${STAFETA_ENV-unset}" >> "$FAKE_LOG"
 case "$*" in
   *bootstrap_iris*) [ -n "${FAKE_BOOTSTRAP_FAIL:-}" ] && { echo "credentials rejected" >&2; exit 1; } ;;
+  *pytest*) printf '%s\\n' "${FAKE_PYTEST_OUT:-3 passed}"; exit "${FAKE_PYTEST_CODE:-0}" ;;
 esac
 exit 0
 """
@@ -303,6 +305,53 @@ def test_an_unhealthy_backend_ends_with_fail_the_response_and_where_to_look(secr
     assert "logs backend" in result.stderr
     assert "OK:" not in result.stdout
     assert PASSWORD not in result.stdout + result.stderr
+
+
+# --- make test-iris-local shares the helpers ---
+
+
+def test_test_iris_local_runs_pytest_after_the_shared_bootstrap_and_seed_and_passes_its_arguments(
+    secrets: Path, fakes: Path
+) -> None:
+    result = run(TEST_LOCAL, secrets, "-k", "referral", fakes=fakes)  # no password yet: the test run generates one
+
+    assert result.returncode == 0, result.stderr
+    assert len((secrets / "password.txt").read_text(encoding="utf-8")) >= 16
+    lines = calls(fakes)
+    steps = [
+        first(lines, "uv run --with intersystems-irispython==5.4.1 python scripts/bootstrap_iris.py"),
+        first(lines, "uv run python -m app.seed --scenario story ::"),
+        first(lines, "uv run pytest"),
+    ]
+    assert steps == sorted(steps)
+    pytest_call = lines[steps[2]]
+    assert "pytest -m iris tests/integration -q -rs -k referral ::" in pytest_call
+    assert "cwd=backend IRIS_HOST=localhost" in pytest_call  # explicit local settings reach pytest
+    assert not any("up -d --build" in line for line in lines)  # only the IRIS container, never the backend
+
+
+def test_test_iris_local_passes_on_the_pytest_exit_status(secrets: Path, fakes: Path) -> None:
+    result = run(TEST_LOCAL, secrets, fakes=fakes, FAKE_PYTEST_CODE="3", FAKE_PYTEST_OUT="1 failed, 2 passed")
+
+    assert result.returncode == 3
+
+
+def test_test_iris_local_treats_skipped_iris_tests_as_a_failure(secrets: Path, fakes: Path) -> None:
+    result = run(TEST_LOCAL, secrets, fakes=fakes, FAKE_PYTEST_OUT="11 skipped")
+
+    assert result.returncode == 1
+    assert "some iris tests were skipped" in result.stderr
+
+
+def test_test_iris_local_leaves_a_running_iris_alone(secrets: Path, fakes: Path) -> None:
+    ready(secrets)
+    (secrets / "password.done").write_text("", encoding="utf-8")
+
+    result = run(TEST_LOCAL, secrets, fakes=fakes, running=True)
+
+    assert result.returncode == 0, result.stderr
+    assert (secrets / "password.done").exists()
+    assert not any(" up " in line for line in calls(fakes))
 
 
 # --- wiring ---

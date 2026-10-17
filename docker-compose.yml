@@ -5,9 +5,10 @@
 # Local IRIS instead of ACI (demo fallback) = docker-compose.local-iris.yml:
 #   mkdir -p .iris && printf '%s' 'local-password' > .iris/password.txt   (any value; it need NOT match IRIS_PASSWORD)
 #   make up-local                 # or: make up-local SCENARIO=story
-# One command: starts the local IRIS, waits until it is healthy, bootstraps and seeds it from the host (explicit
-# connection settings, the env file is not used), starts the backend with the LOCAL password and prints OK/FAIL from
-# /api/health. The env file (team ACI) is never changed. Storage is not persistent, like ACI: `make down` removes it.
+# One command: starts the local IRIS, waits until it is healthy, bootstraps and seeds it from the host (the IRIS
+# connection settings are explicit; other settings, e.g. the embedding provider, still come from the env file), starts
+# the backend with the LOCAL password and prints OK/FAIL from /api/health. The env file (team ACI) is never modified.
+# Storage is not persistent, like ACI: `make down` removes it.
 services:
   backend:
     build: ./backend

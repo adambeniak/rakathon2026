@@ -30,9 +30,10 @@ curl -s localhost:8000/api/health             # {"status":"ok", …}
 Local alternative (demo fallback, same image, ONE command): `mkdir -p .iris && printf '%s' 'pw' > .iris/password.txt`
 (any value, it does not have to match `IRIS_PASSWORD` in `.env`), then `make up-local`, or `make up-local SCENARIO=story` for
 the full case with its 13 documents (default `demo-start`: directory, users and patient, demo step 1 starts empty). It
-starts the local IRIS, waits until it is healthy, bootstraps and seeds it from the host with explicit connection settings,
-starts the backend with the LOCAL password (compose variable `LOCAL_IRIS_PASSWORD`, only used by
-`docker-compose.local-iris.yml`; `.env` stays untouched) and ends with `OK: backend healthy …` or `FAIL: …`. Local storage
+starts the local IRIS, waits until it is healthy, bootstraps and seeds it from the host (the IRIS connection settings are
+explicit; other settings still come from `.env`), starts the backend with the LOCAL password (compose variable
+`LOCAL_IRIS_PASSWORD`, only used by `docker-compose.local-iris.yml`; `.env` is never modified) and ends with
+`OK: backend healthy …` or `FAIL: …`. Local storage
 is not persistent (like ACI): `make down` removes the container and the data, `make up-local` rebuilds both. For every
 FRESH container the password file is prepared (IRIS's leftover `password.done` sentinel is removed; without that a new
 container keeps the default password and rejects yours).

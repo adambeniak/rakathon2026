@@ -15,6 +15,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from app.domain.case import Case, CaseState
+from app.domain.common import Role
 from app.domain.document import SourceDocument
 from app.domain.errors import NotFoundError
 from app.domain.evidence import Evidence
@@ -36,6 +37,9 @@ GP_OPENED_STATES = frozenset({CaseState.ZPETNA_VAZBA_ODESLANA, CaseState.UZAVREN
 WAIVER_STATES = frozenset(
     {CaseState.PRIPRAVENO_MDT, CaseState.ZAVER_MDT, CaseState.ZPETNA_VAZBA_ODESLANA, CaseState.UZAVRENO}
 )
+# Who may see waivers (free-text reason + signer): the KOC team, as for the MDT record. Others get none and nothing is
+# read for them (minimisation; the GP and the insurer's reviewer do not need the KOC's internal reasons).
+WAIVER_READER_ROLES = frozenset({Role.COORDINATOR, Role.KOC_PHYSICIAN, Role.KOC_STAFF, Role.SYSTEM})
 EVENT_GP_OPENED = "gp_opened"
 EVENT_REOPEN = "reopen"
 
@@ -60,7 +64,7 @@ class CaseActivity:
 
     gp_opened_at: datetime | None = None
     readiness_waivers: tuple[RecordedWaiver, ...] = ()
-    references: tuple[str, ...] = ()  # the Provenance resources read; the caller names them in its audit
+    references: tuple[str, ...] = ()  # every waiver Provenance read; the caller names them in its audit
 
 
 @dataclass(frozen=True)
@@ -132,7 +136,7 @@ class CaseReader:
         case, extras = await asyncio.gather(self._case(task), self._extras(task))
         resources, activity = await asyncio.gather(
             self._repo.search("DocumentReference", {"encounter": _focus(task), "_count": "100"}),
-            self.activity(task, case),
+            self.activity(task, case, waivers=self._repo.actor.role in WAIVER_READER_ROLES),
         )
         documents = sorted((document_from_fhir(r) for r in resources), key=lambda d: (d.received_at, d.doc_id))
         await self._repo.audit_read(
@@ -197,6 +201,7 @@ class CaseReader:
             return result
         provenances = await self._repo.search("Provenance", {"target": f"Task/{task['id']}", "_count": "100"})
         found = [(r, w) for r in provenances if (w := waiver_from_provenance(r)) is not None]
+        read = tuple(f"Provenance/{r['id']}" for r, _ in found if r.get("id"))  # every waiver read is audited
         reopens = events.get(EVENT_REOPEN, [])
         if reopens:
             last = max(reopens, key=lambda e: _written(e, _instant(e["recorded"])))
@@ -208,7 +213,7 @@ class CaseReader:
         return replace(
             result,
             readiness_waivers=tuple(w for _, w in kept),
-            references=tuple(f"Provenance/{r['id']}" for r, _ in kept if r.get("id")),
+            references=read,
         )
 
     async def _domain_events(self, task: Resource, codes: Sequence[str]) -> dict[str, list[Resource]]:

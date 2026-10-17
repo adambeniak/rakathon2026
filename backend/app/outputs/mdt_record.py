@@ -182,7 +182,7 @@ def _attestation(field: HandoverFieldBase) -> str | None:
 
 def waiver_line(waiver: RecordedWaiver) -> str:
     """Who waived which readiness item, when and why, as recorded (neutral wording, the reason verbatim)."""
-    title = _WAIVER_ITEMS.get(waiver.item, (waiver.item.replace("_", " "), ""))[0]
+    title = _WAIVER_ITEMS[waiver.item][0] if waiver.item in _WAIVER_ITEMS else f"položka „{waiver.item}“"
     at = waiver.at.astimezone(PRAGUE)
     who = waiver.by_display or "jméno neuvedeno"
     when = f"{_cz_date(at)} {at:%H:%M}"

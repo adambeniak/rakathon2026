@@ -210,7 +210,7 @@ def test_a_waived_readiness_item_is_printed_next_to_its_section(story_handover: 
     assert "Prominuto lékařem (připravenost k MDT – Histologie): MUDr. Lenka Marková, 21. 10. 2026 07:45" in section5
     assert "635722/1013" not in text  # the reason is sanitised like every other value
     assert "Další prominuté položky připravenosti k MDT" in text
-    assert "(připravenost k MDT – pathway extra item): jméno neuvedeno, 21. 10. 2026 07:45" in text
+    assert "(připravenost k MDT – položka „pathway_extra_item“): jméno neuvedeno, 21. 10. 2026 07:45" in text
     assert text.count("Prominuto lékařem") == 3  # each waiver once, nowhere else
 
 

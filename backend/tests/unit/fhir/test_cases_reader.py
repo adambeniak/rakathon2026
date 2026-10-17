@@ -270,7 +270,8 @@ async def test_case_detail_reads_back_the_waivers_in_force(reader: CaseReader, i
     assert params["entity"] == "Task/5"
     assert params["subtype"].endswith("audit-event-code|reopen")
     audit = json.loads(iris.routes[2].calls[0].request.content)
-    assert "Provenance/62" in {e["what"]["reference"] for e in audit["entity"]}  # the waiver read is audited
+    # every waiver read is audited, also the one no longer in force
+    assert {"Provenance/61", "Provenance/62"} <= {e["what"]["reference"] for e in audit["entity"]}
 
 
 async def test_a_case_not_ready_for_the_mdt_reads_no_waivers(reader: CaseReader, iris: respx.MockRouter) -> None:
@@ -362,3 +363,15 @@ async def test_under_a_standing_demo_clock_the_server_write_time_decides(
     view = await reader.get_case("rakathon-2026-prochazkova")
 
     assert [w.item for w in view.readiness_waivers] == ["performance_status"]
+
+
+async def test_outside_the_koc_team_no_waiver_is_read(fhir_client: FhirClient, iris: respx.MockRouter) -> None:
+    gp_reader = CaseReader(FhirRepository(fhir_client, GP_ACTOR, clock=lambda: datetime(2026, 10, 16, tzinfo=UTC)))
+    iris.get("/Task").respond(200, json=_bundle(TASK))
+    iris.get("/DocumentReference").respond(200, json=_bundle())
+    provenance = iris.get("/Provenance").respond(200, json=_bundle(_waiver("histology", "x", READY_AT, "61")))
+
+    view = await gp_reader.get_case("rakathon-2026-prochazkova")
+
+    assert view.readiness_waivers == ()
+    assert provenance.call_count == 0

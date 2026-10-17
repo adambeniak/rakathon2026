@@ -206,7 +206,7 @@ def test_wording_is_neutral_no_advice() -> None:
         assert not any(
             w in text for w in ("doporuč", "měl", "mělo", "má být", "nutno", "vysadit", "podat", "dávk" + "ovat")
         )
-        assert finding.suggested_action == "create_verification_task"
+        assert finding.suggested_action == "flag_and_create_verification_task"
 
 
 def test_czech_date_text_is_parsed_not_compared_as_strings() -> None:

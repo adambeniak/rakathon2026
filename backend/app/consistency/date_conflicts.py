@@ -25,7 +25,7 @@ from app.domain.finding import Finding, FindingKind, Severity
 
 C1_FIELD = "7_medications"
 C2_FIELD = "14_histology"
-VERIFY_ACTION = "create_verification_task"
+VERIFY_ACTION = "flag_and_create_verification_task"
 
 _PROCEDURE_DATE_LABEL = "datum výkonu"
 _ISSUE_DATE_LABEL = "datum vydání"

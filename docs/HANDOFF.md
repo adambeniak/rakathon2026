@@ -106,3 +106,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: fix the same banned label in `.claude/agents/ux-reviewer.md` and `.claude/skills/czech-clinical-docs/SKILL.md` (#152)
   Risks: a 4-worker cap makes `make check` a few seconds slower on big machines; longer timeouts make a truly hanging test fail later (20 s), not never
   Issues: #144, #146, #124 closed by this PR; #152 new
+- 2026-10-17 · claude (P3, docs) · docs/runbook-labels-wording · #176: docs/demo-script.md labels aligned with the UI (no "Vybrat vše" button, "Stav handoveru k MDT", "Algeziologické vyšetření", links vs buttons, summary bar, DOCX name `MDT_zapis_<case id>_<date>[_NAVRH].docx`); #152: "Ověřeno lékařem" replaced in .claude/agents/ux-reviewer.md, .claude/skills/czech-clinical-docs/SKILL.md, .claude/rules/frontend.md; docs/code only otherwise untouched
+  Next: the live dry-run of the runbook (board #24) is still the real check of every label; `selectAll` in frontend/src/i18n/cs/cases.ts is unused (dead string)
+  Risks: "Ověřeno lékařem" remains by design in prompts/F1-2-frontend-shell.md and docs/audit/TRIAGE.md (historical records) and in the ban sentence of demo-script.md; the server's own DOCX name (`mdt-zapis-NAVRH-<date>.docx`) differs from the one the app saves under
+  Issues: none new

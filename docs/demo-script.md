@@ -113,10 +113,11 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 - **Clock:** 2. 10. 2026 · **Role:** Koordinátorka KOC 2 (Bc. Lucie Dvořáková)
 - **Click:**
   1. Nav **Fronta případů**, column **Nový**; on the card **Převzít** (or open the case, **Převzít**).
-  2. The state becomes **V triage**. Open the case (**Otevřít případ**) and press **Vyžádat podklady**, which scrolls
+  2. The state becomes **V triage**. Open the case (**Otevřít případ**) and press the link **Vyžádat podklady** (a link, not a button), which scrolls
      to **Chybějící podklady k vyžádání**.
   3. The panel marks the proposals **Návrh k vyžádání – zkontrolujte a odešlete.** and quotes the letter (hint chip
-     from document 07). **Vybrat vše**, then **Vyžádat vybrané**.
+     from document 07). All requestable proposals (with a known **Adresát**) come preselected, so the panel has no **Vybrat vše** button (untick what
+     should not go); press **Vyžádat vybrané**.
 - **Must be visible:** the reports the letter lists as proposals with **Adresát** and the quote (five: `01`, `02`,
   `03`, `05`, `06`; expected from the letter, confirm in the rehearsal); after sending **Vyžádáno: 5.**; state
   **Čeká na podklady** (shown in the header badge).
@@ -142,8 +143,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      watchdog from escalating anything at 28. 10.
   3. Clock 20. 10. 2026 (switcher, 09:00) again, reload, for the live part below.
 - **Click (live):**
-  1. Case tab **Handover**: **Stav k termínu** (20. 10. 2026 09:00) and **Souhrn handoveru**.
-  2. Open the evidence of one value: **Zobrazit zdroj a citaci** shows document, **Vyhotoveno**, **Přijato** and the
+  1. Case tab **Handover**: **Stav k termínu** (20. 10. 2026 09:00) and the summary bar (**Potvrzeno lékařem: n z 15**, counts **Chybí**, **Nesouhlasí**).
+  2. Click the source chip of one value, then **Zobrazit zdroj a citaci**: it shows document, **Vyhotoveno**, **Přijato** and the
      verbatim quote.
   3. Role **Lékař KOC 2**: on one section **Potvrdit sekci** (for example **Pacient**).
 - **Must be visible:** 15 sections, each value with a source chip; **Chybí** (Stav výkonnosti, TNM in Diagnóza,
@@ -171,7 +172,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      (defaults to the simulated date), **Plánovaný začátek MDT** 21. 10. 2026 08:00 (default) → **Spustit sadu**.
   3. The board **Kdo je na tahu** shows the lanes (PL, Koordinátor, Lékař KOC, Externí pracoviště, Pacient) with
      the tasks, each with **Místo**, **Termín** and **Čeká na: …**.
-  4. Show a manual order confirmation on a step the replay does not touch: on **Algeziolog** press **Potvrdit
+  4. Show a manual order confirmation on a step the replay does not touch: on **Algeziologické vyšetření** press **Potvrdit
      objednání**, enter **Pracoviště** and **Datum vyšetření** → **Potvrdit** (a sent request is not an ordered
      examination). Do not do this on CT, EUS-FNB, odběry or histologie: the next substep replays them through the task
      machine and a hand-entered date could conflict with the story.
@@ -200,15 +201,15 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      potvrzení** again (new snapshot). Confirm at least **one** section (**Potvrdit sekci**): this persists the
      handover the gate reads. On **Stav výkonnosti** press **Ponechat jako chybějící** (**Ponecháno jako chybějící –
      potvrdil(a) …**).
-  3. **Připravit MDT** (page **Příprava MDT**, **Stav k začátku MDT: 21. 10. 2026 08:00**): **Souhrn handoveru k MDT**,
+  3. Link **Připravit MDT** (page **Příprava MDT**, **Stav k začátku MDT: 21. 10. 2026 08:00**): **Stav handoveru k MDT**,
      **Nesoulady v dokumentaci**, and **Po MDT – nezahrnuto** with reports 12 and 13.
   4. **Označit jako připravený k MDT**. The server answers with the missing item **Stav výkonnosti (PS/ECOG)**; enter
-     a **Důvod prominutí** and press **Prominout a označit jako připravený**. Result: **Případ je označen jako
+     a reason in **Důvod prominutí: Stav výkonnosti (PS/ECOG)** and press **Prominout a označit jako připravený**. Result: **Případ je označen jako
      připravený k MDT.** and state **Připraveno k rozhodnutí/MDT**.
   5. **Stáhnout zápis (DOCX)** (file in the MDT_zapis layout; marked as a draft while not every section is confirmed).
 - **Must be visible:** reports 12 and 13 only under **Po MDT – nezahrnuto** and as **Po MDT** in tab **Dokumenty**; the
   two date conflicts still listed; the waiver asks for a reason (recorded as who, when, why); the DOCX downloads under
-  the app's own file name.
+  `MDT_zapis_<case id>_2026-10-21_NAVRH.docx` (the app names the file; `_NAVRH` drops once every section is confirmed).
 - **Say:** „K MDT použijeme jen to, co bylo známo k 21. 10. v 8:00. Zprávy 12 a 13 vznikly později, proto jsou označeny
   Po MDT a nejsou v podkladu. Server hlídá připravenost: stav výkonnosti v dokumentaci chybí. Lékař může položku pro
   připravenost k MDT prominout s odůvodněním; údaj zůstává v podkladu jako chybějící a zaznamená se kdo, kdy a proč.
@@ -226,7 +227,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   1. Role **Lékař KOC 2** → case → **Připravit MDT** → **Závěr MDT**: paste the text from the fictitious
      `data/raw/MDT_zaver.docx` into **Text závěru MDT** → **Zapsat závěr MDT**. The signed block shows
      **Podepsaný závěr MDT**, **Podepsal(a) <name> · <time>**; state **Závěr KOC/MDT**, baton Koordinátor.
-  2. Role **Koordinátorka KOC 2** → case → **Odeslat závěr** → **Odeslat závěr PL**. Shows **Závěr je předán k
+  2. Role **Koordinátorka KOC 2** → case → link **Odeslat závěr** → button **Odeslat závěr PL**. Shows **Závěr je předán k
      doručení praktickému lékaři.** and state **Zpětná vazba odeslána**.
   3. Mailpit (http://localhost:8025): message **Štafeta: zpětná vazba z MDT je k dispozici**. The mail has no clinical
      text, only a link to the GP portal.

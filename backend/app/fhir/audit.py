@@ -101,3 +101,18 @@ def build_domain_audit_event(event: DomainEvent, *, actor: PartyRef, entities: S
     if details and result.get("entity"):
         result["entity"][0]["detail"] = details
     return result
+
+
+def domain_event_code(resource: Resource) -> str | None:
+    """The workflow event (`gp_opened`, `reopen`, ...) of a business AuditEvent written by `build_domain_audit_event`;
+    None for any other AuditEvent (e.g. an audited read)."""
+    if resource.get("type", {}).get("code") != "domain-event":
+        return None
+    return next(
+        (
+            str(s["code"])
+            for s in resource.get("subtype", [])
+            if s.get("system") == CS_AUDIT_EVENT_CODE and s.get("code")
+        ),
+        None,
+    )

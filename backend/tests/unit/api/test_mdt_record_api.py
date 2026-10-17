@@ -20,7 +20,10 @@ from app.api.deps import (
     get_llm_clients,
     get_repository,
 )
-from app.fhir.cases import LoadedCase
+from app.domain.case import Case
+from app.domain.pathway import RecordedWaiver
+from app.fhir.cases import CaseActivity, LoadedCase
+from app.fhir.client import Resource
 from app.fhir.directory import Directory
 from app.main import create_app
 from app.outputs.mdt_record import DOCX_MEDIA_TYPE
@@ -43,6 +46,7 @@ class CaseReader(FakeReader):
     """The test_api reader, but `load` knows the referring GP and the managing KOC (authorize_case is real)."""
 
     loads = 0
+    waivers: tuple[RecordedWaiver, ...] = ()
 
     async def load(self, case_id: str) -> LoadedCase:
         type(self).loads += 1
@@ -55,6 +59,10 @@ class CaseReader(FakeReader):
         }
         episode = {"managingOrganization": {"reference": KOC2.ref}}  # type: ignore[union-attr]
         return LoadedCase(task=task, episode=episode, case=base.case)
+
+    async def activity(self, task: Resource, case: Case, *, waivers: bool = True) -> CaseActivity:
+        refs = tuple(f"Provenance/{60 + i}" for i, _ in enumerate(self.waivers))
+        return CaseActivity(readiness_waivers=self.waivers, references=refs)
 
 
 class FakeRepository:
@@ -88,6 +96,7 @@ def _client(settings: Settings, reader: CaseReader, repository: FakeRepository) 
 @pytest.fixture
 def repository() -> FakeRepository:
     CaseReader.loads = 0
+    CaseReader.waivers = ()
     return FakeRepository()
 
 
@@ -155,3 +164,25 @@ def test_an_unknown_case_is_404(client: TestClient) -> None:
     response = client.get("/api/cases/unknown-case/mdt-record", headers={"X-Demo-Role": "coordinator"})
 
     assert response.status_code == 404
+
+
+def test_a_waived_readiness_item_is_in_the_record_and_its_read_is_audited(
+    client: TestClient, repository: FakeRepository
+) -> None:
+    signed_at = datetime(2026, 10, 21, 7, 45, tzinfo=PRAGUE)
+    CaseReader.waivers = (
+        RecordedWaiver(
+            "performance_status", "PS doplní lékař osobně na MDT.", "m@koc2", "MUDr. Lenka Marková", signed_at
+        ),
+    )
+
+    response = client.get(URL, headers={"X-Demo-Role": "koc_physician"})
+
+    assert response.status_code == 200
+    paragraphs = [p.text for p in Document(io.BytesIO(response.content)).paragraphs]
+    assert (
+        "– Prominuto lékařem (připravenost k MDT – PS / Karnofsky): MUDr. Lenka Marková, 21. 10. 2026 07:45, "
+        "důvod: PS doplní lékař osobně na MDT." in paragraphs
+    )
+    entities, _ = repository.exports[-1]
+    assert entities == ["Task/5", "Patient/2", "EpisodeOfCare/1", "Provenance/60"]

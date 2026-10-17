@@ -45,7 +45,8 @@ KOC_ROLES = frozenset({Role.COORDINATOR, Role.KOC_PHYSICIAN, Role.KOC_STAFF})
     summary="MDT record in the MDT_zapis layout (DOCX), as of the MDT start",
     description="Content only from the handover as of `mdt_start` and its findings; reports created or received after "
     "it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká "
-    "na potvrzení lékařem' or 'Chybí', with its notes and missing items; a banner and a page header mark the "
+    "na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at "
+    "`mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the "
     "document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 "
     "(Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. "
     "PDF is not available yet.",
@@ -78,11 +79,19 @@ async def get_mdt_record(
         raise InvalidInputError("U případu není nastaven termín MDT")
 
     handover = await _reviewed(reader, settings, llm, store, case_id, mdt_start.isoformat())
-    content = await asyncio.to_thread(render_mdt_record, handover, _referring_doctor(loaded, directory), settings.now())
+    activity = await reader.activity(loaded.task, loaded.case)  # waived readiness items, printed next to their section
+    content = await asyncio.to_thread(
+        render_mdt_record,
+        handover,
+        _referring_doctor(loaded, directory),
+        settings.now(),
+        activity.readiness_waivers,
+    )
     # An export is a disclosure of the case: name the same entities as a read, so a search by patient finds it.
     entities = [
         f"Task/{loaded.task['id']}",
         *(str(loaded.task[k]["reference"]) for k in ("for", "focus") if k in loaded.task),
+        *activity.references,
     ]
     await repository.audit_derived_write(entities, description="MDT record exported as DOCX")
     day = mdt_start.astimezone(PRAGUE).date().isoformat()

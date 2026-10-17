@@ -186,3 +186,36 @@ def test_an_unknown_referring_doctor_is_shown_as_missing(
 
     assert "Referující lékař:" in text
     assert "Telefon: chybí · e-mail: chybí" in text
+
+
+def test_a_waived_readiness_item_is_printed_next_to_its_section(story_handover: Handover) -> None:
+    from app.domain.pathway import RecordedWaiver
+
+    at = datetime(2026, 10, 21, 7, 45, tzinfo=PRAGUE)
+    waivers = [
+        RecordedWaiver("performance_status", "PS doplní lékař osobně na MDT.", PHYSICIAN.id, PHYSICIAN.display, at),
+        RecordedWaiver("histology", "Histologie doručena ústně, RČ 635722/1013.", PHYSICIAN.id, PHYSICIAN.display, at),
+        RecordedWaiver("pathway_extra_item", "Položka bez oddílu.", PHYSICIAN.id, None, at),
+    ]
+
+    lines = _lines(render_mdt_record(story_handover, GP, EXPORTED_AT, waivers))
+    text = "\n".join(lines)
+
+    ps = next(i for i, line in enumerate(lines) if line.startswith("PS / Karnofsky – Chybí"))
+    assert (
+        "– Prominuto lékařem (připravenost k MDT – PS / Karnofsky): MUDr. Lenka Marková, 21. 10. 2026 07:45, "
+        "důvod: PS doplní lékař osobně na MDT." in lines[ps : ps + 6]
+    )
+    section5 = lines[lines.index("5 Výsledky stávajících vyšetření") + 1]  # the label paragraph of section 5
+    assert "Prominuto lékařem (připravenost k MDT – Histologie): MUDr. Lenka Marková, 21. 10. 2026 07:45" in section5
+    assert "635722/1013" not in text  # the reason is sanitised like every other value
+    assert "Další prominuté položky připravenosti k MDT" in text
+    assert "(připravenost k MDT – pathway extra item): jméno neuvedeno, 21. 10. 2026 07:45" in text
+    assert text.count("Prominuto lékařem") == 3  # each waiver once, nowhere else
+
+
+def test_without_waivers_the_record_says_nothing_about_them(story_handover: Handover) -> None:
+    text = _text(render(story_handover))
+
+    assert "Prominuto" not in text
+    assert "Další prominuté položky" not in text

@@ -376,3 +376,31 @@ def test_reopen_needs_a_reason(make_client: Any) -> None:
     reopened = _post(client, "reopen", reason="přišel nový nález")
     assert reopened.status_code == 200
     assert reopened.json()["state"] == "kompletni"
+
+
+async def test_the_waiver_written_by_the_transition_is_read_back_until_a_reopen(make_client: Any) -> None:
+    """Writer <-> reader contract (#131): the real transition writes, the real CaseReader reads the same resources."""
+    from app.domain import clock
+    from app.fhir.cases import CaseReader
+
+    store = _fhir(_all("complete") | {"performance_status": "missing"})
+    client = make_client(store)
+    reader = CaseReader(store)  # type: ignore[arg-type]
+
+    async def waivers() -> list[tuple[str, str, str | None]]:
+        loaded = await store.load(demo_case.CASE_ID)
+        activity = await reader.activity(loaded.task, loaded.case)
+        return [(w.item, w.reason, w.by_display) for w in activity.readiness_waivers]
+
+    with clock.frozen("2026-10-21T07:45:00+02:00"):
+        assert _post(client, "mark_ready_mdt", waivers=[_ready_waiver()]).status_code == 200
+    assert await waivers() == [("performance_status", WAIVER_REASON, SIGNER.display)]
+
+    with clock.frozen("2026-10-21T07:50:00+02:00"):
+        assert _post(client, "reopen", reason="doplněn PS").status_code == 200
+    assert await waivers() == []  # kompletni: no readiness, no waiver in force
+
+    store.resources[("Composition", "40")] = _composition(_all("complete"))
+    with clock.frozen("2026-10-21T07:55:00+02:00"):
+        assert _post(client, "mark_ready_mdt").status_code == 200
+    assert await waivers() == []  # the first waiver was written before the reopen

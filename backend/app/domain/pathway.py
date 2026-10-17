@@ -132,6 +132,17 @@ class Waiver:
 
 
 @dataclass(frozen=True)
+class RecordedWaiver:
+    """A waiver as stored with the `mark_ready_mdt` transition, read back for display (case detail, MDT record)."""
+
+    item: str
+    reason: str
+    by_id: str | None  # PractitionerRole business id of the signing physician
+    by_display: str | None
+    at: datetime
+
+
+@dataclass(frozen=True)
 class Readiness:
     ready: bool
     missing: tuple[str, ...]  # blocking and NOT waived

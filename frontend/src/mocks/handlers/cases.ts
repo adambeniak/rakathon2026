@@ -15,6 +15,8 @@ type Schemas = components['schemas']
 
 const isAlena = (id: string | readonly string[] | undefined) => id === ALENA_ID
 
+const GP = 'MUDr. Řezníček' // the demo GP of the mock cases (`MockCase.gp`)
+
 const LETTER = '07_PL_zadost_KOC2_2026-10-02'
 
 // The five reports the GP's letter lists (numbered lines of report 07), in the backend's order; the GP's own epicrisis
@@ -62,7 +64,12 @@ function requests(): Schemas['DocumentRequestOut'][] {
 }
 
 export const handlers = [
-  http.get('/api/cases', ({ request }) => HttpResponse.json(inboxCases(todayOf(request), store).map((c) => toApiCase(c, todayOf(request))))),
+  http.get('/api/cases', ({ request }) => {
+    const today = todayOf(request)
+    // The GP portal also lists cases whose feedback was sent (the coordinator inbox archives them).
+    const list = roleOf(request) === 'gp' ? allCases(today, store).filter((c) => c.gp === GP) : inboxCases(today, store)
+    return HttpResponse.json(list.map((c) => toApiCase(c, today)))
+  }),
   http.get('/api/cases/:id', ({ params, request }) => {
     const c = caseById(String(params.id), todayOf(request), store)
     return c ? HttpResponse.json(toApiDetail(c, todayOf(request))) : problem(404, 'Případ nebyl nalezen')
@@ -102,16 +109,17 @@ export const handlers = [
     const c = caseById(id, today, store)
     if (!c) return problem(404, 'Případ nebyl nalezen')
     const { event } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
+    if (event === 'gp_opened') {
+      // The GP's read receipt: no state change, only while the feedback is out and not yet closed.
+      if (roleOf(request) !== 'gp') return problem(409, 'Otevření závěru potvrzuje pouze praktický lékař')
+      if (c.state !== 'zpetna_vazba_odeslana') return problem(409, 'Zpětná vazba není ve stavu k otevření')
+      return HttpResponse.json(toApiCase(c, today))
+    }
     if (event !== 'accept') return problem(422, 'Událost není v této ukázce podporována')
     if (roleOf(request) !== 'coordinator') return problem(409, 'Případ smí převzít pouze koordinátorka')
     if (c.state !== 'odeslano') return problem(409, 'Případ už byl převzat')
     store.claimed.push(id)
     return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
-  }),
-  http.post('/api/cases/:id/acknowledge', ({ params }) => {
-    const id = String(params.id)
-    if (!store.acknowledged.includes(id)) store.acknowledged.push(id)
-    return HttpResponse.json({ ok: true })
   }),
   http.post('/api/mock/reset', () => {
     Object.assign(store, newStore())

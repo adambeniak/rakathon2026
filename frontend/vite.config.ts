@@ -16,5 +16,9 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     exclude: ['e2e/**', 'node_modules/**'],
+    // `make check` runs the whole suite on shared, busy machines. Heavy route renders (handover, MDT) are load-sensitive:
+    // a fixed worker cap and a generous per-test timeout keep the run deterministic (#144). Wall time goes up slightly.
+    maxWorkers: 4,
+    testTimeout: 20_000,
   },
 })

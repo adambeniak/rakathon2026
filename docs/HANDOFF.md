@@ -102,3 +102,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Live run DONE on a throw-away local IRIS (story seed, pathway, advance to 16. 10., conclusion, feedback, close): board all cancelled/completed, /alerts [], SRs revoked, watchdog alive but leaves the cancelled steps alone. Next: #149 (MDT step ends cancelled, not completed), #166 (a closed case still accepts new tasks)
   Risks: closing now writes the steps too, so a concurrent step update makes `close` fail with 412 (retry); no contract change
   Issues: #148 (Loop.test.tsx flake under parallel vitest, alongside #144), #149, #166
+- 2026-10-17 · claude (P3/P1, qa+docs) · fix/check-flake-agent-docs · #144: vitest `maxWorkers: 4` + `testTimeout: 20_000` (vite.config.ts) and testing-library `asyncUtilTimeout: 5_000` (src/test/setup.ts); full frontend suite 3x green in a row (171/171, ~36 s each; before: 2 files / 3 tests failed). #146: `.claude/rules/frontend.md` says "Potvrzeno lékařem" + approved wording/ban. #124: demo-flow skill now points at docs/demo-script.md, stale table and false claims dropped
+  Next: fix the same banned label in `.claude/agents/ux-reviewer.md` and `.claude/skills/czech-clinical-docs/SKILL.md` (#152)
+  Risks: a 4-worker cap makes `make check` a few seconds slower on big machines; longer timeouts make a truly hanging test fail later (20 s), not never
+  Issues: #144, #146, #124 closed by this PR; #152 new

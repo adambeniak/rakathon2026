@@ -56,8 +56,10 @@ ids, states and actor role only) and returns notifications as events; persisting
 | same four | `resume` | coordinator | case is postponed | same, `odlozeny=false`, `resume_on` cleared | role before postponing | audit |
 
 While `odlozeny` is true every event except `resume` fails with `case_postponed`. Every transition not listed is
-forbidden: `TransitionError` (a `ConflictError`) with `code` ∈ `invalid_transition | forbidden_role | guard_failed |
-case_postponed` → `409 problem+json` (`https://stafeta.example/problems/conflict`). `uzavreno` is terminal.
+forbidden: `TransitionError` (a `ConflictError`) with `code` ∈ `invalid_transition | guard_failed | case_postponed` →
+`409 problem+json` (`https://stafeta.example/problems/conflict`); a wrong role (`code` = `forbidden_role`) is an
+authorisation denial → `403 problem+json` (`https://stafeta.example/problems/forbidden`, `code` kept in the body).
+`uzavreno` is terminal.
 
 ## Task state machine (`task_machine.py`)
 `status`: `requested → accepted → in_progress → completed | failed | cancelled`. `business_status` only moves forward:
@@ -81,8 +83,9 @@ not use Štafeta in the PoC, so for a task whose owner role is `external_workpla
 payload carries `actor_role=coordinator` and `on_behalf_of_role=external_workplace`, and the stored AuditEvent names the
 workplace. For tasks owned by a physician the coordinator may not do this (`forbidden_role`). Over HTTP the API verbs
 chain machine events: `confirm` = `order_confirmed` + `accept`, `perform` = `start` + `performed`,
-`deliver_result` = `result_delivered`. A refused transition answers 409 problem+json with the `code`
-(`forbidden_role` too, like the case transitions); launching and creating tasks are coordinator-only (403).
+`deliver_result` = `result_delivered`. A refused transition answers 409 problem+json with the `code`; a wrong role
+answers 403 `forbidden` with `code` = `forbidden_role`, like the case transitions; launching and creating tasks are
+coordinator-only (403).
 
 **Board:** lane = role of the concrete owner, else the step's owner role (`koc_staff` sits in the physician lane). The
 baton holder is the owner of the open task with the earliest `due` among the steps the MDT readiness waits for

@@ -60,7 +60,7 @@ def get_cases_failing_with(settings: Settings, error: Exception) -> httpx.Respon
             "invalid_transition",
             "Akce není v tomto stavu povolena",
         ),
-        (TransitionError("forbidden_role", "x"), 409, "conflict", "forbidden_role", "Role nemá k akci oprávnění"),
+        (TransitionError("forbidden_role", "x"), 403, "forbidden", "forbidden_role", "Přístup byl odepřen"),  # #136
         (TransitionError("guard_failed", "x"), 409, "conflict", "guard_failed", "Podmínky akce nejsou splněny"),
         (TransitionError("case_postponed", "x"), 409, "conflict", "case_postponed", "Případ je odložen"),
         (ConflictError("x"), 409, "conflict", None, "Záznam nelze v tomto stavu změnit"),

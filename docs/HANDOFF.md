@@ -123,3 +123,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: P2 owner decides on golden field 12 paraphrases (#155) and C2 from the header issue date (#159); a human checks the API path once on a local IRIS (upload 01–11, field 12 + MDT record §5)
   Risks: header heuristic tuned on the 13 demo reports (postcode line separates letterhead from title); other layouts fall back to title/custodian/"v dokumentaci neuvedeno"; API path verified by unit tests only, not live
   Issues: #130, #128 (closes), #155, #159
+- 2026-10-17 · claude (P2) · fix/c2-conflict-deterministic (stacked on #160) · #159: C2 (odběr after Datum vydání) is decided by the pathology report's parsed header lines (whole lines quoted, explicit years), no longer by a model-extracted fact; other documents keep the fact rule; field 3 records C2 in `conflicts` (RELATED_FIELDS, same quote) with its status kept
+  Verified: `make eval` (cache) unchanged: handover 15/15, key values 29/29, evidence 1.0 (528), findings C1 + C2 identical (C2 now also on 3_diagnosis); backend check 1063 passed
+  Next: merge #160 first, then this PR (base fix/extraction-exams-histology -> retarget to main after #160 merges); C1 still depends on model-extracted "Datum výkonu"/dose facts
+  Risks: header C2 only for pathology reports (metadata type or "Bioptický nález" title); golden C2 lists no field 3, the eval does not score `conflicts`
+  Issues: #159 (closes)

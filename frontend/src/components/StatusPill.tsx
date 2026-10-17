@@ -12,8 +12,8 @@ const MAP: Record<PillKind, { Icon: LucideIcon; label: string; cls: string }> = 
   stale: { Icon: Clock, label: common.status.stale, cls: 'bg-stale-bg text-stale' },
   verified: { Icon: BadgeCheck, label: common.status.verified, cls: 'bg-verified-bg text-verified' },
   ai: { Icon: Sparkles, label: common.status.ai, cls: 'bg-ai-bg text-ai' },
-  complete: { Icon: CircleCheck, label: common.status.complete, cls: 'border border-hairline text-ink' },
-  partial: { Icon: CircleDashed, label: common.status.partial, cls: 'border border-hairline text-ink' },
+  complete: { Icon: CircleCheck, label: common.status.complete, cls: 'bg-card text-ink ring-1 ring-inset ring-hairline' },
+  partial: { Icon: CircleDashed, label: common.status.partial, cls: 'bg-stale-bg text-stale' },
   clarify: { Icon: HelpCircle, label: common.status.clarify, cls: 'bg-conflict-bg text-conflict' },
   excluded: { Icon: Clock, label: common.status.excluded, cls: 'bg-stale-bg text-stale' },
 }
@@ -23,8 +23,8 @@ export function StatusPill({ kind, className, label: override }: { kind: PillKin
   const { Icon, label: base, cls } = MAP[kind]
   const label = override ?? base
   return (
-    <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium', cls, className)}>
-      <Icon aria-hidden className="h-3.5 w-3.5" />
+    <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-sm py-0.5 pl-2 pr-2.5 text-xs font-semibold', cls, className)}>
+      <Icon aria-hidden className="h-4 w-4 shrink-0" strokeWidth={2} />
       {label}
     </span>
   )

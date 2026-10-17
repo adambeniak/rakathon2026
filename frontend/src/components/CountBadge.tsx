@@ -4,7 +4,7 @@ export function CountBadge({ kind, count }: { kind: Extract<PillKind, 'missing' 
   if (count === 0) return null
   if (count === null) {
     return (
-      <span className="inline-flex items-center gap-1 text-muted">
+      <span className="inline-flex items-center gap-1.5 text-muted">
         <StatusPill kind={kind} />
         <span className="font-mono text-sm" aria-label="počet zatím nespočítán">
           —
@@ -13,7 +13,7 @@ export function CountBadge({ kind, count }: { kind: Extract<PillKind, 'missing' 
     )
   }
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex items-center gap-1.5">
       <StatusPill kind={kind} />
       <span className="font-mono text-sm font-semibold" aria-label={`počet: ${count}`}>
         {count}

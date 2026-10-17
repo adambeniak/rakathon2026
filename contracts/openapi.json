@@ -1626,6 +1626,87 @@
         "title": "ContactsField",
         "type": "object"
       },
+      "CoordinatorAnalytics": {
+        "properties": {
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "display": {
+            "description": "Staff name (fictitious); '(simulace)' marks a simulated coordinator.",
+            "title": "Display",
+            "type": "string"
+          },
+          "hospital_id": {
+            "title": "Hospital Id",
+            "type": "string"
+          },
+          "hospital_name": {
+            "title": "Hospital Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "median_days_contact_to_accepted": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Days Contact To Accepted"
+          },
+          "median_minutes_per_patient": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Minutes Per Patient"
+          },
+          "minutes_total": {
+            "title": "Minutes Total",
+            "type": "integer"
+          },
+          "simulated": {
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "utilisation_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Minutes / (assumed capacity per week × weeks), in %.",
+            "title": "Utilisation Pct"
+          }
+        },
+        "required": [
+          "id",
+          "display",
+          "simulated",
+          "hospital_id",
+          "hospital_name",
+          "cases",
+          "median_minutes_per_patient",
+          "median_days_contact_to_accepted",
+          "minutes_total",
+          "utilisation_pct"
+        ],
+        "title": "CoordinatorAnalytics",
+        "type": "object"
+      },
       "CoordinatorContact": {
         "properties": {
           "display": {
@@ -3513,6 +3594,826 @@
         "title": "HistologyField",
         "type": "object"
       },
+      "HospitalAnalytics": {
+        "examples": [
+          {
+            "badges": [
+              "fastest",
+              "lowest_cost"
+            ],
+            "cases": 6,
+            "coordinator_minutes_total": 795,
+            "coordinators": 1,
+            "cost_score": 1.0,
+            "id": "koc3-nemocnice-vychodni-sim",
+            "indicator": 100.0,
+            "indicator_rank": 1,
+            "median_coordinator_minutes": 132.5,
+            "median_cost_czk": 27850.0,
+            "median_days": {
+              "biopsy_order_to_biopsy": 5.0,
+              "contact_to_accepted": 0.0,
+              "contact_to_mdt": 11.5,
+              "contact_to_treatment": 20.0,
+              "ct_order_to_ct": 2.5,
+              "mdt_to_treatment": 9.0
+            },
+            "name": "KOC 3 – Nemocnice Východní (simulace)",
+            "simulated": true,
+            "speed_score": 1.0,
+            "utilisation_pct": 32.7,
+            "within_target_share": 1.0
+          }
+        ],
+        "properties": {
+          "badges": {
+            "description": "fastest = lowest median contact -> MDT; lowest_cost.",
+            "items": {
+              "enum": [
+                "fastest",
+                "lowest_cost"
+              ],
+              "type": "string"
+            },
+            "title": "Badges",
+            "type": "array"
+          },
+          "cases": {
+            "title": "Cases",
+            "type": "integer"
+          },
+          "coordinator_minutes_total": {
+            "description": "Sum of recorded coordinator minutes (unrecorded = 0).",
+            "title": "Coordinator Minutes Total",
+            "type": "integer"
+          },
+          "coordinators": {
+            "title": "Coordinators",
+            "type": "integer"
+          },
+          "cost_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0–1 inverted min-max of the median cost per case.",
+            "title": "Cost Score"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "indicator": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0–100 operational indicator (speed, illustrative cost, share within demo targets; see `assumptions.formula`); not a measure of quality of care.",
+            "title": "Indicator"
+          },
+          "indicator_rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "1 = highest indicator; equal values share a rank.",
+            "title": "Indicator Rank"
+          },
+          "median_coordinator_minutes": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median coordinator minutes per patient.",
+            "title": "Median Coordinator Minutes"
+          },
+          "median_cost_czk": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Median illustrative cost per case (CZK), from `price_list`.",
+            "title": "Median Cost Czk"
+          },
+          "median_days": {
+            "$ref": "#/components/schemas/InsurerIntervalMedians"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "simulated": {
+            "description": "True for a hospital invented only for this cohort.",
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "speed_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0–1 inverted min-max of the median contact -> MDT.",
+            "title": "Speed Score"
+          },
+          "utilisation_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Coordinator minutes / (coordinators × assumed capacity per week × weeks of the period), in %.",
+            "title": "Utilisation Pct"
+          },
+          "within_target_share": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "0–1 share of journeys within both demo targets, over journeys where both waits were measured.",
+            "title": "Within Target Share"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "simulated",
+          "cases",
+          "median_days",
+          "median_cost_czk",
+          "median_coordinator_minutes",
+          "coordinators",
+          "coordinator_minutes_total",
+          "utilisation_pct",
+          "within_target_share",
+          "speed_score",
+          "cost_score",
+          "indicator",
+          "indicator_rank",
+          "badges"
+        ],
+        "title": "HospitalAnalytics",
+        "type": "object"
+      },
+      "InsurerAnalytics": {
+        "examples": [
+          {
+            "as_of": "2026-10-21T08:00:00+02:00",
+            "assumptions": {
+              "capacity": {
+                "minutes_per_week": 120,
+                "note": "Předpoklad pro demo.",
+                "period_end": "2026-10-21",
+                "period_start": "2026-06-02",
+                "weeks": 20.29
+              },
+              "formula": "Indikátor = 100 × (0,5 × rychlost + 0,3 × náklady + 0,2 × podíl v cíli)",
+              "price_list": [
+                {
+                  "code": "MDT",
+                  "label": "Projednání v MDT",
+                  "price_czk": 1600
+                }
+              ],
+              "price_list_note": "Ilustrativní ceník pro demo.",
+              "speed_metric": "contact_to_mdt",
+              "targets": {
+                "biopsy_order_to_biopsy_max_days": 10,
+                "ct_order_to_ct_max_days": 7,
+                "note": "Předpoklad pro demo."
+              },
+              "weights": {
+                "cost": 0.3,
+                "speed": 0.5,
+                "target_share": 0.2
+              }
+            },
+            "coordinators": [],
+            "disclaimer": "Simulovaná data – fiktivní kohorta pro demo, ilustrativní ceník.",
+            "hospitals": [
+              {
+                "badges": [
+                  "fastest",
+                  "lowest_cost"
+                ],
+                "cases": 6,
+                "coordinator_minutes_total": 795,
+                "coordinators": 1,
+                "cost_score": 1.0,
+                "id": "koc3-nemocnice-vychodni-sim",
+                "indicator": 100.0,
+                "indicator_rank": 1,
+                "median_coordinator_minutes": 132.5,
+                "median_cost_czk": 27850.0,
+                "median_days": {
+                  "biopsy_order_to_biopsy": 5.0,
+                  "contact_to_accepted": 0.0,
+                  "contact_to_mdt": 11.5,
+                  "contact_to_treatment": 20.0,
+                  "ct_order_to_ct": 2.5,
+                  "mdt_to_treatment": 9.0
+                },
+                "name": "KOC 3 – Nemocnice Východní (simulace)",
+                "simulated": true,
+                "speed_score": 1.0,
+                "utilisation_pct": 32.7,
+                "within_target_share": 1.0
+              }
+            ],
+            "journeys": [
+              {
+                "code": "rakathon-2026-prochazkova",
+                "coordinator_display": "Bc. Lucie Dvořáková",
+                "cost_czk": 27850,
+                "hospital_id": "koc2-nemocnice-lipova",
+                "hospital_name": "KOC 2 – Nemocnice Lipová",
+                "intervals": [
+                  {
+                    "days": 6,
+                    "end": "2026-10-08",
+                    "key": "ct_order_to_ct",
+                    "start": "2026-10-02",
+                    "status": "measured"
+                  },
+                  {
+                    "key": "mdt_to_treatment",
+                    "start": "2026-10-21",
+                    "status": "running"
+                  }
+                ],
+                "milestones": [
+                  {
+                    "date": "2026-10-02",
+                    "key": "gp_contacted_coordinator"
+                  },
+                  {
+                    "key": "accepted"
+                  },
+                  {
+                    "date": "2026-10-08",
+                    "key": "ct_done"
+                  },
+                  {
+                    "date": "2026-10-12",
+                    "days_since_previous": 4,
+                    "key": "biopsy_done"
+                  },
+                  {
+                    "date": "2026-10-21",
+                    "days_since_previous": 9,
+                    "key": "mdt"
+                  },
+                  {
+                    "key": "treatment_start"
+                  }
+                ],
+                "simulated": false,
+                "within_target": true
+              }
+            ],
+            "rankings": {
+              "by_indicator": [
+                "koc3-nemocnice-vychodni-sim"
+              ],
+              "fastest": [
+                "koc3-nemocnice-vychodni-sim"
+              ],
+              "lowest_cost": [
+                "koc3-nemocnice-vychodni-sim"
+              ]
+            },
+            "simulated": true,
+            "summary": {
+              "cases": 24,
+              "median_days": {
+                "biopsy_order_to_biopsy": 8.0,
+                "contact_to_accepted": 1.0,
+                "contact_to_mdt": 18.0,
+                "contact_to_treatment": 28.5,
+                "ct_order_to_ct": 5.0,
+                "mdt_to_treatment": 13.0
+              },
+              "simulated_cases": 23
+            }
+          }
+        ],
+        "properties": {
+          "as_of": {
+            "description": "Snapshot time of the cohort.",
+            "format": "date-time",
+            "title": "As Of",
+            "type": "string"
+          },
+          "assumptions": {
+            "$ref": "#/components/schemas/InsurerAssumptions"
+          },
+          "coordinators": {
+            "items": {
+              "$ref": "#/components/schemas/CoordinatorAnalytics"
+            },
+            "title": "Coordinators",
+            "type": "array"
+          },
+          "disclaimer": {
+            "description": "Czech notice the UI must show with the data.",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "hospitals": {
+            "description": "Ordered by `rankings.by_indicator`.",
+            "items": {
+              "$ref": "#/components/schemas/HospitalAnalytics"
+            },
+            "title": "Hospitals",
+            "type": "array"
+          },
+          "journeys": {
+            "description": "The demo case first, then simulated journeys by code.",
+            "items": {
+              "$ref": "#/components/schemas/JourneyAnalytics"
+            },
+            "title": "Journeys",
+            "type": "array"
+          },
+          "rankings": {
+            "$ref": "#/components/schemas/InsurerRankings"
+          },
+          "simulated": {
+            "description": "Always true: the cohort is fictitious (only the demo case is not simulated).",
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/InsurerSummary"
+          }
+        },
+        "required": [
+          "simulated",
+          "disclaimer",
+          "as_of",
+          "assumptions",
+          "hospitals",
+          "coordinators",
+          "journeys",
+          "rankings",
+          "summary"
+        ],
+        "title": "InsurerAnalytics",
+        "type": "object"
+      },
+      "InsurerAssumptions": {
+        "properties": {
+          "capacity": {
+            "$ref": "#/components/schemas/InsurerCapacity"
+          },
+          "formula": {
+            "description": "The indicator formula in Czech, for display.",
+            "title": "Formula",
+            "type": "string"
+          },
+          "price_list": {
+            "items": {
+              "$ref": "#/components/schemas/InsurerPriceItem"
+            },
+            "title": "Price List",
+            "type": "array"
+          },
+          "price_list_note": {
+            "title": "Price List Note",
+            "type": "string"
+          },
+          "speed_metric": {
+            "enum": [
+              "contact_to_accepted",
+              "ct_order_to_ct",
+              "biopsy_order_to_biopsy",
+              "contact_to_mdt",
+              "mdt_to_treatment",
+              "contact_to_treatment"
+            ],
+            "title": "Speed Metric",
+            "type": "string"
+          },
+          "targets": {
+            "$ref": "#/components/schemas/InsurerTargets"
+          },
+          "weights": {
+            "$ref": "#/components/schemas/InsurerWeights"
+          }
+        },
+        "required": [
+          "capacity",
+          "targets",
+          "weights",
+          "speed_metric",
+          "formula",
+          "price_list_note",
+          "price_list"
+        ],
+        "title": "InsurerAssumptions",
+        "type": "object"
+      },
+      "InsurerCapacity": {
+        "properties": {
+          "minutes_per_week": {
+            "description": "Assumed coordinator time per week for the cases of this cohort.",
+            "title": "Minutes Per Week",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "period_end": {
+            "format": "date",
+            "title": "Period End",
+            "type": "string"
+          },
+          "period_start": {
+            "format": "date",
+            "title": "Period Start",
+            "type": "string"
+          },
+          "weeks": {
+            "title": "Weeks",
+            "type": "number"
+          }
+        },
+        "required": [
+          "minutes_per_week",
+          "period_start",
+          "period_end",
+          "weeks",
+          "note"
+        ],
+        "title": "InsurerCapacity",
+        "type": "object"
+      },
+      "InsurerInterval": {
+        "properties": {
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whole Europe/Prague calendar days; null unless `status` = measured.",
+            "title": "Days"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "key": {
+            "enum": [
+              "contact_to_accepted",
+              "ct_order_to_ct",
+              "biopsy_order_to_biopsy",
+              "contact_to_mdt",
+              "mdt_to_treatment",
+              "contact_to_treatment"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start"
+          },
+          "status": {
+            "enum": [
+              "measured",
+              "running",
+              "not_started",
+              "not_recorded",
+              "inconsistent"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "start",
+          "end",
+          "days",
+          "status"
+        ],
+        "title": "InsurerInterval",
+        "type": "object"
+      },
+      "InsurerIntervalMedians": {
+        "description": "Median whole Europe/Prague calendar days over the journeys where the interval was measured; null = none.",
+        "properties": {
+          "biopsy_order_to_biopsy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Biopsy ordered -> biopsy performed.",
+            "title": "Biopsy Order To Biopsy"
+          },
+          "contact_to_accepted": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GP contacted the coordinator -> coordinator accepted.",
+            "title": "Contact To Accepted"
+          },
+          "contact_to_mdt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GP contacted the coordinator -> MDT.",
+            "title": "Contact To Mdt"
+          },
+          "contact_to_treatment": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GP contacted the coordinator -> treatment start.",
+            "title": "Contact To Treatment"
+          },
+          "ct_order_to_ct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "CT ordered -> CT performed.",
+            "title": "Ct Order To Ct"
+          },
+          "mdt_to_treatment": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MDT -> treatment start (only where a start is recorded).",
+            "title": "Mdt To Treatment"
+          }
+        },
+        "required": [
+          "contact_to_accepted",
+          "ct_order_to_ct",
+          "biopsy_order_to_biopsy",
+          "contact_to_mdt",
+          "mdt_to_treatment",
+          "contact_to_treatment"
+        ],
+        "title": "InsurerIntervalMedians",
+        "type": "object"
+      },
+      "InsurerMilestone": {
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Prague calendar date; null = not recorded, never estimated.",
+            "title": "Date"
+          },
+          "days_since_previous": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Days since the previous milestone in the list; null when either is not recorded.",
+            "title": "Days Since Previous"
+          },
+          "key": {
+            "enum": [
+              "gp_contacted_coordinator",
+              "accepted",
+              "ct_done",
+              "biopsy_done",
+              "mdt",
+              "treatment_start"
+            ],
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "date",
+          "days_since_previous"
+        ],
+        "title": "InsurerMilestone",
+        "type": "object"
+      },
+      "InsurerPriceItem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "price_czk": {
+            "title": "Price Czk",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "label",
+          "price_czk"
+        ],
+        "title": "InsurerPriceItem",
+        "type": "object"
+      },
+      "InsurerRankings": {
+        "properties": {
+          "by_indicator": {
+            "description": "Hospital ids, highest indicator first; ties by name.",
+            "items": {
+              "type": "string"
+            },
+            "title": "By Indicator",
+            "type": "array"
+          },
+          "fastest": {
+            "description": "Hospital ids, lowest median contact -> MDT first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Fastest",
+            "type": "array"
+          },
+          "lowest_cost": {
+            "description": "Hospital ids, lowest median cost per case first.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Lowest Cost",
+            "type": "array"
+          }
+        },
+        "required": [
+          "by_indicator",
+          "fastest",
+          "lowest_cost"
+        ],
+        "title": "InsurerRankings",
+        "type": "object"
+      },
+      "InsurerSummary": {
+        "properties": {
+          "cases": {
+            "description": "Journeys in the cohort, the demo case included.",
+            "title": "Cases",
+            "type": "integer"
+          },
+          "median_days": {
+            "$ref": "#/components/schemas/InsurerIntervalMedians",
+            "description": "Medians over every journey of the cohort."
+          },
+          "simulated_cases": {
+            "title": "Simulated Cases",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cases",
+          "simulated_cases",
+          "median_days"
+        ],
+        "title": "InsurerSummary",
+        "type": "object"
+      },
+      "InsurerTargets": {
+        "properties": {
+          "biopsy_order_to_biopsy_max_days": {
+            "title": "Biopsy Order To Biopsy Max Days",
+            "type": "integer"
+          },
+          "ct_order_to_ct_max_days": {
+            "title": "Ct Order To Ct Max Days",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ct_order_to_ct_max_days",
+          "biopsy_order_to_biopsy_max_days",
+          "note"
+        ],
+        "title": "InsurerTargets",
+        "type": "object"
+      },
+      "InsurerWeights": {
+        "properties": {
+          "cost": {
+            "title": "Cost",
+            "type": "number"
+          },
+          "speed": {
+            "title": "Speed",
+            "type": "number"
+          },
+          "target_share": {
+            "title": "Target Share",
+            "type": "number"
+          }
+        },
+        "required": [
+          "speed",
+          "cost",
+          "target_share"
+        ],
+        "title": "InsurerWeights",
+        "type": "object"
+      },
       "ItemEvidence": {
         "additionalProperties": false,
         "description": "Evidence of one displayed value, with the source document's dates (one evidence chip in the UI).",
@@ -3574,6 +4475,139 @@
           "received_at"
         ],
         "title": "ItemEvidence",
+        "type": "object"
+      },
+      "JourneyAnalytics": {
+        "examples": [
+          {
+            "code": "rakathon-2026-prochazkova",
+            "coordinator_display": "Bc. Lucie Dvořáková",
+            "cost_czk": 27850,
+            "hospital_id": "koc2-nemocnice-lipova",
+            "hospital_name": "KOC 2 – Nemocnice Lipová",
+            "intervals": [
+              {
+                "days": 6,
+                "end": "2026-10-08",
+                "key": "ct_order_to_ct",
+                "start": "2026-10-02",
+                "status": "measured"
+              },
+              {
+                "key": "mdt_to_treatment",
+                "start": "2026-10-21",
+                "status": "running"
+              }
+            ],
+            "milestones": [
+              {
+                "date": "2026-10-02",
+                "key": "gp_contacted_coordinator"
+              },
+              {
+                "key": "accepted"
+              },
+              {
+                "date": "2026-10-08",
+                "key": "ct_done"
+              },
+              {
+                "date": "2026-10-12",
+                "days_since_previous": 4,
+                "key": "biopsy_done"
+              },
+              {
+                "date": "2026-10-21",
+                "days_since_previous": 9,
+                "key": "mdt"
+              },
+              {
+                "key": "treatment_start"
+              }
+            ],
+            "simulated": false,
+            "within_target": true
+          }
+        ],
+        "properties": {
+          "code": {
+            "description": "Pseudonymous case code (SIM-…) or the demo case id; no patient identifiers.",
+            "title": "Code",
+            "type": "string"
+          },
+          "coordinator_display": {
+            "title": "Coordinator Display",
+            "type": "string"
+          },
+          "coordinator_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coordinator Minutes"
+          },
+          "cost_czk": {
+            "description": "Illustrative cost of the recorded steps (CZK).",
+            "title": "Cost Czk",
+            "type": "integer"
+          },
+          "hospital_id": {
+            "title": "Hospital Id",
+            "type": "string"
+          },
+          "hospital_name": {
+            "title": "Hospital Name",
+            "type": "string"
+          },
+          "intervals": {
+            "items": {
+              "$ref": "#/components/schemas/InsurerInterval"
+            },
+            "title": "Intervals",
+            "type": "array"
+          },
+          "milestones": {
+            "description": "In pathway order: contact, accepted, CT, biopsy, MDT, start.",
+            "items": {
+              "$ref": "#/components/schemas/InsurerMilestone"
+            },
+            "title": "Milestones",
+            "type": "array"
+          },
+          "simulated": {
+            "title": "Simulated",
+            "type": "boolean"
+          },
+          "within_target": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Both demo targets met; null when a wait was not measured.",
+            "title": "Within Target"
+          }
+        },
+        "required": [
+          "code",
+          "simulated",
+          "hospital_id",
+          "hospital_name",
+          "coordinator_display",
+          "milestones",
+          "intervals",
+          "cost_czk",
+          "coordinator_minutes",
+          "within_target"
+        ],
+        "title": "JourneyAnalytics",
         "type": "object"
       },
       "JsonValue": {},
@@ -9050,6 +10084,87 @@
         "summary": "Backend and IRIS health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/api/insurer/analytics": {
+      "get": {
+        "description": "For the insurer's reviewer only. A FICTITIOUS cohort (pseudonymous codes, no patient identifiers) plus the demo case: per journey the milestone dates and the Europe/Prague calendar-day intervals between them (null when not recorded, never estimated); per hospital the medians, illustrative cost, coordinator utilisation and a 0–100 indicator; per coordinator the load. InsurerWeights, targets, capacity and the price list are returned as explicit demo assumptions. Fixture data only: no FHIR read, no AuditEvent.",
+        "operationId": "insurer-get_insurer_analytics",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InsurerAnalytics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
+          }
+        },
+        "summary": "Insurer analytics over a simulated cohort: care durations, exam delays, coordinator load, indicator",
+        "tags": [
+          "insurer"
         ]
       }
     },

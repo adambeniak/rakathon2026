@@ -1,0 +1,2363 @@
+{
+  "simulated": true,
+  "disclaimer": "Simulovaná data – fiktivní kohorta pro demo, ilustrativní ceník. Nejde o skutečné úhrady ani hodnocení kvality péče. Všechny nemocnice, koordinátoři a cesty jsou smyšlené; KOC 1 a KOC 2 jsou fiktivní pracoviště demo případu, jejich údaje jsou převážně simulované. U demo případu je datum objednání CT a biopsie převzato z data žádosti praktického lékaře (předpoklad pro demo).",
+  "as_of": "2026-10-21T08:00:00+02:00",
+  "assumptions": {
+    "capacity": {
+      "minutes_per_week": 120,
+      "period_start": "2026-06-02",
+      "period_end": "2026-10-21",
+      "weeks": 20.29,
+      "note": "Kapacita koordinátora pro případy této kohorty, 120 min týdně. Předpoklad pro demo, ne klinický ani smluvní standard."
+    },
+    "targets": {
+      "ct_order_to_ct_max_days": 7,
+      "biopsy_order_to_biopsy_max_days": 10,
+      "note": "Předpoklad pro demo, ne klinický ani smluvní standard."
+    },
+    "weights": {
+      "speed": 0.5,
+      "cost": 0.3,
+      "target_share": 0.2
+    },
+    "speed_metric": "contact_to_mdt",
+    "formula": "Provozní indikátor (0–100) = 100 × (0,5 × rychlost + 0,3 × náklady + 0,2 × podíl případů v cílových lhůtách). Rychlost a náklady jsou min-max škály mezi nemocnicemi kohorty (nejkratší medián kontakt PL → MDT = 1, nejnižší medián nákladů na případ = 1); při shodě všech nemocnic dostanou všechny 1.",
+    "price_list_note": "Ilustrativní ceník pro demo – nejde o skutečné úhrady ani o sazebník zdravotní pojišťovny.",
+    "price_list": [
+      {
+        "code": "KOORD",
+        "label": "Koordinace případu (paušál)",
+        "price_czk": 1100
+      },
+      {
+        "code": "LAB_ZAKLAD",
+        "label": "Laboratorní vyšetření (základní panel)",
+        "price_czk": 850
+      },
+      {
+        "code": "CT_HRUDNIK_BRICHO",
+        "label": "CT hrudníku a břicha s kontrastem",
+        "price_czk": 6900
+      },
+      {
+        "code": "MR_BRICHO",
+        "label": "MR břicha",
+        "price_czk": 8400
+      },
+      {
+        "code": "PET_CT",
+        "label": "PET/CT",
+        "price_czk": 32000
+      },
+      {
+        "code": "EUS_FNB",
+        "label": "EUS s punkcí (EUS-FNB)",
+        "price_czk": 14500
+      },
+      {
+        "code": "HISTOLOGIE",
+        "label": "Histologické vyšetření",
+        "price_czk": 2900
+      },
+      {
+        "code": "MDT",
+        "label": "Projednání v MDT",
+        "price_czk": 1600
+      },
+      {
+        "code": "KONZ_ONKO",
+        "label": "Ambulantní konzultace",
+        "price_czk": 750
+      }
+    ]
+  },
+  "hospitals": [
+    {
+      "id": "koc3-nemocnice-vychodni-sim",
+      "name": "KOC 3 – Nemocnice Východní (simulace)",
+      "simulated": true,
+      "cases": 6,
+      "median_days": {
+        "contact_to_accepted": 0.0,
+        "ct_order_to_ct": 2.5,
+        "biopsy_order_to_biopsy": 5.0,
+        "contact_to_mdt": 11.5,
+        "mdt_to_treatment": 9.0,
+        "contact_to_treatment": 20.0
+      },
+      "median_cost_czk": 27850.0,
+      "median_coordinator_minutes": 132.5,
+      "coordinators": 1,
+      "coordinator_minutes_total": 795,
+      "utilisation_pct": 32.7,
+      "within_target_share": 1.0,
+      "speed_score": 1.0,
+      "cost_score": 1.0,
+      "indicator": 100.0,
+      "indicator_rank": 1,
+      "badges": [
+        "fastest",
+        "lowest_cost"
+      ]
+    },
+    {
+      "id": "koc1-nemocnice-severni",
+      "name": "KOC 1 – Nemocnice Severní",
+      "simulated": false,
+      "cases": 6,
+      "median_days": {
+        "contact_to_accepted": 1.0,
+        "ct_order_to_ct": 4.0,
+        "biopsy_order_to_biopsy": 6.5,
+        "contact_to_mdt": 16.0,
+        "mdt_to_treatment": 12.0,
+        "contact_to_treatment": 28.0
+      },
+      "median_cost_czk": 37000.0,
+      "median_coordinator_minutes": 180.0,
+      "coordinators": 2,
+      "coordinator_minutes_total": 1085,
+      "utilisation_pct": 22.3,
+      "within_target_share": 1.0,
+      "speed_score": 0.836,
+      "cost_score": 0.715,
+      "indicator": 83.3,
+      "indicator_rank": 2,
+      "badges": []
+    },
+    {
+      "id": "koc2-nemocnice-lipova",
+      "name": "KOC 2 – Nemocnice Lipová",
+      "simulated": false,
+      "cases": 6,
+      "median_days": {
+        "contact_to_accepted": 1.0,
+        "ct_order_to_ct": 6.0,
+        "biopsy_order_to_biopsy": 9.5,
+        "contact_to_mdt": 21.5,
+        "mdt_to_treatment": 14.5,
+        "contact_to_treatment": 36.5
+      },
+      "median_cost_czk": 29450.0,
+      "median_coordinator_minutes": 230.0,
+      "coordinators": 2,
+      "coordinator_minutes_total": 1170,
+      "utilisation_pct": 24.0,
+      "within_target_share": 0.833,
+      "speed_score": 0.636,
+      "cost_score": 0.95,
+      "indicator": 77.0,
+      "indicator_rank": 3,
+      "badges": []
+    },
+    {
+      "id": "koc4-nemocnice-horska-sim",
+      "name": "KOC 4 – Nemocnice Horská (simulace)",
+      "simulated": true,
+      "cases": 6,
+      "median_days": {
+        "contact_to_accepted": 3.0,
+        "ct_order_to_ct": 11.0,
+        "biopsy_order_to_biopsy": 14.5,
+        "contact_to_mdt": 39.0,
+        "mdt_to_treatment": 20.0,
+        "contact_to_treatment": 59.0
+      },
+      "median_cost_czk": 59900.0,
+      "median_coordinator_minutes": 360.0,
+      "coordinators": 2,
+      "coordinator_minutes_total": 2150,
+      "utilisation_pct": 44.2,
+      "within_target_share": 0.0,
+      "speed_score": 0.0,
+      "cost_score": 0.0,
+      "indicator": 0.0,
+      "indicator_rank": 4,
+      "badges": []
+    }
+  ],
+  "coordinators": [
+    {
+      "id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "display": "Bc. Eva Modelová (simulace)",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "cases": 6,
+      "median_minutes_per_patient": 132.5,
+      "median_days_contact_to_accepted": 0.0,
+      "minutes_total": 795,
+      "utilisation_pct": 32.7
+    },
+    {
+      "id": "ukazkova-petra@koc1-nemocnice-severni",
+      "display": "Bc. Petra Ukázková (simulace)",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "cases": 3,
+      "median_minutes_per_patient": 170.0,
+      "median_days_contact_to_accepted": 1.0,
+      "minutes_total": 515,
+      "utilisation_pct": 21.2
+    },
+    {
+      "id": "vzorova-jana@koc1-nemocnice-severni",
+      "display": "Mgr. Jana Vzorová (simulace)",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "cases": 3,
+      "median_minutes_per_patient": 190.0,
+      "median_days_contact_to_accepted": 1.0,
+      "minutes_total": 570,
+      "utilisation_pct": 23.4
+    },
+    {
+      "id": "dvorakova-lucie@koc2-nemocnice-lipova",
+      "display": "Bc. Lucie Dvořáková",
+      "simulated": false,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "cases": 4,
+      "median_minutes_per_patient": 225.0,
+      "median_days_contact_to_accepted": 1.0,
+      "minutes_total": 665,
+      "utilisation_pct": 27.3
+    },
+    {
+      "id": "fiktivni-tomas@koc2-nemocnice-lipova",
+      "display": "Bc. Tomáš Fiktivní (simulace)",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "cases": 2,
+      "median_minutes_per_patient": 252.5,
+      "median_days_contact_to_accepted": 1.5,
+      "minutes_total": 505,
+      "utilisation_pct": 20.7
+    },
+    {
+      "id": "prikladova-hana@koc4-nemocnice-horska-sim",
+      "display": "Bc. Hana Příkladová (simulace)",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "cases": 3,
+      "median_minutes_per_patient": 380.0,
+      "median_days_contact_to_accepted": 2.0,
+      "minutes_total": 1090,
+      "utilisation_pct": 44.8
+    },
+    {
+      "id": "simulant-martin@koc4-nemocnice-horska-sim",
+      "display": "Mgr. Martin Simulant (simulace)",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "cases": 3,
+      "median_minutes_per_patient": 355.0,
+      "median_days_contact_to_accepted": 3.0,
+      "minutes_total": 1060,
+      "utilisation_pct": 43.5
+    }
+  ],
+  "journeys": [
+    {
+      "code": "rakathon-2026-prochazkova",
+      "simulated": false,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "coordinator_display": "Bc. Lucie Dvořáková",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-10-02",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": null,
+          "days_since_previous": null
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-10-08",
+          "days_since_previous": null
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-10-12",
+          "days_since_previous": 4
+        },
+        {
+          "key": "mdt",
+          "date": "2026-10-21",
+          "days_since_previous": 9
+        },
+        {
+          "key": "treatment_start",
+          "date": null,
+          "days_since_previous": null
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-10-02",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-10-02",
+          "end": "2026-10-08",
+          "days": 6,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-10-02",
+          "end": "2026-10-12",
+          "days": 10,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-10-02",
+          "end": "2026-10-21",
+          "days": 19,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-10-21",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-10-02",
+          "end": null,
+          "days": null,
+          "status": "running"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": null,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-001",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "coordinator_display": "Bc. Petra Ukázková (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-03",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-06-04",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-06-08",
+          "days_since_previous": 4
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-06-15",
+          "days_since_previous": 7
+        },
+        {
+          "key": "mdt",
+          "date": "2026-06-19",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-07-01",
+          "days_since_previous": 12
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-03",
+          "end": "2026-06-04",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-06-04",
+          "end": "2026-06-08",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-06-09",
+          "end": "2026-06-15",
+          "days": 6,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-03",
+          "end": "2026-06-19",
+          "days": 16,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-06-19",
+          "end": "2026-07-01",
+          "days": 12,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-03",
+          "end": "2026-07-01",
+          "days": 28,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 37850,
+      "coordinator_minutes": 185,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-002",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "coordinator_display": "Bc. Petra Ukázková (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-22",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-06-23",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-06-26",
+          "days_since_previous": 3
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-03",
+          "days_since_previous": 7
+        },
+        {
+          "key": "mdt",
+          "date": "2026-07-08",
+          "days_since_previous": 5
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-07-18",
+          "days_since_previous": 10
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-22",
+          "end": "2026-06-23",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-06-23",
+          "end": "2026-06-26",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-06-26",
+          "end": "2026-07-03",
+          "days": 7,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-22",
+          "end": "2026-07-08",
+          "days": 16,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-07-08",
+          "end": "2026-07-18",
+          "days": 10,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-22",
+          "end": "2026-07-18",
+          "days": 26,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 37000,
+      "coordinator_minutes": 170,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-003",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "coordinator_display": "Mgr. Jana Vzorová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-07-14",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-07-14",
+          "days_since_previous": 0
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-07-19",
+          "days_since_previous": 5
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-26",
+          "days_since_previous": 7
+        },
+        {
+          "key": "mdt",
+          "date": "2026-07-29",
+          "days_since_previous": 3
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-08-12",
+          "days_since_previous": 14
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-07-14",
+          "end": "2026-07-14",
+          "days": 0,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-07-14",
+          "end": "2026-07-19",
+          "days": 5,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-07-20",
+          "end": "2026-07-26",
+          "days": 6,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-07-14",
+          "end": "2026-07-29",
+          "days": 15,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-07-29",
+          "end": "2026-08-12",
+          "days": 14,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-07-14",
+          "end": "2026-08-12",
+          "days": 29,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 37000,
+      "coordinator_minutes": 205,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-004",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "coordinator_display": "Mgr. Jana Vzorová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-05",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-06",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-08-10",
+          "days_since_previous": 4
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-08-18",
+          "days_since_previous": 8
+        },
+        {
+          "key": "mdt",
+          "date": "2026-08-22",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-09-02",
+          "days_since_previous": 11
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-05",
+          "end": "2026-08-06",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-06",
+          "end": "2026-08-10",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-08-10",
+          "end": "2026-08-18",
+          "days": 8,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-05",
+          "end": "2026-08-22",
+          "days": 17,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-08-22",
+          "end": "2026-09-02",
+          "days": 11,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-05",
+          "end": "2026-09-02",
+          "days": 28,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 37000,
+      "coordinator_minutes": 190,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-005",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "coordinator_display": "Bc. Petra Ukázková (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-26",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-26",
+          "days_since_previous": 0
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-08-30",
+          "days_since_previous": 4
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-04",
+          "days_since_previous": 5
+        },
+        {
+          "key": "mdt",
+          "date": "2026-09-10",
+          "days_since_previous": 6
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-09-23",
+          "days_since_previous": 13
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-26",
+          "end": "2026-08-26",
+          "days": 0,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-27",
+          "end": "2026-08-30",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-08-30",
+          "end": "2026-09-04",
+          "days": 5,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-26",
+          "end": "2026-09-10",
+          "days": 15,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-09-10",
+          "end": "2026-09-23",
+          "days": 13,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-26",
+          "end": "2026-09-23",
+          "days": 28,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 37750,
+      "coordinator_minutes": 160,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-006",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "hospital_name": "KOC 1 – Nemocnice Severní",
+      "coordinator_display": "Mgr. Jana Vzorová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-09-16",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-09-17",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-09-21",
+          "days_since_previous": 4
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-29",
+          "days_since_previous": 8
+        },
+        {
+          "key": "mdt",
+          "date": "2026-10-03",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": null,
+          "days_since_previous": null
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-09-16",
+          "end": "2026-09-17",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-09-17",
+          "end": "2026-09-21",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-09-22",
+          "end": "2026-09-29",
+          "days": 7,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-09-16",
+          "end": "2026-10-03",
+          "days": 17,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-10-03",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-09-16",
+          "end": null,
+          "days": null,
+          "status": "running"
+        }
+      ],
+      "cost_czk": 37000,
+      "coordinator_minutes": 175,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-007",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "coordinator_display": "Bc. Lucie Dvořáková",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-08",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-06-09",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-06-15",
+          "days_since_previous": 6
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-06-24",
+          "days_since_previous": 9
+        },
+        {
+          "key": "mdt",
+          "date": "2026-06-28",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-07-13",
+          "days_since_previous": 15
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-08",
+          "end": "2026-06-09",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-06-09",
+          "end": "2026-06-15",
+          "days": 6,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-06-15",
+          "end": "2026-06-24",
+          "days": 9,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-08",
+          "end": "2026-06-28",
+          "days": 20,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-06-28",
+          "end": "2026-07-13",
+          "days": 15,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-08",
+          "end": "2026-07-13",
+          "days": 35,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 29450,
+      "coordinator_minutes": 230,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-008",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "coordinator_display": "Bc. Tomáš Fiktivní (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-30",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-07-02",
+          "days_since_previous": 2
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-07-09",
+          "days_since_previous": 7
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-18",
+          "days_since_previous": 9
+        },
+        {
+          "key": "mdt",
+          "date": "2026-07-23",
+          "days_since_previous": 5
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-08-05",
+          "days_since_previous": 13
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-30",
+          "end": "2026-07-02",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-07-02",
+          "end": "2026-07-09",
+          "days": 7,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-07-10",
+          "end": "2026-07-18",
+          "days": 8,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-30",
+          "end": "2026-07-23",
+          "days": 23,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-07-23",
+          "end": "2026-08-05",
+          "days": 13,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-30",
+          "end": "2026-08-05",
+          "days": 36,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 29450,
+      "coordinator_minutes": 245,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-009",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "coordinator_display": "Bc. Lucie Dvořáková",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-07-21",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-07-22",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-07-28",
+          "days_since_previous": 6
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-08-07",
+          "days_since_previous": 10
+        },
+        {
+          "key": "mdt",
+          "date": "2026-08-11",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-08-27",
+          "days_since_previous": 16
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-07-21",
+          "end": "2026-07-22",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-07-23",
+          "end": "2026-07-28",
+          "days": 5,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-07-28",
+          "end": "2026-08-07",
+          "days": 10,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-07-21",
+          "end": "2026-08-11",
+          "days": 21,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-08-11",
+          "end": "2026-08-27",
+          "days": 16,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-07-21",
+          "end": "2026-08-27",
+          "days": 37,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 37850,
+      "coordinator_minutes": 210,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-010",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "coordinator_display": "Bc. Tomáš Fiktivní (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-11",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-12",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-08-20",
+          "days_since_previous": 8
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-01",
+          "days_since_previous": 12
+        },
+        {
+          "key": "mdt",
+          "date": "2026-09-07",
+          "days_since_previous": 6
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-09-21",
+          "days_since_previous": 14
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-11",
+          "end": "2026-08-12",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-12",
+          "end": "2026-08-20",
+          "days": 8,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-08-21",
+          "end": "2026-09-01",
+          "days": 11,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-11",
+          "end": "2026-09-07",
+          "days": 27,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-09-07",
+          "end": "2026-09-21",
+          "days": 14,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-11",
+          "end": "2026-09-21",
+          "days": 41,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 29450,
+      "coordinator_minutes": 260,
+      "within_target": false
+    },
+    {
+      "code": "SIM-2026-011",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "hospital_name": "KOC 2 – Nemocnice Lipová",
+      "coordinator_display": "Bc. Lucie Dvořáková",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-09-01",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-09-03",
+          "days_since_previous": 2
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-09-09",
+          "days_since_previous": 6
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-18",
+          "days_since_previous": 9
+        },
+        {
+          "key": "mdt",
+          "date": "2026-09-23",
+          "days_since_previous": 5
+        },
+        {
+          "key": "treatment_start",
+          "date": null,
+          "days_since_previous": null
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-09-01",
+          "end": "2026-09-03",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-09-03",
+          "end": "2026-09-09",
+          "days": 6,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-09-09",
+          "end": "2026-09-18",
+          "days": 9,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-09-01",
+          "end": "2026-09-23",
+          "days": 22,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-09-23",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-09-01",
+          "end": null,
+          "days": null,
+          "status": "running"
+        }
+      ],
+      "cost_czk": 29450,
+      "coordinator_minutes": 225,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-012",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "coordinator_display": "Bc. Eva Modelová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-10",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-06-10",
+          "days_since_previous": 0
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-06-12",
+          "days_since_previous": 2
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-06-17",
+          "days_since_previous": 5
+        },
+        {
+          "key": "mdt",
+          "date": "2026-06-21",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-06-30",
+          "days_since_previous": 9
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-10",
+          "end": "2026-06-10",
+          "days": 0,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-06-10",
+          "end": "2026-06-12",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-06-12",
+          "end": "2026-06-17",
+          "days": 5,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-10",
+          "end": "2026-06-21",
+          "days": 11,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-06-21",
+          "end": "2026-06-30",
+          "days": 9,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-10",
+          "end": "2026-06-30",
+          "days": 20,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": 130,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-013",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "coordinator_display": "Bc. Eva Modelová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-07-01",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-07-01",
+          "days_since_previous": 0
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-07-05",
+          "days_since_previous": 4
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-09",
+          "days_since_previous": 4
+        },
+        {
+          "key": "mdt",
+          "date": "2026-07-12",
+          "days_since_previous": 3
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-07-20",
+          "days_since_previous": 8
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-07-01",
+          "end": "2026-07-01",
+          "days": 0,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-07-02",
+          "end": "2026-07-05",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-07-05",
+          "end": "2026-07-09",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-07-01",
+          "end": "2026-07-12",
+          "days": 11,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-07-12",
+          "end": "2026-07-20",
+          "days": 8,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-07-01",
+          "end": "2026-07-20",
+          "days": 19,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": 120,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-014",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "coordinator_display": "Bc. Eva Modelová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-07-20",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-07-21",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-07-23",
+          "days_since_previous": 2
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-29",
+          "days_since_previous": 6
+        },
+        {
+          "key": "mdt",
+          "date": "2026-08-02",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-08-12",
+          "days_since_previous": 10
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-07-20",
+          "end": "2026-07-21",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-07-21",
+          "end": "2026-07-23",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-07-23",
+          "end": "2026-07-29",
+          "days": 6,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-07-20",
+          "end": "2026-08-02",
+          "days": 13,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-08-02",
+          "end": "2026-08-12",
+          "days": 10,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-07-20",
+          "end": "2026-08-12",
+          "days": 23,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": 145,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-015",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "coordinator_display": "Bc. Eva Modelová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-10",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-10",
+          "days_since_previous": 0
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-08-13",
+          "days_since_previous": 3
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-08-19",
+          "days_since_previous": 6
+        },
+        {
+          "key": "mdt",
+          "date": "2026-08-24",
+          "days_since_previous": 5
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-09-02",
+          "days_since_previous": 9
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-10",
+          "end": "2026-08-10",
+          "days": 0,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-10",
+          "end": "2026-08-13",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-08-14",
+          "end": "2026-08-19",
+          "days": 5,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-10",
+          "end": "2026-08-24",
+          "days": 14,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-08-24",
+          "end": "2026-09-02",
+          "days": 9,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-10",
+          "end": "2026-09-02",
+          "days": 23,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": 135,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-016",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "coordinator_display": "Bc. Eva Modelová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-31",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-31",
+          "days_since_previous": 0
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-09-04",
+          "days_since_previous": 4
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-08",
+          "days_since_previous": 4
+        },
+        {
+          "key": "mdt",
+          "date": "2026-09-11",
+          "days_since_previous": 3
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-09-18",
+          "days_since_previous": 7
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-31",
+          "end": "2026-08-31",
+          "days": 0,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-31",
+          "end": "2026-09-04",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-09-04",
+          "end": "2026-09-08",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-31",
+          "end": "2026-09-11",
+          "days": 11,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-09-11",
+          "end": "2026-09-18",
+          "days": 7,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-31",
+          "end": "2026-09-18",
+          "days": 18,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": 125,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-017",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "hospital_name": "KOC 3 – Nemocnice Východní (simulace)",
+      "coordinator_display": "Bc. Eva Modelová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-09-21",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-09-22",
+          "days_since_previous": 1
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-09-24",
+          "days_since_previous": 2
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-29",
+          "days_since_previous": 5
+        },
+        {
+          "key": "mdt",
+          "date": "2026-10-03",
+          "days_since_previous": 4
+        },
+        {
+          "key": "treatment_start",
+          "date": null,
+          "days_since_previous": null
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-09-21",
+          "end": "2026-09-22",
+          "days": 1,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-09-22",
+          "end": "2026-09-24",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-09-24",
+          "end": "2026-09-29",
+          "days": 5,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-09-21",
+          "end": "2026-10-03",
+          "days": 12,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-10-03",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-09-21",
+          "end": null,
+          "days": null,
+          "status": "running"
+        }
+      ],
+      "cost_czk": 27850,
+      "coordinator_minutes": 140,
+      "within_target": true
+    },
+    {
+      "code": "SIM-2026-018",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "coordinator_display": "Mgr. Martin Simulant (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-02",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-06-05",
+          "days_since_previous": 3
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-06-17",
+          "days_since_previous": 12
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-03",
+          "days_since_previous": 16
+        },
+        {
+          "key": "mdt",
+          "date": "2026-07-10",
+          "days_since_previous": 7
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-07-31",
+          "days_since_previous": 21
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-02",
+          "end": "2026-06-05",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-06-06",
+          "end": "2026-06-17",
+          "days": 11,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-06-19",
+          "end": "2026-07-03",
+          "days": 14,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-02",
+          "end": "2026-07-10",
+          "days": 38,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-07-10",
+          "end": "2026-07-31",
+          "days": 21,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-02",
+          "end": "2026-07-31",
+          "days": 59,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 75900,
+      "coordinator_minutes": 340,
+      "within_target": false
+    },
+    {
+      "code": "SIM-2026-019",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "coordinator_display": "Bc. Hana Příkladová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-06-24",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-06-26",
+          "days_since_previous": 2
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-07-05",
+          "days_since_previous": 9
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-07-22",
+          "days_since_previous": 17
+        },
+        {
+          "key": "mdt",
+          "date": "2026-07-28",
+          "days_since_previous": 6
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-08-15",
+          "days_since_previous": 18
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-06-24",
+          "end": "2026-06-26",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-06-26",
+          "end": "2026-07-05",
+          "days": 9,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-07-06",
+          "end": "2026-07-22",
+          "days": 16,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-06-24",
+          "end": "2026-07-28",
+          "days": 34,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-07-28",
+          "end": "2026-08-15",
+          "days": 18,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-06-24",
+          "end": "2026-08-15",
+          "days": 52,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 43900,
+      "coordinator_minutes": 380,
+      "within_target": false
+    },
+    {
+      "code": "SIM-2026-020",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "coordinator_display": "Mgr. Martin Simulant (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-07-15",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-07-19",
+          "days_since_previous": 4
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-08-02",
+          "days_since_previous": 14
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-08-16",
+          "days_since_previous": 14
+        },
+        {
+          "key": "mdt",
+          "date": "2026-08-24",
+          "days_since_previous": 8
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-09-17",
+          "days_since_previous": 24
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-07-15",
+          "end": "2026-07-19",
+          "days": 4,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-07-20",
+          "end": "2026-08-02",
+          "days": 13,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-08-04",
+          "end": "2026-08-16",
+          "days": 12,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-07-15",
+          "end": "2026-08-24",
+          "days": 40,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-08-24",
+          "end": "2026-09-17",
+          "days": 24,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-07-15",
+          "end": "2026-09-17",
+          "days": 64,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 78800,
+      "coordinator_minutes": 355,
+      "within_target": false
+    },
+    {
+      "code": "SIM-2026-021",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "coordinator_display": "Bc. Hana Příkladová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-04",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-06",
+          "days_since_previous": 2
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-08-18",
+          "days_since_previous": 12
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-06",
+          "days_since_previous": 19
+        },
+        {
+          "key": "mdt",
+          "date": "2026-09-13",
+          "days_since_previous": 7
+        },
+        {
+          "key": "treatment_start",
+          "date": "2026-10-02",
+          "days_since_previous": 19
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-04",
+          "end": "2026-08-06",
+          "days": 2,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-08",
+          "end": "2026-08-18",
+          "days": 10,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-08-19",
+          "end": "2026-09-06",
+          "days": 18,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-04",
+          "end": "2026-09-13",
+          "days": 40,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-09-13",
+          "end": "2026-10-02",
+          "days": 19,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-04",
+          "end": "2026-10-02",
+          "days": 59,
+          "status": "measured"
+        }
+      ],
+      "cost_czk": 43900,
+      "coordinator_minutes": 400,
+      "within_target": false
+    },
+    {
+      "code": "SIM-2026-022",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "coordinator_display": "Mgr. Martin Simulant (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-08-25",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-08-28",
+          "days_since_previous": 3
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-09-10",
+          "days_since_previous": 13
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-09-26",
+          "days_since_previous": 16
+        },
+        {
+          "key": "mdt",
+          "date": "2026-10-02",
+          "days_since_previous": 6
+        },
+        {
+          "key": "treatment_start",
+          "date": null,
+          "days_since_previous": null
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-08-25",
+          "end": "2026-08-28",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": "2026-08-29",
+          "end": "2026-09-10",
+          "days": 12,
+          "status": "measured"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-09-11",
+          "end": "2026-09-26",
+          "days": 15,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-08-25",
+          "end": "2026-10-02",
+          "days": 38,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-10-02",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-08-25",
+          "end": null,
+          "days": null,
+          "status": "running"
+        }
+      ],
+      "cost_czk": 75900,
+      "coordinator_minutes": 365,
+      "within_target": false
+    },
+    {
+      "code": "SIM-2026-023",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "hospital_name": "KOC 4 – Nemocnice Horská (simulace)",
+      "coordinator_display": "Bc. Hana Příkladová (simulace)",
+      "milestones": [
+        {
+          "key": "gp_contacted_coordinator",
+          "date": "2026-09-08",
+          "days_since_previous": null
+        },
+        {
+          "key": "accepted",
+          "date": "2026-09-11",
+          "days_since_previous": 3
+        },
+        {
+          "key": "ct_done",
+          "date": "2026-09-26",
+          "days_since_previous": 15
+        },
+        {
+          "key": "biopsy_done",
+          "date": "2026-10-11",
+          "days_since_previous": 15
+        },
+        {
+          "key": "mdt",
+          "date": "2026-10-20",
+          "days_since_previous": 9
+        },
+        {
+          "key": "treatment_start",
+          "date": null,
+          "days_since_previous": null
+        }
+      ],
+      "intervals": [
+        {
+          "key": "contact_to_accepted",
+          "start": "2026-09-08",
+          "end": "2026-09-11",
+          "days": 3,
+          "status": "measured"
+        },
+        {
+          "key": "ct_order_to_ct",
+          "start": null,
+          "end": "2026-09-26",
+          "days": null,
+          "status": "not_recorded"
+        },
+        {
+          "key": "biopsy_order_to_biopsy",
+          "start": "2026-09-28",
+          "end": "2026-10-11",
+          "days": 13,
+          "status": "measured"
+        },
+        {
+          "key": "contact_to_mdt",
+          "start": "2026-09-08",
+          "end": "2026-10-20",
+          "days": 42,
+          "status": "measured"
+        },
+        {
+          "key": "mdt_to_treatment",
+          "start": "2026-10-20",
+          "end": null,
+          "days": null,
+          "status": "running"
+        },
+        {
+          "key": "contact_to_treatment",
+          "start": "2026-09-08",
+          "end": null,
+          "days": null,
+          "status": "running"
+        }
+      ],
+      "cost_czk": 43900,
+      "coordinator_minutes": 310,
+      "within_target": null
+    }
+  ],
+  "rankings": {
+    "by_indicator": [
+      "koc3-nemocnice-vychodni-sim",
+      "koc1-nemocnice-severni",
+      "koc2-nemocnice-lipova",
+      "koc4-nemocnice-horska-sim"
+    ],
+    "fastest": [
+      "koc3-nemocnice-vychodni-sim",
+      "koc1-nemocnice-severni",
+      "koc2-nemocnice-lipova",
+      "koc4-nemocnice-horska-sim"
+    ],
+    "lowest_cost": [
+      "koc3-nemocnice-vychodni-sim",
+      "koc2-nemocnice-lipova",
+      "koc1-nemocnice-severni",
+      "koc4-nemocnice-horska-sim"
+    ]
+  },
+  "summary": {
+    "cases": 24,
+    "simulated_cases": 23,
+    "median_days": {
+      "contact_to_accepted": 1.0,
+      "ct_order_to_ct": 5.0,
+      "biopsy_order_to_biopsy": 8.0,
+      "contact_to_mdt": 18.0,
+      "mdt_to_treatment": 13.0,
+      "contact_to_treatment": 28.5
+    }
+  }
+}

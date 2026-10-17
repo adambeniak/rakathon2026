@@ -50,12 +50,16 @@ exit 0
 FAKE_CURL = """#!/usr/bin/env bash
 echo "curl $*" >> "$FAKE_LOG"
 out=""
+url=""
 while [ $# -gt 0 ]; do
   [ "$1" = -o ] && out="$2"
+  url="$1"
   shift
 done
-printf '%s' "$FAKE_HEALTH_BODY" > "$out"
-printf '%s' "$FAKE_HEALTH_CODE"
+case "$url" in
+  */api/cases) printf '%s' "$FAKE_CASES_BODY" > "$out"; printf '%s' "$FAKE_CASES_CODE" ;;
+  *) printf '%s' "$FAKE_HEALTH_BODY" > "$out"; printf '%s' "$FAKE_HEALTH_CODE" ;;
+esac
 """
 _LEAKY = ("IRIS_", "LOCAL_IRIS", "FHIR_BASE_URL", "SCENARIO", "STAFETA_", "BACKEND_HEALTH", "FAKE_")
 
@@ -100,6 +104,8 @@ def run(
             BACKEND_HEALTH_INTERVAL="0",
             FAKE_HEALTH_CODE="200",
             FAKE_HEALTH_BODY='{"status":"ok"}',
+            FAKE_CASES_CODE="200",
+            FAKE_CASES_BODY="[]",
         )
     env.update(extra)
     return subprocess.run(  # noqa: S603 - fixed scripts from this repository
@@ -176,7 +182,11 @@ def test_up_local_does_everything_in_order_and_ends_with_ok(secrets: Path, fakes
     result = run(UP_LOCAL, secrets, fakes=fakes)
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip().splitlines()[-1].startswith("OK: backend healthy at http://127.0.0.1:8000/api/health")
+    assert (
+        result.stdout.strip()
+        .splitlines()[-1]
+        .startswith("OK: backend healthy and GET /api/cases answers 200 at http://127.0.0.1:8000")
+    )
     assert not (secrets / "password.done").exists()  # fresh container: the sentinel fix ran
     lines = calls(fakes)
     steps = [
@@ -307,6 +317,36 @@ def test_an_unhealthy_backend_ends_with_fail_the_response_and_where_to_look(secr
     assert PASSWORD not in result.stdout + result.stderr
 
 
+def test_the_final_check_also_asks_the_api_as_the_demo_coordinator(secrets: Path, fakes: Path) -> None:
+    ready(secrets)
+
+    result = run(UP_LOCAL, secrets, fakes=fakes)
+
+    assert result.returncode == 0, result.stderr
+    lines = starts(calls(fakes), "curl")
+    assert lines[0].endswith("http://127.0.0.1:8000/api/health")
+    assert lines[1].endswith("-H X-Demo-Role: coordinator http://127.0.0.1:8000/api/cases")  # after the health check
+
+
+def test_a_healthy_backend_whose_api_refuses_the_coordinator_is_a_fail(secrets: Path, fakes: Path) -> None:
+    ready(secrets)
+
+    result = run(UP_LOCAL, secrets, fakes=fakes, FAKE_CASES_CODE="401", FAKE_CASES_BODY='{"title":"Unauthorized"}')
+
+    assert result.returncode == 1
+    assert "FAIL: GET /api/cases as the demo coordinator answered HTTP 401" in result.stderr
+    assert "Unauthorized" in result.stderr  # the response body is shown
+    assert "OK:" not in result.stdout
+
+
+def test_the_api_is_not_asked_while_the_backend_is_unhealthy(secrets: Path, fakes: Path) -> None:
+    ready(secrets)
+
+    run(UP_LOCAL, secrets, fakes=fakes, FAKE_HEALTH_CODE="503", FAKE_HEALTH_BODY="{}")
+
+    assert not any(line.endswith("/api/cases") for line in starts(calls(fakes), "curl"))
+
+
 # --- make test-iris-local shares the helpers ---
 
 
@@ -362,6 +402,8 @@ def test_the_override_pins_every_iris_setting_to_the_local_one_without_reading_t
     base = code_lines((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
 
     assert "IRIS_PASSWORD: ${LOCAL_IRIS_PASSWORD:-}" in override
+    assert 'STAFETA_DEMO_MODE: "1"' in override  # the fallback is the demo ...
+    assert 'STAFETA_LLM_CACHE: "1"' in override  # ... and it runs offline (cached LLM answers)
     for setting in (
         "IRIS_HOST: iris",
         "IRIS_NAMESPACE: FHIRSERVER",

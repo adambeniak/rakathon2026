@@ -33,7 +33,8 @@ the full case with its 13 documents (default `demo-start`: directory, users and 
 starts the local IRIS, waits until it is healthy, bootstraps and seeds it from the host (the IRIS connection settings are
 explicit; other settings still come from `.env`), starts the backend with the LOCAL password (compose variable
 `LOCAL_IRIS_PASSWORD`, only used by `docker-compose.local-iris.yml`; `.env` is never modified) and ends with
-`OK: backend healthy …` or `FAIL: …`. Local storage
+`OK: …` (`/api/health` and `GET /api/cases` as the demo coordinator both answer 200) or `FAIL: …`; the fallback always
+runs with demo mode and cached LLM answers (`STAFETA_DEMO_MODE=1`, `STAFETA_LLM_CACHE=1`). Local storage
 is not persistent (like ACI): `make down` removes the container and the data, `make up-local` rebuilds both. For every
 FRESH container the password file is prepared (IRIS's leftover `password.done` sentinel is removed; without that a new
 container keeps the default password and rejects yours).

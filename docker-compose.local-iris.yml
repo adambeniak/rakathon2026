@@ -26,5 +26,8 @@ services:
       IRIS_USER: _SYSTEM
       IRIS_PASSWORD: ${LOCAL_IRIS_PASSWORD:-}
       FHIR_BASE_URL: http://iris:52773/fhir/r4
+      # The fallback IS the demo, and it runs offline: demo roles (X-Demo-Role) on, LLM answers from the committed cache.
+      STAFETA_DEMO_MODE: "1"
+      STAFETA_LLM_CACHE: "1"
     depends_on:
       - iris

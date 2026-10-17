@@ -11,8 +11,9 @@
 #    docker-compose.local-iris.yml uses. The developer's env file (team ACI) stays untouched.
 # 3. IRIS starts first; once healthy the namespace is bootstrapped and the scenario seeded from the host with explicit
 #    connection settings (same helpers as test_iris_local.sh), and only then the backend starts.
-# 4. The backend's /api/health must answer 200.
-# IRIS_SECRETS_DIR, BACKEND_HEALTH_URL, BACKEND_HEALTH_ATTEMPTS and BACKEND_HEALTH_INTERVAL override the defaults.
+# 4. The final check must pass: /api/health answers 200 (FHIR and IRIS SQL reachable) AND GET /api/cases as the demo
+#    coordinator (X-Demo-Role) answers 200 (demo mode on, the seeded directory readable).
+# IRIS_SECRETS_DIR, BACKEND_URL, BACKEND_HEALTH_ATTEMPTS and BACKEND_HEALTH_INTERVAL override the defaults.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck source=scripts/iris_local_lib.sh
@@ -50,16 +51,26 @@ iris_local_wait_healthy || fail "the local IRIS container is not healthy"
 
 "${LOCAL_COMPOSE[@]}" up -d --build
 
-url="${BACKEND_HEALTH_URL:-http://127.0.0.1:8000/api/health}"
+backend="${BACKEND_URL:-http://127.0.0.1:8000}"
 attempts="${BACKEND_HEALTH_ATTEMPTS:-40}" interval="${BACKEND_HEALTH_INTERVAL:-3}"
+logs_hint="see: docker compose -f docker-compose.yml -f docker-compose.local-iris.yml logs backend"
+show_body() { [ -s "$LOG_DIR/response.json" ] && head -c 600 "$LOG_DIR/response.json" >&2 && echo >&2 || true; }
+
 code=000
 for ((i = 0; i < attempts; i++)); do
-  code="$(curl -s -o "$LOG_DIR/health.json" -w '%{http_code}' --max-time 20 "$url" || true)"
-  if [ "$code" = 200 ]; then
-    echo "OK: backend healthy at $url (local IRIS, scenario $SCENARIO)"
-    exit 0
-  fi
+  code="$(curl -s -o "$LOG_DIR/response.json" -w '%{http_code}' --max-time 20 "$backend/api/health" || true)"
+  [ "$code" = 200 ] && break
   sleep "$interval"
 done
-[ -s "$LOG_DIR/health.json" ] && head -c 600 "$LOG_DIR/health.json" >&2 && echo >&2
-fail "backend health check answered HTTP $code at $url; see: docker compose -f docker-compose.yml -f docker-compose.local-iris.yml logs backend"
+if [ "$code" != 200 ]; then
+  show_body
+  fail "backend health check answered HTTP $code at $backend/api/health; $logs_hint"
+fi
+
+# Healthy is not enough: the demo API must answer too (demo roles on, seeded directory readable by the coordinator).
+code="$(curl -s -o "$LOG_DIR/response.json" -w '%{http_code}' --max-time 20 -H 'X-Demo-Role: coordinator' "$backend/api/cases" || true)"
+if [ "$code" != 200 ]; then
+  show_body
+  fail "GET /api/cases as the demo coordinator answered HTTP $code at $backend (demo mode on?); $logs_hint"
+fi
+echo "OK: backend healthy and GET /api/cases answers 200 at $backend (local IRIS, scenario $SCENARIO)"

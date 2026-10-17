@@ -306,6 +306,10 @@ test('demo flow', async ({ page }) => {
       'T3 · MDT → onkologické konzilium',
     ])
       await expect(clocks).toContainText(t)
-    // Mock: the intervals stay null ("zatím neběží"); the API decides, the UI only renders them (#175).
+    // The API computes them (CaseDetail.intervals): the MDT was held, so T2 is measured; the first GP visit and the
+    // oncology consult are not recorded (#188, #189). The UI only renders them.
+    await expect(clocks).toContainText('19 dní')
+    await expect(clocks).toContainText('nezaznamenáno')
+    await expect(clocks).toContainText('běží')
   })
 })

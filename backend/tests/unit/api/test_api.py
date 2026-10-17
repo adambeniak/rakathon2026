@@ -151,6 +151,7 @@ def app(settings: Settings) -> FastAPI:
 @pytest.fixture
 def client(app: FastAPI) -> Iterator[TestClient]:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader()
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     app.dependency_overrides[get_fhir_client] = lambda: FakeFhir()
     app.dependency_overrides[get_iris_pool] = lambda: FakePool()
     llm = LlmClients(FakeLlm('{"facts": []}'), FakeLlm(None))
@@ -237,6 +238,7 @@ def test_invalid_case_id_is_422_without_echoing_input(client: TestClient) -> Non
 
 def test_storage_unavailable_is_503(app: FastAPI, client: TestClient) -> None:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(FhirUnavailableError("GET Task: ConnectError"))
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
 
     response = client.get("/api/cases")
 
@@ -246,6 +248,7 @@ def test_storage_unavailable_is_503(app: FastAPI, client: TestClient) -> None:
 
 def test_unhandled_error_is_500_problem_without_details(app: FastAPI, client: TestClient) -> None:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(RuntimeError("Alena Procházková 635722/1013"))
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
 
     response = client.get("/api/cases")
 
@@ -268,6 +271,7 @@ def test_openapi_is_stable_and_has_operation_ids(settings: Settings) -> None:
 def test_access_log_has_full_route_template_and_no_ids(settings: Settings, capsys: pytest.CaptureFixture[str]) -> None:
     app = create_app(settings.model_copy(update={"log_level": "INFO"}))
     app.dependency_overrides[get_case_reader] = lambda: FakeReader()
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     with TestClient(app) as test_client:
         test_client.get("/api/cases/rakathon-2026-prochazkova")
 
@@ -294,6 +298,7 @@ def test_openapi_declares_problem_json_for_errors(app: FastAPI) -> None:
 
 def test_unhandled_error_response_carries_cors_headers(app: FastAPI, client: TestClient) -> None:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(RuntimeError("boom"))
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
 
     response = client.get("/api/cases", headers={"Origin": "http://localhost:5173"})
 
@@ -494,6 +499,7 @@ def test_confirm_without_hash_is_422(client: TestClient) -> None:
 
 def test_storage_version_conflict_is_409(app: FastAPI, client: TestClient) -> None:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(FhirConflictError("412", status_code=412))
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
 
     response = client.get("/api/cases")
 
@@ -506,6 +512,7 @@ MDT_START = datetime(2026, 10, 21, 8, 0, tzinfo=PRAGUE)
 
 def test_handover_without_as_of_defaults_to_mdt_start(app: FastAPI, client: TestClient) -> None:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(mdt_start=MDT_START)
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
 
     with clock.frozen("2026-10-19T10:00:00"):
         response = client.get("/api/cases/rakathon-2026-prochazkova/handover")
@@ -518,6 +525,7 @@ def test_handover_without_as_of_defaults_to_mdt_start(app: FastAPI, client: Test
 
 def test_confirmations_in_different_minutes_hit_the_same_composition(app: FastAPI, client: TestClient) -> None:
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(mdt_start=MDT_START)
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     url = "/api/cases/rakathon-2026-prochazkova/handover"
 
     with clock.frozen("2026-10-19T10:00:00"):
@@ -548,6 +556,7 @@ def test_step_3_decision_carries_over_to_the_mdt_start_handover(app: FastAPI, cl
     )
     assert confirmed.status_code == 200
     app.dependency_overrides[get_case_reader] = lambda: FakeReader(mdt_start=MDT_START)
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
 
     with clock.frozen("2026-10-21T07:30:00"):
         mdt = client.post(url).json()

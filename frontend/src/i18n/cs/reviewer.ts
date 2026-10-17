@@ -1,8 +1,29 @@
 export const reviewer = {
-  title: 'Přehled pro revizního lékaře ZP 211',
-  hint: 'Minimální souhrn bez identifikace pacienta a bez klinického obsahu. Jen stav a časové intervaly.',
-  cols: { patient: 'Pacient (zkratka, rok narození)', diagnosis: 'Diagnóza (MKN-10)', state: 'Stav', referred: 'Žádost do KOC', t1: 'T1', t2: 'T2', t3: 'T3' },
-  empty: 'Žádné případy pojištěnců ZP 211',
+  title: 'Přehled pro revizního lékaře',
+  insurer: (code: string) => `Pojištěnci zdravotní pojišťovny ${code}`,
+  hint: 'Omezený souhrn: iniciály, rok narození, kategorie MKN-10 suspektní diagnózy ze žádosti PL, stav případu, časové intervaly a stav předání zpětné vazby. Bez jmen, rodných čísel a bez klinického textu.',
+  proxies:
+    'T1–T3 jsou orientační ukazatele (proxy), měřené mezi daty zapsanými v systému: T1 první návštěva PL → žádost do KOC, T2 žádost do KOC → MDT, T3 MDT → onkologické konzilium. „Nezaznamenáno“: výchozí bod není v systému zapsán. „Běží“: koncový bod zatím není v systému zapsán.',
+  caption: 'Případy pojištěnců',
+  cols: {
+    patient: 'Pacient (iniciály, rok narození)',
+    ref: 'Označení případu',
+    diagnosis: 'Susp. dg. ze žádosti PL (kategorie MKN-10)',
+    state: 'Stav',
+    referred: 'Žádost do KOC',
+    t1: 'T1',
+    t2: 'T2',
+    t3: 'T3',
+    delivery: 'Zpětná vazba pro PL',
+  },
+  delivery: {
+    not_sent: 'zatím neodeslána',
+    handed_over: 'předána k doručení',
+    opened_by_gp: 'otevřena PL',
+    unconfirmed: 'předání nepotvrzeno',
+  },
+  openedOn: (date: string) => `otevřena PL ${date}`,
+  empty: 'Žádné případy pojištěnců vaší pojišťovny',
   emptyHint: 'Případy se zobrazí po odeslání žádosti praktickým lékařem.',
   pending: '—',
 } as const

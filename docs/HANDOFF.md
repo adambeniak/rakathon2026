@@ -170,3 +170,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: MDT members recorded with the conclusion (#192, needs closed_loop.py after #149); birth-number pattern (#193); re-run make e2e on a quiet machine
   Risks: new dependency reportlab 4.4.4 (uv.lock changed) and 1.4 MB fonts in the image; new section 6 wording row in the approved-wording table needs a human OK
   Issues: #92, #89 closed by this PR; #192, #193 new
+- 2026-10-17 · claude (P4) · feat/reviewer-screen · #104/#105: T1–T3 computed once (`backend/app/timeline/intervals.py`, Prague dates, status measured/running/not_started/not_recorded/inconsistent; MDT counts once held) on `CaseDetail.intervals` + case header; scoped `GET /api/reviewer/cases(/{ref})` (own insurer, HMAC pseudonym, initials, birth year, MKN-10 category, T1–T3, delivery; no-store); reviewer 403 on `/api/cases*` and the handover routes; reviewer screen on the contract (zod, MSW 403s); ADR `docs/adr/XXXX-reviewer-scoped-api.md`
+  Verified: ruff, mypy app, `pytest -m "not iris"` 1182 passed before rebase, targeted 317 after; vitest targeted 32 passed; tsc; mock e2e see PR
+  Next: #188 (record first GP visit -> T1), #189 (oncology consult -> T3), #190 (reviewer list reads all cases), #35 (other case sub-routes)
+  Risks: live mode untested (Docker off); live T1 always "nezaznamenáno", T3 "běží" after the MDT until #188/#189
+  Issues: closes #104, #105; #188, #189, #190 new

@@ -282,7 +282,7 @@ def test_postpone_resume_round_trip_keeps_target() -> None:
 @pytest.mark.parametrize("by", ["", "  "])
 def test_blank_clinician_id_in_waiver_rejected_by_gate_and_guard(by: str) -> None:
     w = Waiver("performance_status", R.KOC_PHYSICIAN, by, "důvod")
-    with pytest.raises(ValueError, match="clinician id"):
+    with pytest.raises(ValueError, match="identifikátor lékaře"):
         readiness_gate(STATUSES, REQUIRED, [w])
     forged = Readiness(True, (), (w,))  # defence in depth: the machine re-checks
     with pytest.raises(TransitionError) as e:

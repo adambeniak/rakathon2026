@@ -59,7 +59,7 @@ def sniff_media_type(content: bytes) -> str:
         return PDF_MEDIA_TYPE
     if content.startswith(b"PK\x03\x04"):
         return DOCX_MEDIA_TYPE  # confirmed by `_check_docx_archive`
-    raise UnsupportedMediaError("only DOCX and PDF documents are accepted")
+    raise UnsupportedMediaError("Přijímají se pouze dokumenty DOCX a PDF")
 
 
 def _check_docx_archive(content: bytes) -> None:
@@ -67,30 +67,30 @@ def _check_docx_archive(content: bytes) -> None:
         with zipfile.ZipFile(BytesIO(content)) as archive:
             infos = archive.infolist()
             if len(infos) > MAX_ARCHIVE_ENTRIES or sum(i.file_size for i in infos) > MAX_UNCOMPRESSED_BYTES:
-                raise PayloadTooLargeError("document archive is too large when unpacked")
+                raise PayloadTooLargeError("Archiv dokumentu je po rozbalení příliš velký")
             if "word/document.xml" not in {i.filename for i in infos}:
-                raise UnsupportedMediaError("the archive is not a DOCX document")
+                raise UnsupportedMediaError("Archiv není dokument DOCX")
     except zipfile.BadZipFile as exc:
-        raise UnsupportedMediaError("the archive is not a DOCX document") from exc
+        raise UnsupportedMediaError("Archiv není dokument DOCX") from exc
 
 
 def _pdf_blocks(content: bytes) -> list[tuple[str, str, str | None]]:
     try:
         reader = PdfReader(BytesIO(content))
         if reader.is_encrypted:
-            raise InvalidInputError("encrypted PDF documents cannot be read")
+            raise InvalidInputError("Zašifrované dokumenty PDF nelze přečíst")
         if len(reader.pages) > MAX_PDF_PAGES:
-            raise PayloadTooLargeError(f"PDF has more than {MAX_PDF_PAGES} pages")
+            raise PayloadTooLargeError(f"PDF má více než {MAX_PDF_PAGES} stran")
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
     except (InvalidInputError, PayloadTooLargeError):
         raise
     except Exception as exc:
-        raise InvalidInputError("the PDF could not be read") from exc
+        raise InvalidInputError("PDF se nepodařilo přečíst") from exc
     if len(text) > MAX_TEXT_CHARS:
-        raise PayloadTooLargeError("the PDF text is too long")
+        raise PayloadTooLargeError("Text PDF je příliš dlouhý")
     lines = [line for line in normalize_text(text).split("\n") if line]
     if not lines:
-        raise InvalidInputError("the PDF has no text layer (scanned documents are not supported)")
+        raise InvalidInputError("PDF neobsahuje textovou vrstvu (skenované dokumenty nejsou podporovány)")
     return [("p", line, None) for line in lines]
 
 
@@ -104,7 +104,7 @@ def normalize_upload(
 ) -> UploadedDocument:
     """Validate and normalise an upload. `authored_date` overrides the date in the file name."""
     if not content:
-        raise InvalidInputError("the uploaded file is empty")
+        raise InvalidInputError("Nahraný soubor je prázdný")
     if len(content) > max_bytes:
         raise PayloadTooLargeError(too_large_message(max_bytes))
     media_type = sniff_media_type(content)
@@ -115,7 +115,7 @@ def normalize_upload(
         try:
             doc = normalize_docx_bytes(resolved_id, content, authored)
         except Exception as exc:
-            raise InvalidInputError("the DOCX document could not be read") from exc
+            raise InvalidInputError("Dokument DOCX se nepodařilo přečíst") from exc
     else:
         doc = build_doc(resolved_id, _pdf_blocks(content), authored)
     return UploadedDocument(doc=doc, content=content, content_type=media_type, file_name=file_name[:200])

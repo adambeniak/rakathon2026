@@ -72,72 +72,72 @@ def _nonblank(value: str | None) -> bool:
 
 def _g_submit(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
     if not ctx.consent_confirmed:
-        return "consent must be confirmed"
+        return "Souhlas pacienta musí být potvrzen"
     if not _nonblank(ctx.target_koc):
-        return "target KOC is required"
-    return None if _nonblank(ctx.patient_id) else "patient id is required"
+        return "Je nutné zadat cílové KOC"
+    return None if _nonblank(ctx.patient_id) else "Chybí identifikátor pacienta"
 
 
 def _g_request_docs(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
-    return None if ctx.open_request_tasks >= 1 else "at least one document request task is required"
+    return None if ctx.open_request_tasks >= 1 else "Je nutný alespoň jeden požadavek na podklady"
 
 
 def _g_complete(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
-    return None if ctx.missing_blockers == 0 else "required documents are still missing"
+    return None if ctx.missing_blockers == 0 else "Požadované podklady stále chybí"
 
 
 def _g_docs_received(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
-    return None if ctx.open_request_tasks == 0 else "document requests are still open"
+    return None if ctx.open_request_tasks == 0 else "Požadavky na podklady jsou stále otevřené"
 
 
 def _g_reason(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
-    return None if _nonblank(ctx.reason) else "reason is required"
+    return None if _nonblank(ctx.reason) else "Důvod je povinný"
 
 
 def _g_ready(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
     r = ctx.readiness
     if r is None:
-        return "readiness gate result is required"
+        return "Chybí výsledek kontroly připravenosti k MDT"
     if not r.ready:
-        return f"readiness gate not passed, missing: {', '.join(r.missing)}"
+        return f"Připravenost k MDT není splněna, chybí: {', '.join(r.missing)}"
     for w in r.waived:  # defence in depth; readiness_gate already validates
         if w.by_role is not Role.KOC_PHYSICIAN or not _nonblank(w.reason) or not _nonblank(w.by):
-            return "invalid waiver"
+            return "Prominutí položky není platné"
     return None
 
 
 def _g_conclusion(case: Case, ctx: CaseContext, now: datetime) -> str | None:
     if case.mdt_start is None:
-        return "MDT start is not set"
+        return "Není nastaven termín MDT"
     if now < case.mdt_start:
-        return "MDT has not started yet"
+        return "MDT ještě nezačalo"
     if not _nonblank(ctx.conclusion):
-        return "conclusion is required"
-    return None if _nonblank(ctx.confirmed_by) else "conclusion must be confirmed by a clinician"
+        return "Závěr je povinný"
+    return None if _nonblank(ctx.confirmed_by) else "Závěr musí potvrdit lékař"
 
 
 def _g_feedback(case: Case, ctx: CaseContext, _n: datetime) -> str | None:
     if not case.conclusion_confirmed:
-        return "conclusion must be confirmed by a clinician"
-    return None if _nonblank(ctx.gp_recipient) else "GP recipient is required"
+        return "Závěr musí potvrdit lékař"
+    return None if _nonblank(ctx.gp_recipient) else "Chybí adresát – praktický lékař"
 
 
 def _g_receipt(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
-    return None if _nonblank(ctx.receipt_id) else "delivery receipt id is required"
+    return None if _nonblank(ctx.receipt_id) else "Chybí identifikátor potvrzení o předání"
 
 
 def _g_closed(case: Case, _c: CaseContext, _n: datetime) -> str | None:
-    return None if case.delivery_receipt else "delivery has not been confirmed"
+    return None if case.delivery_receipt else "Předání nebylo potvrzeno"
 
 
 def _g_postpone(_c: Case, ctx: CaseContext, _n: datetime) -> str | None:
     if not _nonblank(ctx.reason):
-        return "reason is required"
-    return None if _nonblank(ctx.resume_on) else "resume_on / external step is required"
+        return "Důvod je povinný"
+    return None if _nonblank(ctx.resume_on) else "Je nutné uvést datum nebo externí krok, na který se čeká"
 
 
 def _g_resume(case: Case, _c: CaseContext, _n: datetime) -> str | None:
-    return None if case.odlozeny else "case is not postponed"
+    return None if case.odlozeny else "Případ není odložen"
 
 
 _SUBMIT = _Rule(
@@ -263,7 +263,7 @@ def submit_referral(
     now = now or clock.now()
     rule = _SUBMIT
     if actor not in rule.roles:
-        raise _fail("forbidden_role", f"role {actor.value!r} may not 'submit'")
+        raise _fail("forbidden_role", f"Role {actor.value!r} nemůže podat žádost")
     draft = Case(id=case_id, patient=patient, state=S.ODESLANO, opened_at=now, mdt_start=mdt_start)
     problem = rule.guard(draft, ctx, now) if rule.guard else None
     if problem:
@@ -283,11 +283,11 @@ def transition(
     now = now or clock.now()
     rule = _BY_KEY.get((event, case.state))
     if rule is None:
-        raise _fail("invalid_transition", f"event {event!r} not allowed in state {case.state.value!r}")
+        raise _fail("invalid_transition", f"Událost {event!r} není ve stavu {case.state.value!r} povolena")
     if case.odlozeny and event != "resume":
-        raise _fail("case_postponed", "case is postponed; resume it first")
+        raise _fail("case_postponed", "Případ je odložen; nejprve jej obnovte")
     if actor not in rule.roles:
-        raise _fail("forbidden_role", f"role {actor.value!r} may not {event!r}")
+        raise _fail("forbidden_role", f"Role {actor.value!r} nemůže provést akci {event!r}")
     problem = rule.guard(case, ctx, now) if rule.guard else None
     if problem:
         raise _fail("guard_failed", problem)

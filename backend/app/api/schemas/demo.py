@@ -50,10 +50,10 @@ def parse_target(value: str) -> datetime:
             else datetime.fromisoformat(value)
         )
     except ValueError as exc:
-        raise InvalidInputError("to must be YYYY-MM-DD or an ISO 8601 timestamp") from exc
+        raise InvalidInputError("Parametr to musí mít tvar RRRR-MM-DD nebo časové razítko ISO 8601") from exc
     parsed = parsed if parsed.tzinfo else parsed.replace(tzinfo=PRAGUE)
     if not MIN_YEAR <= parsed.year <= MAX_YEAR:
-        raise InvalidInputError(f"to must be between {MIN_YEAR} and {MAX_YEAR}")
+        raise InvalidInputError(f"Parametr to musí být v letech {MIN_YEAR} až {MAX_YEAR}")
     return parsed
 
 

@@ -484,7 +484,7 @@ def test_confirm_with_outdated_hash_is_409(client: TestClient) -> None:
     response = client.post(CONFIRM.format(n=9), json={"expected_value_hash": "0" * 64, "accept_missing": True})
 
     assert response.status_code == 409
-    assert "changed since it was shown" in response.json()["detail"]
+    assert "se od zobrazení změnil" in response.json()["detail"]
 
 
 @pytest.mark.usefixtures("physician")

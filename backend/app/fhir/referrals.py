@@ -80,25 +80,25 @@ class ReferralWriter:
         prefill: ReferralPrefill | None,
     ) -> ReferralResult:
         if actor.role is not Role.GP:
-            raise ForbiddenError("only a GP may send a referral")
+            raise ForbiddenError("Žádost o převzetí může odeslat jen praktický lékař")
         gp = directory.role(actor.id)
         koc = directory.org(submission.koc_id)
         if gp is None:
-            raise ForbiddenError("the GP is not in the directory")
+            raise ForbiddenError("Praktický lékař není v adresáři")
         if koc is None or koc.org.kind is not OrganizationKind.KOC:
-            raise InvalidInputError(f"unknown KOC {submission.koc_id!r}")
+            raise InvalidInputError(f"Neznámé KOC {submission.koc_id!r}")
         coordinator = directory.role_holder(koc.org.id, Role.COORDINATOR)
         coordinator_entry = directory.role(coordinator.id) if coordinator else None
         if coordinator is None or coordinator_entry is None:
-            raise InvalidInputError("the selected KOC has no coordinator in the directory (koc_without_coordinator)")
+            raise InvalidInputError("Vybrané KOC nemá v adresáři koordinátora (koc_without_coordinator)")
 
         haystack = match_key(letter.doc.text).key
         for statement in submission.consent_statements:
             if match_key(statement).key not in haystack:
-                raise InvalidInputError("a consent statement does not occur in the letter")
+                raise InvalidInputError("Prohlášení o souhlasu se v žádosti nevyskytuje")
         doc_ids = [letter.doc.doc_id, *(a.doc.doc_id for a in attachments)]
         if len(set(doc_ids)) != len(doc_ids):
-            raise InvalidInputError("document names must be unique within the referral")
+            raise InvalidInputError("Názvy dokumentů v žádosti musí být jedinečné")
 
         patient = Patient(
             given=submission.given,

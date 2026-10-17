@@ -67,40 +67,40 @@ def _owner_role(t: Task) -> Role | None:
 
 
 def _reason(_t: Task, ctx: TaskContext) -> str | None:
-    return None if ctx.reason and ctx.reason.strip() else "reason is required"
+    return None if ctx.reason and ctx.reason.strip() else "Důvod je povinný"
 
 
 def _confirm_guard(t: Task, ctx: TaskContext) -> str | None:
     if _business(t) is not B.OBJEDNANO:
-        return "order already confirmed"
+        return "Objednání už bylo potvrzeno"
     if not (ctx.place or t.location):
-        return "confirmed place is required"
+        return "Je nutné zadat potvrzené místo"
     if ctx.scheduled_at is None:
-        return "confirmed date/time is required"
+        return "Je nutné zadat potvrzené datum a čas"
     if ctx.scheduled_at.utcoffset() is None:
-        return "confirmed date/time must include a timezone"
+        return "Potvrzené datum a čas musí obsahovat časové pásmo"
     return None
 
 
 def _accept_guard(t: Task, _c: TaskContext) -> str | None:
     if _business(t) is not B.POTVRZENO:
-        return "order must be confirmed (place and date) before acceptance"
+        return "Před převzetím musí být objednání potvrzeno (místo a termín)"
     return None
 
 
 def _start_guard(t: Task, ctx: TaskContext) -> str | None:
     open_deps = [d for d in t.depends_on if d not in ctx.completed_task_ids]
-    return f"unfinished dependencies: {', '.join(open_deps)}" if open_deps else None
+    return f"Nedokončené předcházející kroky: {', '.join(open_deps)}" if open_deps else None
 
 
 def _performed_guard(t: Task, _c: TaskContext) -> str | None:
-    return None if _business(t) is B.POTVRZENO else "examination is not confirmed"
+    return None if _business(t) is B.POTVRZENO else "Vyšetření není potvrzeno"
 
 
 def _result_guard(t: Task, ctx: TaskContext) -> str | None:
     if _business(t) is not B.PROVEDENO:
-        return "examination has not been performed"
-    return None if ctx.result_doc_id else "result document is required"
+        return "Vyšetření nebylo provedeno"
+    return None if ctx.result_doc_id else "Je nutný dokument s výsledkem"
 
 
 _OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORDINATOR})
@@ -198,7 +198,7 @@ def transition(
     at = at or clock.now()
     rule = _BY_KEY.get((event, task.status))
     if rule is None:
-        raise TransitionError("invalid_transition", f"event {event!r} not allowed in status {task.status.value!r}")
+        raise TransitionError("invalid_transition", f"Událost {event!r} není ve stavu {task.status.value!r} povolena")
     owner_role = _owner_role(task)
     allowed = actor in rule.roles or (OWNER in rule.roles and actor == owner_role)
     on_behalf = (
@@ -208,7 +208,7 @@ def transition(
         and owner_role is Role.EXTERNAL_WORKPLACE
     )
     if not (allowed or on_behalf):
-        raise TransitionError("forbidden_role", f"role {actor.value!r} may not {event!r}")
+        raise TransitionError("forbidden_role", f"Role {actor.value!r} nemůže provést akci {event!r}")
     problem = rule.guard(task, ctx) if rule.guard else None
     if problem:
         raise TransitionError("guard_failed", problem)

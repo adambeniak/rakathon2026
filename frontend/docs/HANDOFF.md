@@ -1,0 +1,4 @@
+- 2026-10-17 · claude (P4) · be/czech-problem-titles-107 · #107: problem+json `title` and `detail` in Czech, neutral wording; title by transition `code` > problem `type` > status (api/errors.py), ~90 raise sites + case/task machine guards translated at the source, NotFoundError names the kind in Czech, 404/405 framework details and the 422 detail Czech; `type`, `status`, `code`, shape unchanged; openapi.json and handover.schema.json export byte-identical to contracts/; 1017 backend + 146 frontend tests green
+  Next: #115 (Pydantic errors[].msg still English), #116 (contract example/descriptions still English, P1 approves a text-only diff), #117 (duplicate FhirConflictError branch); frontend can now show `title` as is
+  Risks: messages that carry ids or event codes keep them (e.g. 'performance_status', 'gp_opened') inside Czech sentences; the inner reason of an unusable pathway template is only logged
+  Issues: #107 (closes), #115, #116, #117

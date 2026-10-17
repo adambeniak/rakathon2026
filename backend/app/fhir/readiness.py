@@ -56,15 +56,15 @@ class ReadinessSource:
         required = await self._required_items(loaded)
         mdt_start = loaded.case.mdt_start
         if mdt_start is None:
-            raise TransitionError("guard_failed", "MDT start is not set, the handover for the MDT is undefined")
+            raise TransitionError("guard_failed", "Není nastaven termín MDT, handover pro MDT nelze určit")
         composition = await self._handovers.find(loaded.case.id, mdt_start)
         if composition is None:
             raise TransitionError(
-                "guard_failed", "the handover for the MDT has not been assembled yet; open it before marking ready"
+                "guard_failed", "Handover pro MDT ještě nebyl sestaven; před označením připravenosti jej otevřete"
             )
         items = [w.item for w in waivers]
         if len(set(items)) != len(items):
-            raise InvalidInputError("a readiness item can be waived only once")
+            raise InvalidInputError("Položku připravenosti lze prominout jen jednou")
         signed = [Waiver(w.item, actor.role, actor.id, w.reason) for w in waivers]
         try:
             return readiness_gate(section_statuses(composition, required), required, signed)
@@ -83,21 +83,23 @@ class ReadinessSource:
             )
         ]
         if not plans:
-            raise TransitionError("guard_failed", "no pathway has been launched for the case, readiness is undefined")
+            raise TransitionError(
+                "guard_failed", "Pro případ nebyla spuštěna žádná sada vyšetření, připravenost k MDT nelze určit"
+            )
         await self._repo.audit_read([f"CarePlan/{p['id']}" for p in plans], subtype="search-type")
         required: list[str] = []
         for care_plan in plans:
             for url in care_plan.get("instantiatesCanonical", []):
                 found = await self._repo.search("PlanDefinition", {"url": url})
                 if len(found) != 1:
-                    raise TransitionError("guard_failed", f"pathway template {url!r} cannot be resolved")
+                    raise TransitionError("guard_failed", f"Šablonu sady vyšetření {url!r} nelze najít")
                 try:
                     items = plan_definition_to_template(found[0]).mdt_required_items
                 except ValueError as exc:
-                    raise TransitionError("guard_failed", f"pathway template cannot be used: {exc}") from exc
+                    raise TransitionError("guard_failed", "Šablonu sady vyšetření nelze použít") from exc
                 required += [i for i in items if i not in required]
         if not required:
-            raise TransitionError("guard_failed", "the pathway defines no MDT readiness items")
+            raise TransitionError("guard_failed", "Sada vyšetření nedefinuje žádné položky připravenosti k MDT")
         return tuple(required)
 
 

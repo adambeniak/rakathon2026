@@ -125,7 +125,7 @@ class ClosedLoopWorkflow(CaseWorkflow):
         loaded = await self._reader.load(case_id)  # audited read
         authorize_case(loaded, actor, directory)
         if actor.role is Role.GP and loaded.case.state not in GP_VISIBLE_STATES:
-            raise ForbiddenError("the feedback has not been sent yet")
+            raise ForbiddenError("Zpětná vazba ještě nebyla odeslána")
         latest = await self._latest_conclusion(loaded, case_id)
         if latest is None:
             raise NotFoundError("MDT conclusion", case_id)
@@ -165,11 +165,11 @@ class ClosedLoopWorkflow(CaseWorkflow):
             sent.case, "delivery_confirmed", Role.SYSTEM, case_machine.CaseContext(receipt_id=message_id), now
         )
         if gp is None:  # unreachable: the send_feedback guard refuses a missing recipient
-            raise InvalidInputError("the referring GP of the case is unknown")
+            raise InvalidInputError("Odesílající praktický lékař případu není znám")
         sender = directory.role(actor.id)
         koc = directory.org(managing_koc_id(loaded, directory) or "")
         if sender is None or koc is None:
-            raise InvalidInputError("the sender or the managing KOC is not in the directory")
+            raise InvalidInputError("Odesílatel nebo vedoucí KOC není v adresáři")
 
         message = build_feedback_mail(
             FeedbackMailInput(

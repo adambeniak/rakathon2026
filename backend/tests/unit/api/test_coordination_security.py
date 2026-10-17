@@ -45,7 +45,7 @@ async def test_a_case_has_a_bounded_number_of_tasks(harness: Harness) -> None:  
     )
     coordinator = demo_directory().role("dvorakova-lucie@koc2-nemocnice-lipova")
     assert coordinator is not None
-    with pytest.raises(InvalidInputError, match="at most"):
+    with pytest.raises(InvalidInputError, match="nejvýše"):
         await service.create_task(
             CASE_ID, CreateTaskRequest(title="Další", owner_role=Role.KOC_PHYSICIAN), coordinator.party()
         )

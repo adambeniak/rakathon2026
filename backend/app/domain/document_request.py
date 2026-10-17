@@ -50,9 +50,9 @@ def new_request(
 
 def fulfil(task: Task, *, result_doc_id: str, actor: Role, now: datetime) -> tuple[Task, DomainEvent]:
     if task.code != TASK_CODE:
-        raise TransitionError("invalid_transition", "not a report request")
+        raise TransitionError("invalid_transition", "Úkol není požadavkem na podklady")
     if task.status is not TaskStatus.REQUESTED:
-        raise TransitionError("invalid_transition", f"request is already {task.status.value}")
+        raise TransitionError("invalid_transition", f"Požadavek už je ve stavu {task.status.value!r}")
     done = task.model_copy(
         update={
             "status": TaskStatus.COMPLETED,

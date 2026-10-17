@@ -285,9 +285,9 @@ def test_a_wrong_state_is_refused_by_the_machine_before_readiness_is_looked_at(m
 @pytest.mark.parametrize(
     ("kwargs", "detail"),
     [
-        ({"care_plan": False, "statuses": _all("complete")}, "no pathway"),
-        ({"statuses": None}, "has not been assembled"),
-        ({"statuses": _all("complete"), "mdt_start": None}, "MDT start"),
+        ({"care_plan": False, "statuses": _all("complete")}, "žádná sada vyšetření"),
+        ({"statuses": None}, "ještě nebyl sestaven"),
+        ({"statuses": _all("complete"), "mdt_start": None}, "termín MDT"),
     ],
 )
 def test_readiness_that_cannot_be_established_fails_closed(

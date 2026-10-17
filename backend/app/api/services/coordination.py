@@ -142,7 +142,7 @@ MSG_INDICATION_NOT_PHYSICIAN = "Indikujícím lékařem může být jen lékař 
 
 def _require_coordinator(actor: PartyRef, what: str) -> None:
     if actor.role is not Role.COORDINATOR:
-        raise ForbiddenError(f"only the coordinator may {what}")
+        raise ForbiddenError(f"Tuto akci smí provést jen koordinátorka: {what}")
 
 
 def transition_steps(event: str, task: Task) -> list[str]:
@@ -193,7 +193,7 @@ class CoordinationService:
     # --- pathway ---
 
     async def launch_pathway(self, case_id: str, request: LaunchPathwayRequest, actor: PartyRef) -> PathwayLaunched:
-        _require_coordinator(actor, "launch a pathway")
+        _require_coordinator(actor, "spustit sadu vyšetření")
         if not (request.indicated_by and request.indicated_by.strip()):
             raise InvalidInputError(MSG_INDICATION_REQUIRED)
         entry = (await self._directory.get()).role(request.indicated_by.strip())
@@ -208,12 +208,13 @@ class CoordinationService:
         if mdt_start is None:
             raise InvalidInputError(MSG_MDT_START_REQUIRED)
         if await self._store.care_plan_exists(case_id, plan):
-            raise ConflictError("this pathway has already been launched for the case")
+            raise ConflictError("Tato sada vyšetření už byla pro případ spuštěna")
         try:
             template = plan_definition_to_template(plan)
             tasks = instantiate(template, header.case.model_copy(update={"mdt_start": mdt_start}), request.start_date)
         except ValueError as exc:
-            raise InvalidInputError(f"pathway template cannot be used: {exc}") from exc
+            log.warning("pathway_template_unusable", reason=str(exc))  # the technical reason stays in the log
+            raise InvalidInputError("Šablonu sady vyšetření nelze použít") from exc
         await self._store.launch_pathway(
             header,
             plan,
@@ -251,7 +252,7 @@ class CoordinationService:
         earlier demo step, the replay simulates history).
         """
         if actor.role is not Role.COORDINATOR:
-            raise ForbiddenError("only the coordinator may advance the demo")
+            raise ForbiddenError("Demo smí posouvat jen koordinátorka")
         header = await self._header(case_id, actor)
         stored = {s.task.id: s for s in await self._store.list_for_case(header.task_reference)}
         if not any(f"{case_id}.{step.step}" in stored for step in STORY):
@@ -348,14 +349,14 @@ class CoordinationService:
     # --- single tasks ---
 
     async def create_task(self, case_id: str, request: CreateTaskRequest, actor: PartyRef) -> TaskOut:
-        _require_coordinator(actor, "create tasks")
+        _require_coordinator(actor, "zakládat úkoly")
         header = await self._header(case_id, actor)
         existing = await self._store.list_for_case(header.task_reference)
         if len(existing) >= MAX_TASKS_PER_CASE:
-            raise InvalidInputError(f"a case may have at most {MAX_TASKS_PER_CASE} tasks")
+            raise InvalidInputError(f"Případ může mít nejvýše {MAX_TASKS_PER_CASE} úkolů")
         unknown = sorted(set(request.depends_on) - {s.task.id for s in existing})
         if unknown:
-            raise InvalidInputError(f"unknown dependencies: {', '.join(unknown)}")
+            raise InvalidInputError(f"Neznámé závislosti: {', '.join(unknown)}")
         due = request.due
         task = Task(
             id=f"{case_id}.adhoc-{secrets.token_hex(4)}",
@@ -378,7 +379,7 @@ class CoordinationService:
 
     async def transition(self, task_id: str, request: TransitionRequest, actor: PartyRef) -> TaskOut:
         if actor.role is Role.SYSTEM:
-            raise ForbiddenError("tasks cannot be moved without an identified user (authentication is not configured)")
+            raise ForbiddenError("Úkoly nelze posouvat bez identifikovaného uživatele (přihlášení není nastaveno)")
         stored = await self._store.get(task_id)
         await self._header(stored.task.case_id, actor)  # membership: only a participant of the case moves its tasks
         now = self._now()
@@ -386,7 +387,7 @@ class CoordinationService:
         steps = transition_steps(request.event, task)
         if not steps:
             raise TransitionError(
-                "invalid_transition", f"{request.event!r} is not possible in status {task.status.value!r}"
+                "invalid_transition", f"Událost {request.event!r} není ve stavu {task.status.value!r} možná"
             )
         siblings = [s.task for s in await self._store.list_for_case(_case_task_reference(stored))]
         ctx = await self._context(stored, request, steps, siblings)
@@ -399,9 +400,7 @@ class CoordinationService:
                     # No delivery channel yet (app.notify is a stub): record it in the log, never lose it silently.
                     log.info("notification_pending", template=event.action, task_id=task.id)
         if on_behalf and "performed" in steps and not (request.note and request.note.strip()):
-            raise InvalidInputError(
-                "note with the source of the information is required when recording for a workplace"
-            )
+            raise InvalidInputError("Při zápisu za pracoviště je nutná poznámka se zdrojem informace")
         updates: dict[str, object] = {}
         if request.note and request.note.strip():
             updates["note"] = request.note.strip()  # the reason / source stays on the task, not in the audit text
@@ -425,16 +424,16 @@ class CoordinationService:
         scheduled_at = None
         if "order_confirmed" in steps:
             if request.date is None:
-                raise InvalidInputError("date is required to confirm an order")
+                raise InvalidInputError("K potvrzení objednání je nutné zadat datum")
             scheduled_at = _aware(request.date)
         if request.document_id:
             received = await self._store.patient_document_received_at(
                 str(stored.resource["for"]["reference"]), request.document_id
             )
             if received is None:
-                raise InvalidInputError(f"document {request.document_id!r} does not exist for this patient")
+                raise InvalidInputError(f"Dokument {request.document_id!r} pro tohoto pacienta neexistuje")
             if received > self._now():
-                raise InvalidInputError(f"document {request.document_id!r} was received after the current time")
+                raise InvalidInputError(f"Dokument {request.document_id!r} byl přijat až po aktuálním čase")
         return TaskContext(
             place=request.place,
             scheduled_at=scheduled_at,

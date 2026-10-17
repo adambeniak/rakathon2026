@@ -69,13 +69,13 @@ async def get_mdt_record(
     format: Literal["docx"] = Query("docx", description="Only DOCX for now."),
 ) -> Response:
     if actor.role not in KOC_ROLES:  # checked first: a refused caller causes no audited read of clinical content
-        raise ForbiddenError("the MDT record is available to the KOC team of the case only")
+        raise ForbiddenError("Zápis z MDT je dostupný jen týmu KOC, který případ vede")
     loaded = await reader.load(case_id)  # audited read
     directory = await provider.get()
     authorize_case(loaded, actor, directory)
     mdt_start = loaded.case.mdt_start
     if mdt_start is None:
-        raise InvalidInputError("the MDT start of the case is not set")
+        raise InvalidInputError("U případu není nastaven termín MDT")
 
     handover = await _reviewed(reader, settings, llm, store, case_id, mdt_start.isoformat())
     content = await asyncio.to_thread(render_mdt_record, handover, _referring_doctor(loaded, directory), settings.now())

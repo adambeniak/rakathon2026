@@ -29,7 +29,7 @@ def _if_match(composition: Resource) -> dict[str, str]:
     lost. A Composition without a version was not read from the server and must never be written back."""
     version = composition.get("meta", {}).get("versionId")
     if not version:
-        raise ConflictError("handover must be re-read before it is confirmed (no stored version)")
+        raise ConflictError("Handover je nutné před potvrzením načíst znovu (chybí uložená verze)")
     return {"ifMatch": f'W/"{version}"'}
 
 

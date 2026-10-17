@@ -56,7 +56,7 @@ async def upload_document(
     upload = await read_upload(file, max_bytes=settings.upload_max_bytes)
     authored = authored_at or upload.doc.authored_date
     if authored is None:
-        raise InvalidInputError("authored_at is required: the file name carries no date")
+        raise InvalidInputError("Chybí datum vyhotovení (authored_at); název souboru datum neobsahuje")
     now = settings.now()
     outcome = await workflow.receive_document(
         case_id,

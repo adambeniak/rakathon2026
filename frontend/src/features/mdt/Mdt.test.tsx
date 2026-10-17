@@ -87,7 +87,7 @@ describe('MDT screen', () => {
   })
 })
 
-describe('DOCX download', () => {
+describe('record download (DOCX, PDF)', () => {
   function stubDownload() {
     const create = vi.fn(() => 'blob:mdt')
     const revoke = vi.fn()
@@ -130,6 +130,29 @@ describe('DOCX download', () => {
     )
   })
 
+  it('offers the same record as PDF: format=pdf, a .pdf file name and the PDF bytes', async () => {
+    expect(mdtRecordFileName(ALENA_ID, '2026-10-21T08:00:00+02:00', true, 'pdf')).toBe(
+      'MDT_zapis_rakathon-2026-prochazkova_2026-10-21_NAVRH.pdf',
+    )
+    const urls = recordUrls()
+    const { create, names } = stubDownload()
+    renderRoute(MDT, { role: 'coordinator', today: '2026-10-21' })
+    const button = await screen.findByRole('button', { name: 'Stáhnout zápis (PDF)' })
+    await waitFor(() => expect(button).toBeEnabled())
+    await userEvent.click(button)
+    await waitFor(() =>
+      expect(names).toEqual(['MDT_zapis_rakathon-2026-prochazkova_2026-10-21_NAVRH.pdf']),
+    )
+    const record = urls.find((u) => u.pathname.endsWith('/mdt-record'))
+    expect(record?.searchParams.get('format')).toBe('pdf')
+    const blob = (create.mock.calls[0] as unknown as [Blob])[0]
+    expect(blob.type).toBe('application/pdf')
+    expect(blob.size).toBe(5)
+    expect(
+      screen.getByText(/Po zapsání závěru MDT obsahuje zápis v oddílu 6 jeho podepsané znění/),
+    ).toBeInTheDocument()
+  })
+
   it('shows the API problem title when the record is refused', async () => {
     stubDownload()
     server.use(
@@ -148,5 +171,6 @@ describe('DOCX download', () => {
     renderRoute(MDT, { role: 'gp', today: '2026-10-21' })
     await screen.findByRole('region', { name: 'Stav handoveru k MDT' })
     expect(screen.queryByRole('button', { name: 'Stáhnout zápis (DOCX)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stáhnout zápis (PDF)' })).not.toBeInTheDocument()
   })
 })

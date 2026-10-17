@@ -1,9 +1,11 @@
 export const mdt = {
   title: 'Příprava MDT',
   asOf: (when: string) => `Stav k začátku MDT: ${when}`,
-  asOfHint: 'Do zápisu vstupují jen zprávy vyhotovené i přijaté do tohoto termínu. Termín určuje server.',
+  asOfHint:
+    'Do zápisu vstupují jen zprávy vyhotovené i přijaté do tohoto termínu. Termín určuje server.',
   summaryTitle: 'Stav handoveru k MDT',
-  summaryHint: 'Souhrn stavů sekcí z handoveru. Formální kontrola připravenosti proběhne při označení případu jako připraveného k MDT.',
+  summaryHint:
+    'Souhrn stavů sekcí z handoveru. Formální kontrola připravenosti proběhne při označení případu jako připraveného k MDT.',
   summaryConfirmed: (done: number, total: number) => `Potvrzeno lékařem: ${done} z ${total} sekcí`,
   summaryCounts: {
     missing: 'Chybí',
@@ -17,9 +19,12 @@ export const mdt = {
   findingsNone: 'Detektor k tomuto termínu nenašel žádný nesoulad.',
   findingSections: (titles: string) => `Sekce: ${titles}`,
   download: 'Stáhnout zápis (DOCX)',
+  downloadPdf: 'Stáhnout zápis (PDF)',
   downloading: 'Stahuji…',
   downloadError: 'Zápis se nepodařilo stáhnout.',
   downloadDraftNote: 'Dokud není každá sekce potvrzena lékařem, je zápis označen jako návrh.',
+  downloadConclusionNote:
+    'Po zapsání závěru MDT obsahuje zápis v oddílu 6 jeho podepsané znění (kdo a kdy podepsal). Systém závěr ani doporučení nevytváří.',
   recordTitle: 'Náhled MDT zápisu',
   recordHint: 'Sestaveno pouze z potvrzených a navržených údajů handoveru, vždy se zdrojem.',
   conclusionTitle: 'Závěr MDT',
@@ -43,7 +48,8 @@ export const mdt = {
     done: 'Případ je označen jako připravený k MDT.',
     error: 'Případ se nepodařilo označit jako připravený.',
     blocked: 'Server vrátil chybějící položky:',
-    blockedHint: 'Chybějící položku může lékař KOC vědomě prominout. Zadejte u každé důvod; prominutí se zaznamená do auditu a provenance.',
+    blockedHint:
+      'Chybějící položku může lékař KOC vědomě prominout. Zadejte u každé důvod; prominutí se zaznamená do auditu a provenance.',
     reason: (label: string) => `Důvod prominutí: ${label}`,
     waive: 'Prominout a označit jako připravený',
     cancel: 'Zrušit',
@@ -68,7 +74,8 @@ export const mdt = {
     send: 'Odeslat závěr PL',
     sending: 'Odesílám…',
     sendHint: 'Praktickému lékaři se odešle e-mail s odkazem do portálu, bez klinického textu.',
-    sendRetry: 'E-mail se teď nepodařilo odeslat, stav případu se nezměnil. Zkuste to prosím za chvíli znovu.',
+    sendRetry:
+      'E-mail se teď nepodařilo odeslat, stav případu se nezměnil. Zkuste to prosím za chvíli znovu.',
     sendError: 'Závěr se nepodařilo odeslat.',
     handedOver: 'Závěr je předán k doručení praktickému lékaři.',
     close: 'Uzavřít případ',

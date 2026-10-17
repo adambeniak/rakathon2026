@@ -69,3 +69,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: P3 `pnpm gen:api` after merge, then the mark-ready/waiver UI (#97); human runs the flow on local IRIS (#99)
   Risks: gate reads a persisted handover snapshot (stale after new documents, #98); not run on IRIS; `make check` frontend step needs `pnpm install` in a fresh worktree
   Issues: #97, #98, #99
+- 2026-10-17 · claude (P4) · fix/mdt-screen · #40: MDT screen on the contract: handover as of the API's `as_of` (= mdt_start, no picker), section-status summary, findings C1/C2, reports 12-13 as "Po MDT – nezahrnuto" from `excluded_documents`, "Stáhnout zápis (DOCX)" via blob from `GET /mdt-record?format=docx` under our own file name; provisional `/mdt` mock removed; live-checked against the rebuilt backend (physician, clock 21. 10.)
+  Next: #41 conclusion form, #97 mark-ready action; both want a readiness read (#108). Demo clock on the local backend was left at 21. 10. 2026 09:00 (`PUT /api/demo/clock {"now": null}` resets)
+  Risks: the screen shows section statuses, not the #68 gate (no GET for it); 3 old MDT tests moved out of routes.test.tsx; no screenshots (Chromium lacks system libs here)
+  Issues: #108 (readiness read endpoint)

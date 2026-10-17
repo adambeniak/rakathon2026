@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'vitest-axe'
 import { adaptHandover } from '@/features/handover/adapter'
@@ -64,14 +64,6 @@ describe('route smoke + axe', () => {
     const section = screen.getByRole('region', { name: /Alergie/ })
     await waitFor(() => expect(within(section).getByText('Potvrzeno lékařem')).toBeInTheDocument())
     expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('mdt: gate blocks until sections are confirmed, then generating works', async () => {
-    renderRoute(`${ALENA}/mdt`, { today: '2026-10-21' })
-    const generate = await screen.findByRole('button', { name: 'Vygenerovat MDT zápis' })
-    await waitFor(() => expect(generate).toBeDisabled())
-    expect(await screen.findByText(/Nepotvrzeno lékařem/)).toBeInTheDocument()
-    expect(screen.getAllByText('Po MDT').length).toBeGreaterThan(0)
   })
 
   it('referral: Odeslat stays disabled until file, KOC and consent are set', async () => {
@@ -156,28 +148,6 @@ describe('review fixes', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Marie Králová' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: /Převzít případ/ })).toBeNull())
     expect(screen.getAllByText('V triage').length).toBeGreaterThan(0)
-  })
-
-  it('mdt preview shows evidence chips and drops results beyond the cutoff', async () => {
-    renderRoute(`${ALENA}/mdt`, { role: 'physician', today: '2026-10-21' })
-    expect((await screen.findAllByRole('button', { name: /^Zdroj:/ })).length).toBeGreaterThan(5)
-    const input = screen.getByLabelText(/Stav k termínu/)
-    fireEvent.change(input, { target: { value: '2026-10-16T08:00' } })
-    await screen.findByText(/K termínu as-of chybí histologie/)
-    expect(screen.queryByText(/histologie vydána 19\. 10\. 2026/)).toBeNull()
-    expect(screen.queryByText(/Duktální adenokarcinom/)).toBeNull()
-    expect(screen.getByRole('button', { name: 'Vygenerovat MDT zápis' })).toBeDisabled()
-  })
-
-  it('generated state is tied to the selected cutoff', async () => {
-    renderRoute(`${ALENA}/mdt`, { role: 'physician', today: '2026-10-21' })
-    await confirmEverySection()
-    await api.post(`/api/cases/${ALENA_ID}/mdt/generate?as_of=${encodeURIComponent('2026-10-21T08:00:00+02:00')}`)
-    cleanup()
-    renderRoute(`${ALENA}/mdt`, { role: 'physician', today: '2026-10-21', keepStore: true })
-    expect(await screen.findByRole('button', { name: 'Odeslat závěr praktickému lékaři' })).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText(/Stav k termínu/), { target: { value: '2026-10-16T08:00' } })
-    expect(await screen.findByRole('button', { name: 'Vygenerovat MDT zápis' })).toBeInTheDocument()
   })
 
   it('referral prefill carries field-specific evidence', async () => {

@@ -2409,6 +2409,22 @@ export interface components {
          * @enum {string}
          */
         QueueBucket: "novy" | "aktivni" | "odlozeny" | "archiv";
+        /**
+         * ReadinessWaiver
+         * @description A KOC physician's waiver of one blocking readiness item. The signer is always the acting physician.
+         */
+        ReadinessWaiver: {
+            /**
+             * Item
+             * @description Readiness item from the pathway, e.g. 'performance_status'.
+             */
+            item: string;
+            /**
+             * Reason
+             * @description Why the MDT may go ahead without it.
+             */
+            reason: string;
+        };
         /** ReferralCreated */
         ReferralCreated: {
             /** @description The new case: state `odeslano`, baton at the KOC coordinator. */
@@ -2954,6 +2970,15 @@ export interface components {
          *       "reason": "chybí CT"
          *     }
          * @example {
+         *       "event": "mark_ready_mdt",
+         *       "waivers": [
+         *         {
+         *           "item": "performance_status",
+         *           "reason": "PS doplní lékař na MDT."
+         *         }
+         *       ]
+         *     }
+         * @example {
          *       "conclusion": "Závěr MDT dle zápisu.",
          *       "event": "record_mdt_conclusion"
          *     }
@@ -2966,7 +2991,7 @@ export interface components {
             conclusion?: string | null;
             /**
              * Event
-             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator). Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.
+             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator) | mark_ready_mdt (koc_physician; readiness is computed on the server from the pathway's required items and the persisted handover, never taken from the client) | reopen (koc_physician; reason required).
              */
             event: string;
             /**
@@ -2984,6 +3009,11 @@ export interface components {
              * @description Required by postpone: date or external step.
              */
             resume_on?: string | null;
+            /**
+             * Waivers
+             * @description Only for mark_ready_mdt, only from a koc_physician: items still blocking after the server's own check that the physician waives with a reason. Each one is recorded as Provenance and in the AuditEvent.
+             */
+            waivers?: components["schemas"]["ReadinessWaiver"][];
         };
         /** ContactPerson */
         app__domain__handover__ContactPerson: {

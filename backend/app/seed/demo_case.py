@@ -149,9 +149,12 @@ PEOPLE: Final = (
         prefix=("Ing.",),
     ),
     _person("vesela-katerina", "Kateřina", "Veselá", KOC2, Role.KOC_STAFF, "klinický psycholog", prefix=("Mgr.",)),
+    # Fictitious; not named in the source documents. Informed of the closed loop in demo step 6 (no case access).
+    _person("benesova-jitka", "Jitka", "Benešová", INSURER, Role.REVIEWER, "revizní lékař"),
 )
 
 GP_ROLE: Final = "reznicek-tomas@" + GP_PRACTICE
+REVIEWER_ROLE: Final = "benesova-jitka@" + INSURER
 COORDINATOR_ROLE: Final = "dvorakova-lucie@" + KOC2
 MDT_CHAIR_ROLE: Final = "hruby-pavel@" + KOC2
 MDT_BATON_DISPLAY: Final = "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D."

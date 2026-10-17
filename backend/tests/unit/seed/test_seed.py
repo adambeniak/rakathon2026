@@ -78,7 +78,8 @@ def test_people_reference_known_organizations() -> None:
     role_ids = {p.role.id for p in demo_case.PEOPLE}
     assert {p.role.organization_id for p in demo_case.PEOPLE} <= org_ids
     assert {d.author_role for d in demo_case.DOCUMENTS} <= role_ids
-    assert {demo_case.GP_ROLE, demo_case.COORDINATOR_ROLE, demo_case.MDT_CHAIR_ROLE} <= role_ids
+    named = {demo_case.GP_ROLE, demo_case.COORDINATOR_ROLE, demo_case.MDT_CHAIR_ROLE, demo_case.REVIEWER_ROLE}
+    assert named <= role_ids
 
 
 async def test_story_scenario_is_idempotent() -> None:
@@ -90,8 +91,8 @@ async def test_story_scenario_is_idempotent() -> None:
     assert first.created == Counter(
         {
             "Organization": 8,
-            "Practitioner": 17,
-            "PractitionerRole": 17,
+            "Practitioner": 18,
+            "PractitionerRole": 18,
             "Patient": 1,
             "RelatedPerson": 1,
             "Coverage": 1,
@@ -154,3 +155,15 @@ async def test_seed_does_not_invent_values_the_documents_lack(missing: str) -> N
     [patient] = repo.of_type("Patient")
     telecom: list[dict[str, Any]] = patient["telecom"]
     assert all(t["system"] != missing for t in telecom)
+
+
+@pytest.mark.parametrize("scenario", [Scenario.STORY, Scenario.DEMO_START])
+async def test_both_scenarios_seed_a_reviewer_of_the_insurer(scenario: Scenario) -> None:
+    repo = InMemoryRepository()
+    await seed(repo, scenario)
+
+    reviewers = [r for r in repo.of_type("PractitionerRole") if r["identifier"][0]["value"] == demo_case.REVIEWER_ROLE]
+    [reviewer] = reviewers
+    assert reviewer["code"][0]["coding"][0]["code"] == "reviewer"
+    insurer = next(o for o in repo.of_type("Organization") if o["name"].startswith("Zdravotní pojišťovna"))
+    assert reviewer["organization"]["reference"] == f"Organization/{insurer['id']}"

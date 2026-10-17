@@ -3,7 +3,8 @@ import { CaseStateBadge } from '@/components/CaseStateBadge'
 import { StatusPill } from '@/components/StatusPill'
 import { cases as t } from '@/i18n/cs/cases'
 import { formatDate } from '@/lib/date'
-import type { CaseDetail } from '@/lib/domain'
+import type { CaseDetail, TreatmentInterval } from '@/lib/domain'
+import { intervalText } from '../intervals'
 import { CaseAction } from './CaseAction'
 
 const dash = '—'
@@ -22,12 +23,10 @@ function Counter({ kind, n }: { kind: 'missing' | 'conflict' | 'stale'; n: numbe
   )
 }
 
-function Clock({ label, value }: { label: string; value: number | null }) {
+function Clock({ label, value }: { label: string; value: TreatmentInterval | undefined }) {
   return (
     <div className="rounded border border-hairline px-3 py-1.5">
-      <p className="font-mono text-sm font-semibold">
-        {value === null ? t.header.pending : t.header.days(value)}
-      </p>
+      <p className="font-mono text-sm font-semibold">{intervalText(value)}</p>
       <p className="text-xs text-muted">{label}</p>
     </div>
   )
@@ -70,10 +69,13 @@ export function CaseHeader({ c }: { c: CaseDetail }) {
       </div>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-hairline pt-3">
         {parties && <p className="text-xs text-muted">{parties}</p>}
-        <div role="group" aria-label={t.header.clocks} className="ml-auto flex flex-wrap gap-2">
-          <Clock label={t.header.t1} value={c.t?.t1 ?? null} />
-          <Clock label={t.header.t2} value={c.t?.t2 ?? null} />
-          <Clock label={t.header.t3} value={c.t?.t3 ?? null} />
+        <div className="ml-auto space-y-1">
+          <div role="group" aria-label={t.header.clocks} className="flex flex-wrap gap-2">
+            <Clock label={t.header.t1} value={c.intervals?.t1} />
+            <Clock label={t.header.t2} value={c.intervals?.t2} />
+            <Clock label={t.header.t3} value={c.intervals?.t3} />
+          </div>
+          <p className="text-right text-xs text-muted">{t.header.clocksHint}</p>
         </div>
       </div>
     </section>

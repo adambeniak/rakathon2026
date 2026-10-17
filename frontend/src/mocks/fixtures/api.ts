@@ -9,6 +9,7 @@ type ApiCase = components['schemas']['CaseSummary']
 type ApiDetail = components['schemas']['CaseDetail']
 type Role = components['schemas']['Role']
 type ApiIntervals = components['schemas']['TimeToTreatmentIntervals']
+type ApiReviewerCase = components['schemas']['ReviewerCase']
 
 // Like backend/app/timeline/intervals.py: the MDT counts once it was held; the first GP visit and the oncology consult
 // are not recorded (#188, #189), so T1 is `not_recorded` and T3 `running` after the MDT. No golden values here.
@@ -120,5 +121,34 @@ export function toApiDetail(c: MockCase, today: string): ApiDetail {
         : [],
     readiness_waivers: c.readinessWaivers ?? [],
     intervals: toApiIntervals(c),
+  }
+}
+
+// A stable mock pseudonym (the backend uses a keyed HMAC of the case id; the case id itself carries the surname).
+function mockRef(id: string): string {
+  let a = 0x811c9dc5
+  let b = 0x01000193
+  for (const ch of id) {
+    a = Math.imul(a ^ ch.charCodeAt(0), 0x01000193) >>> 0
+    b = Math.imul(b ^ ch.charCodeAt(0), 0x85ebca6b) >>> 0
+  }
+  return `RV-${(a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0')).slice(0, 12).toUpperCase()}`
+}
+
+const FEEDBACK_SENT: ReadonlySet<CaseState> = new Set(['zpetna_vazba_odeslana', 'uzavreno'])
+
+/** The insurer reviewer's minimal view (backend/app/api/services/reviewer.py): no name, birth date or clinical text. */
+export function toReviewerCase(c: MockCase): ApiReviewerCase {
+  const [given = '', family = ''] = c.patientName.split(' ')
+  return {
+    ref: mockRef(c.id),
+    initials: [given, family].filter(Boolean).map((p) => `${p[0]}.`).join(' '),
+    birth_year: Number(c.birthDate.slice(0, 4)),
+    insurer_code: c.insurer.slice(0, 3),
+    diagnosis_group: /^[A-Z]\d{2}/.exec(c.diagnosis)?.[0] ?? null,
+    state: c.state,
+    referred_on: c.referredAt,
+    intervals: toApiIntervals(c),
+    delivery: { status: FEEDBACK_SENT.has(c.state) ? 'handed_over' : 'not_sent', gp_opened_at: null },
   }
 }

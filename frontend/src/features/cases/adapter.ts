@@ -48,6 +48,8 @@ export function adaptDocument(d: ApiDocument): DocumentInfo {
   }
 }
 
+const adaptInterval = (i: ApiDetail['intervals']['t1']) => ({ days: i.days ?? null, status: i.status })
+
 export const adaptDetail = (c: ApiDetail): CaseDetail & { documents: DocumentInfo[] } => ({
   ...adaptCase(c),
   documents: c.documents.map(adaptDocument),
@@ -57,4 +59,5 @@ export const adaptDetail = (c: ApiDetail): CaseDetail & { documents: DocumentInf
     by: w.waived_by ?? null,
     at: w.waived_at,
   })),
+  intervals: { t1: adaptInterval(c.intervals.t1), t2: adaptInterval(c.intervals.t2), t3: adaptInterval(c.intervals.t3) },
 })

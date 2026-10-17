@@ -94,7 +94,8 @@ export function useBoard(caseId: string) {
 export interface TaskSummary {
   id: string
   title: string
-  owner: string
+  /** Named owner; null = nobody named yet (the UI says "nepřiřazeno"). */
+  owner: string | null
   due: string
   state: 'open' | 'done' | 'overdue'
 }
@@ -112,7 +113,7 @@ export function useTasks(caseId: string) {
                 {
                   id: x.id,
                   title: x.title,
-                  owner: x.owner?.display ?? '—',
+                  owner: x.owner?.display ?? null,
                   due: x.due,
                   state: x.status === 'completed' ? ('done' as const) : x.overdue ? ('overdue' as const) : ('open' as const),
                 },

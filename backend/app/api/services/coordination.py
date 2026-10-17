@@ -161,6 +161,24 @@ def transition_steps(event: str, task: Task) -> list[str]:
     return [event]  # fail | cancel
 
 
+OWNER_EVENTS = frozenset({"confirm", "perform", "deliver_result"})
+
+
+def with_indicating_owner(tasks: Sequence[Task], physician: PractitionerRoleRef) -> list[Task]:
+    """Steps of KOC physicians start with the indicating physician as their named owner (#137); a physician who later
+    acts on the step takes it over. Steps of other roles (external workplace, coordinator) stay without a named owner
+    (the UI says "nepřiřazeno"): the coordinator records them on behalf and is not their owner."""
+    owner = PartyRef(id=physician.business_id, display=physician.display, role=Role.KOC_PHYSICIAN)
+    return [t.model_copy(update={"owner": owner}) if t.owner_role is Role.KOC_PHYSICIAN else t for t in tasks]
+
+
+def claims_ownership(task: Task, event: str, actor: PartyRef, on_behalf: bool) -> bool:
+    """Whether `actor` becomes the named owner: they moved the step forward in the step's own role (not on behalf, so
+    the owner role and the board lane never change)."""
+    role = task.owner.role if task.owner else task.owner_role
+    return event in OWNER_EVENTS and not on_behalf and actor.role is role and task.owner != actor
+
+
 class CoordinationService:
     def __init__(
         self, reader: CaseReader, store: TaskStore, now: Callable[[], datetime], directory: DirectoryProvider
@@ -217,6 +235,7 @@ class CoordinationService:
         except ValueError as exc:
             log.warning("pathway_template_unusable", reason=str(exc))  # the technical reason stays in the log
             raise InvalidInputError("Šablonu sady vyšetření nelze použít") from exc
+        tasks = with_indicating_owner(tasks, physician)
         await self._store.launch_pathway(
             header,
             plan,
@@ -411,6 +430,8 @@ class CoordinationService:
         if on_behalf and "performed" in steps and not (request.note and request.note.strip()):
             raise InvalidInputError("Při zápisu za pracoviště je nutná poznámka se zdrojem informace")
         updates: dict[str, object] = {}
+        if claims_ownership(stored.task, request.event, actor, on_behalf):
+            updates["owner"] = actor  # who acted on their own step holds it from now on (#137)
         if request.note and request.note.strip():
             updates["note"] = request.note.strip()  # the reason / source stays on the task, not in the audit text
         if on_behalf:

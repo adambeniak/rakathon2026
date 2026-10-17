@@ -30,6 +30,9 @@ export const coordination = {
     error: 'Sadu se nepodařilo spustit.',
   },
   task: {
+    owner: 'Vlastník',
+    /** A step without a named person (external workplaces; KOC steps before anyone took them). */
+    ownerUnassigned: 'nepřiřazeno',
     place: 'Místo',
     due: 'Termín',
     scheduled: 'Potvrzený termín',

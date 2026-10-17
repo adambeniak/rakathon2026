@@ -683,3 +683,73 @@ async def test_only_participants_of_the_case_read_or_move_it(harness: Harness) -
     with pytest.raises(ForbiddenError):
         await service.transition("c1.ct", TransitionRequest(event="confirm", date=date(2026, 10, 8)), OUTSIDER)
     assert harness.store.saves == []
+
+
+# --- named owners (#137) ---
+
+SVOBODA = PartyRef(id="svoboda-martin@koc2-nemocnice-lipova", display="MUDr. Martin Svoboda", role=Role.KOC_PHYSICIAN)
+
+
+def _tasks(board: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {t["id"].split(".")[1]: t for lane in board["lanes"] for t in lane["tasks"]}
+
+
+def test_physician_steps_start_with_the_indicating_physician_as_owner(harness: Harness) -> None:
+    launched = {t["id"].split(".")[1]: t for t in harness.launch().json()["tasks"]}
+    tasks = _tasks(harness.board())
+
+    for step in ("eus-fnb", "mdt", "algesiology", "psychooncology"):
+        assert (
+            launched[step]["owner"]
+            == tasks[step]["owner"]
+            == {
+                "id": PHYSICIAN_ID,
+                "display": "doc. MUDr. Pavel Hrubý, Ph.D.",
+                "role": "koc_physician",
+            }
+        )
+        assert tasks[step]["lane"] == "koc_physician"
+    for step in ("ct", "labs", "histology"):  # external workplaces: no named person, the UI says "nepřiřazeno"
+        assert (tasks[step]["owner"], tasks[step]["lane"]) == (None, "external_workplace")
+
+
+def test_recording_on_behalf_never_makes_the_coordinator_the_owner(harness: Harness) -> None:
+    harness.launch()
+    confirm_ct(harness)
+    harness.move("ct", "perform", note=SOURCE_NOTE)
+
+    ct = harness.move("ct", "deliver_result", document_id=RESULT_DOC).json()
+
+    assert (ct["owner"], ct["owner_role"], ct["lane"]) == (None, "external_workplace", "external_workplace")
+    assert ct["recorded_on_behalf_by"]["role"] == "coordinator"
+
+
+async def test_a_physician_who_moves_the_step_takes_it_over(harness: Harness) -> None:
+    harness.launch()
+    confirm_ct(harness)
+    harness.move("ct", "perform", note=SOURCE_NOTE)
+    harness.move("ct", "deliver_result", document_id=RESULT_DOC)
+    harness.move("eus-fnb", "confirm", date="2026-10-12", place="KOC 2")
+    assert (
+        harness.store.resources["c1.eus-fnb"]["owner"]["display"] == "doc. MUDr. Pavel Hrubý, Ph.D."
+    )  # confirmed by the coordinator: unchanged
+
+    task = await _service(harness).transition("c1.eus-fnb", TransitionRequest(event="perform"), SVOBODA)
+
+    assert task.owner is not None
+    assert (task.owner.id, task.owner.display, task.lane) == (SVOBODA.id, SVOBODA.display, Role.KOC_PHYSICIAN)
+    assert harness.store.resources["c1.eus-fnb"]["owner"]["identifier"]["value"] == SVOBODA.id
+
+
+def test_the_coordinator_owns_a_coordinator_task_once_she_confirms_it(harness: Harness) -> None:
+    created = harness.client.post(
+        f"/api/cases/{CASE_ID}/tasks",
+        json={"title": "Domluvit dopravu", "owner_role": "coordinator", "place": "KOC 2"},
+        headers=COORDINATOR,
+    ).json()
+    assert created["owner"] is None
+
+    confirmed = harness.move(created["id"].split(".", 1)[1], "confirm", date="2026-10-05").json()
+
+    assert (confirmed["owner"]["role"], confirmed["lane"]) == ("coordinator", "coordinator")
+    assert confirmed["owner"]["display"]

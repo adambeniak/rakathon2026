@@ -110,6 +110,15 @@ describe('board', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
+  it('names the owner of a step, or says it is not assigned (#137)', async () => {
+    renderRoute(TASKS, { today: '2026-10-16' })
+    const hist = (await screen.findByText('Histologie')).closest('li')
+    const eus = screen.getByText('EUS-FNB').closest('li')
+    if (!hist || !eus) throw new Error('task cards not found')
+    expect(within(hist).getByText('Vlastník: nepřiřazeno')).toBeInTheDocument()
+    expect(within(eus).getByText('Vlastník: KOC 2 – endoskopie')).toBeInTheDocument()
+  })
+
   it('shows no flags before the deadline (15. 10.)', async () => {
     renderRoute(TASKS, { today: '2026-10-15' })
     const hist = (await screen.findByText('Histologie')).closest('li')

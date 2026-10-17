@@ -101,7 +101,8 @@ export function boardAt(
     const isDone = it.state === 'done'
     const overdueWorkdays = !isDone && effective < today ? workdaysBetween(effective, today) : 0
     const confirmed = details[it.id]
-    const owner = { id: it.id, display: it.owner, role: LANE_ROLE[it.lane] }
+    // Like the API (#137): steps of external workplaces have no named owner (the UI says "nepřiřazeno").
+    const owner = it.lane === 'external' ? null : { id: it.id, display: it.owner, role: LANE_ROLE[it.lane] }
     return {
       effective,
       task: {

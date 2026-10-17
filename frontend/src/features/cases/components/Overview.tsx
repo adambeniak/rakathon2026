@@ -2,6 +2,7 @@ import { Link, useParams } from 'react-router-dom'
 import { LoadingBlock } from '@/components/Skeleton'
 import { Button } from '@/components/ui/button'
 import { cases as t } from '@/i18n/cs/cases'
+import { coordination as tc } from '@/i18n/cs/coordination'
 import { formatDate } from '@/lib/date'
 import { useDemo } from '@/app/DemoContext'
 import { useTasks } from '@/features/coordination/api'
@@ -46,7 +47,7 @@ export function Overview() {
               <li key={x.id} className="rounded border border-hairline bg-card p-3 text-sm">
                 <p className="font-medium">{x.title}</p>
                 <p className="text-muted">
-                  {x.owner} · {formatDate(x.due)}
+                  {x.owner ?? tc.task.ownerUnassigned} · {formatDate(x.due)}
                   {x.state === 'overdue' && <span className="ml-1 font-semibold text-missing">({t.tasks.state.overdue})</span>}
                 </p>
               </li>

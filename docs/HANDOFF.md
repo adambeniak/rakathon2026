@@ -132,3 +132,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #154 frontend reads `blocking_items` in `features/mdt/api.ts` and drops the regex (after #122 lands); merge captain assigns the ADR number
   Risks: unknown Pydantic types keep English msg (some quote input, e.g. uuid_parsing — none used today); MSW guard_failed now has the Czech title like the backend, so mock mode shows the API title instead of `mdt.refused`
   Issues: #154 (new), closes #115 #116 #117, refs #140
+- 2026-10-17 · claude (P4) · fix/transition-role-403 (stacked on fix/problem-json-blocking-items, #158) · #136: `TransitionError(forbidden_role)` → 403 `forbidden` ("Přístup byl odepřen", `code` kept) in `_domain_status`, so case transitions, task transitions and document requests all answer 403 for a role denial; 409 only for invalid_transition / guard_failed / case_postponed; contract + `contracts/case-states.md` + ADR transition-role-denial-403; MSW case-transition role checks now 403
+  Next: merge #158 first, then retarget this PR to main; #154 (frontend: `blocking_items`, and the stale 409 role-denial fixture in `mdt/Loop.test.tsx`); #84 audit of denials can key on 403
+  Risks: no audit of denials exists yet (#84), so nothing there to keep; any external client that expected 409 for forbidden_role now gets 403; vitest timeouts under machine load (load avg ~40) — targeted runs pass
+  Issues: closes #136; #154 (comment added), #84

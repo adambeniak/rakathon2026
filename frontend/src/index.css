@@ -2,50 +2,89 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Štafeta design tokens. Each colour is stored twice:
+ *  --rgb-<name>  RGB channels, consumed by tailwind as `rgb(var(--rgb-x) / <alpha-value>)` so opacity modifiers
+ *                (`bg-card/95`, `border-missing/40`) keep working;
+ *  --<name>      the full colour, for plain CSS and arbitrary values such as `accent-[var(--accent)]`.
+ * Contrast (WCAG, text on its own background): ink/surface 14.9, muted/surface 7.0, accent/accent-soft 6.8,
+ * missing 5.8, conflict 6.0, stale 5.0, ai 6.5, verified 5.0, white on accent 8.0.
+ */
 :root {
-  --surface: #faf8f4;
-  --card: #ffffff;
-  --ink: #16232b;
-  --muted: #5b6b73;
-  --hairline: #e3ded5;
-  --accent: #0f5c63;
-  --accent-hover: #0a4a50;
-  --accent-soft: #e4f0f0;
-  --missing: #b42318;
-  --missing-bg: #fdecea;
-  --conflict: #b54708;
-  --conflict-bg: #fef3e2;
-  --stale: #5b6b73;
-  --stale-bg: #eef0f1;
-  --verified: #067647;
-  --verified-bg: #e6f4ec;
-  --ai: #5b3fc4;
-  --ai-bg: #efebfb;
+  --rgb-surface: 246 246 243; /* #f6f6f3 */
+  --rgb-card: 255 255 255; /* #ffffff */
+  --rgb-sunken: 236 235 230; /* #ecebe6 */
+  --rgb-ink: 26 35 32; /* #1a2320 */
+  --rgb-muted: 76 86 82; /* #4c5652 */
+  --rgb-hairline: 225 224 218; /* #e1e0da */
+  --rgb-line-strong: 133 126 114; /* #857e72 */
+  --rgb-accent: 12 90 86; /* #0c5a56 */
+  --rgb-accent-hover: 8 68 63; /* #08443f */
+  --rgb-accent-soft: 224 239 236; /* #e0efec */
+  --rgb-on-accent: 255 255 255;
+  --rgb-missing: 176 38 27; /* #b0261b */
+  --rgb-missing-bg: 252 235 232; /* #fcebe8 */
+  --rgb-conflict: 127 82 0; /* #7f5200 */
+  --rgb-conflict-bg: 251 240 214; /* #fbf0d6 */
+  --rgb-stale: 93 101 99; /* #5d6563 */
+  --rgb-stale-bg: 235 234 230; /* #ebeae6 */
+  --rgb-verified: 6 118 71; /* #067647 */
+  --rgb-verified-bg: 230 244 236; /* #e6f4ec */
+  --rgb-ai: 78 71 163; /* #4e47a3 */
+  --rgb-ai-bg: 236 235 248; /* #ecebf8 */
+
+  --surface: rgb(var(--rgb-surface));
+  --card: rgb(var(--rgb-card));
+  --sunken: rgb(var(--rgb-sunken));
+  --ink: rgb(var(--rgb-ink));
+  --muted: rgb(var(--rgb-muted));
+  --hairline: rgb(var(--rgb-hairline));
+  --line-strong: rgb(var(--rgb-line-strong));
+  --accent: rgb(var(--rgb-accent));
+  --accent-hover: rgb(var(--rgb-accent-hover));
+  --accent-soft: rgb(var(--rgb-accent-soft));
+  --on-accent: rgb(var(--rgb-on-accent));
+  --missing: rgb(var(--rgb-missing));
+  --missing-bg: rgb(var(--rgb-missing-bg));
+  --conflict: rgb(var(--rgb-conflict));
+  --conflict-bg: rgb(var(--rgb-conflict-bg));
+  --stale: rgb(var(--rgb-stale));
+  --stale-bg: rgb(var(--rgb-stale-bg));
+  --verified: rgb(var(--rgb-verified));
+  --verified-bg: rgb(var(--rgb-verified-bg));
+  --ai: rgb(var(--rgb-ai));
+  --ai-bg: rgb(var(--rgb-ai-bg));
+
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --shadow-pop: 0 8px 24px rgba(27, 34, 32, 0.12);
+  color-scheme: light;
 }
 
 @layer base {
   html {
-    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-family: var(--font-sans);
     color: var(--ink);
     background: var(--surface);
-    line-height: 1.55;
+    -webkit-text-size-adjust: 100%;
   }
   body {
     background: var(--surface);
-    font-size: 14px;
+    font-size: 1.0625rem; /* 17px body; every size is rem so "A+ Větší písmo" scales the whole page */
+    line-height: 1.625rem;
     font-variant-numeric: tabular-nums;
   }
   h1,
   h2,
-  h3 {
-    font-family: 'Source Serif 4 Variable', Georgia, serif;
+  h3,
+  h4 {
+    font-family: var(--font-sans);
     font-weight: 600;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.01em;
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 6px;
   }
   @media (prefers-reduced-motion: reduce) {
     * {

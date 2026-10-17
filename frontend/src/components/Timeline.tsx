@@ -5,18 +5,18 @@ import { cn } from '@/lib/cn'
 
 export function Timeline({ events }: { events: TimelineEvent[] }) {
   return (
-    <ol className="relative ml-2 border-l border-hairline">
+    <ol className="relative ml-2 border-l-2 border-hairline">
       {events.map((e) => (
-        <li key={`${e.date}-${e.label}`} className="relative pb-5 pl-5">
+        <li key={`${e.date}-${e.label}`} className="relative pb-6 pl-6">
           <span
             aria-hidden
-            className={cn('absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full', e.excluded ? 'bg-stale' : 'bg-accent')}
+            className={cn('absolute -left-[7px] top-1 h-3 w-3 rounded-full ring-4 ring-surface', e.excluded ? 'bg-stale' : 'bg-accent')}
           />
-          <p className="font-mono text-xs text-muted">{formatDate(e.date)}</p>
-          <p className={cn('font-medium', e.excluded && 'text-muted')}>
+          <p className="text-xs text-muted">{formatDate(e.date)}</p>
+          <p className={cn('font-semibold', e.excluded && 'font-medium text-muted')}>
             {e.label} {e.excluded && <StatusPill kind="excluded" className="ml-1" />}
           </p>
-          {e.note && <p className="text-xs text-muted">{e.note}</p>}
+          {e.note && <p className="text-sm text-muted">{e.note}</p>}
         </li>
       ))}
     </ol>

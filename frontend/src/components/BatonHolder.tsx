@@ -18,8 +18,8 @@ export function BatonHolder({ baton, size = 'sm', overdue: apiOverdue, now }: Ba
   const { today } = useDemo()
   if (!baton) {
     return (
-      <p className={cn('flex items-center gap-1.5', size === 'lg' ? 'text-base' : 'text-sm')}>
-        <Hourglass aria-hidden className="h-4 w-4 shrink-0 text-accent" />
+      <p className={cn('flex items-center gap-2', size === 'lg' ? 'text-base' : 'text-sm')}>
+        <Hourglass aria-hidden className="h-5 w-5 shrink-0 text-accent" />
         <span className="text-muted">
           {common.baton.label}: {common.baton.nobody}
         </span>
@@ -30,15 +30,15 @@ export function BatonHolder({ baton, size = 'sm', overdue: apiOverdue, now }: Ba
   const overdue = apiOverdue ?? (days !== null && days < 0)
   return (
     <div className={cn(size === 'lg' ? 'text-base' : 'text-sm')}>
-      <p className="flex items-center gap-1.5">
-        <Hourglass aria-hidden className="h-4 w-4 shrink-0 text-accent" />
+      <p className="flex items-center gap-2">
+        <Hourglass aria-hidden className="h-5 w-5 shrink-0 text-accent" />
         <span>
           <span className="text-muted">{common.baton.label}: </span>
           <strong className="font-semibold">{baton.name}</strong>
         </span>
       </p>
-      <p className="ml-[22px] text-muted">{baton.action}</p>
-      <p className={cn('ml-[22px]', overdue && 'font-semibold text-missing')}>
+      <p className="ml-7 text-muted">{baton.action}</p>
+      <p className={cn('ml-7 font-medium', overdue && 'font-semibold text-missing')}>
         {baton.due ? (
           <>
             {common.baton.deadline} {formatDate(baton.due)} ({formatRemaining(days ?? 0)})

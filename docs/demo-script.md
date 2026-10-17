@@ -14,6 +14,7 @@ Presenter lines are Czech (spoken); everything else is English. All data is fict
 | --- | --- |
 | **Návrh AI – čeká na potvrzení** | every handover section until a physician acts |
 | **Potvrzeno lékařem** | section confirmed unchanged; summary line **Potvrzeno lékařem: n z 15** |
+| **Potvrzeno lékařem – závěr zapsal(a) a v systému potvrdil(a) …** | section 6 of the MDT record after the conclusion was entered (text written by the physician, not by AI; no electronic signature) |
 | **Upraveno lékařem** | section saved with the physician's own value (no source quote) |
 | **Ponecháno jako chybějící** | physician accepted a missing value as missing (button **Ponechat jako chybějící**) |
 | **Doplněno lékařem** | a missing value filled in by the physician (button **Upravit**) |
@@ -207,14 +208,18 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   4. **Označit jako připravený k MDT**. The server answers with the missing item **Stav výkonnosti (PS/ECOG)**; enter
      a reason in **Důvod prominutí: Stav výkonnosti (PS/ECOG)** and press **Prominout a označit jako připravený**. Result: **Případ je označen jako
      připravený k MDT.** and state **Připraveno k rozhodnutí/MDT**.
-  5. **Stáhnout zápis (DOCX)** (file in the MDT_zapis layout; marked as a draft while not every section is confirmed).
+  5. **Stáhnout zápis (DOCX)** or **Stáhnout zápis (PDF)** (same content; file in the MDT_zapis layout; marked as a
+     draft while not every section is confirmed, the PDF on every page). Sections 6 and 7 say **Vyplní lékař na
+     jednání MDT. Systém závěr ani doporučení nevytváří.**; section 2 says **Chybí – prezence členů MDT není v systému
+     zaznamenána.**
 - **Histology task:** report 11 is in the case since step 3, so once the clock is 21. 10. the histology step turns
   **Výsledek doručen** (no longer **Po termínu**, no alert) at the next watchdog round (≤ 1 minute after the switch,
   #132). If it must show at once: `curl -s -X POST "$BACKEND/api/demo/advance?case_id=$CASE&to=2026-10-21T09:00:00%2B02:00" -H 'X-Demo-Role: coordinator'`
   and reload.
 - **Must be visible:** reports 12 and 13 only under **Po MDT – nezahrnuto** and as **Po MDT** in tab **Dokumenty**; the
   two date conflicts still listed; the waiver asks for a reason (recorded as who, when, why); the DOCX downloads under
-  `MDT_zapis_<case id>_2026-10-21_NAVRH.docx` (the app names the file; `_NAVRH` drops once every section is confirmed).
+  `MDT_zapis_<case id>_2026-10-21_NAVRH.docx` (the PDF as `….pdf`; the app names the file; `_NAVRH` drops once every
+  section is confirmed).
 - **Say:** „K MDT použijeme jen to, co bylo známo k 21. 10. v 8:00. Zprávy 12 a 13 vznikly později, proto jsou označeny
   Po MDT a nejsou v podkladu. Server hlídá připravenost: stav výkonnosti v dokumentaci chybí. Lékař může položku pro
   připravenost k MDT prominout s odůvodněním; údaj zůstává v podkladu jako chybějící a zaznamená se kdo, kdy a proč.
@@ -232,6 +237,12 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   1. Role **Lékař KOC 2** → case → **Připravit MDT** → **Závěr MDT**: paste the text from the fictitious
      `data/raw/MDT_zaver.docx` into **Text závěru MDT** → **Zapsat závěr MDT**. The signed block shows
      **Podepsaný závěr MDT**, **Podepsal(a) <name> · <time>**; state **Závěr KOC/MDT**, baton Koordinátor.
+     Paste from the heading **ZÁVĚR MDT** to the end (not the header with the patient's basic data). Optional: on the
+     same page **Stáhnout zápis (PDF)**. Section 6 now holds the text as written under **Potvrzeno lékařem – závěr
+     zapsal(a) a v systému potvrdil(a) <name>, 21. 10. 2026 <time>** and the note **… Nejde o elektronický podpis.**;
+     a birth number, if the pasted text contains one, shows as **[RČ vynecháno]**; section 7 points to section 6;
+     sections 1–5 are still the basis as of 08:00 (reports 12 and 13 still **po MDT**). Section 2 still says the
+     attendance is not recorded.
   2. Role **Koordinátorka KOC 2** → case → link **Odeslat závěr** → button **Odeslat závěr PL**. Shows **Závěr je předán k
      doručení praktickému lékaři.** and state **Zpětná vazba odeslána**.
   3. Mailpit (http://localhost:8025): message **Štafeta: zpětná vazba z MDT je k dispozici**. The mail has no clinical
@@ -250,7 +261,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   praktickému lékaři se předá k doručení e-mail bez klinického textu (v ukázce Mailpit). Otevření závěru se zapíše do auditní stopy. Případ je uzavřen. Intervaly T1, T2, T3 jsou zástupné hodnoty.“
 - **Do not claim:** that the e-mail was *read* (the screen says „předáno k doručení“, the relay accepted it); that the
   insurer's reviewer is informed automatically (#74) or sees a scoped summary (#104, #105); that the app knows whether
-  the GP opened the conclusion on the coordinator screen (#113).
+  the GP opened the conclusion on the coordinator screen (#113); that the record lists the MDT members or a separate
+  recommendation, or that the system wrote any part of sections 6–7 (it prints only what the physician signed).
 - **Fallback:** a screenshot of the Mailpit message; if the send answers 503 (**E-mail se teď nepodařilo odeslat…**),
   the state did not change, so press **Odeslat závěr PL** again.
 

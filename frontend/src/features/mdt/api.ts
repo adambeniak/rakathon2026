@@ -22,13 +22,25 @@ export function useMdtHandover(id: string) {
   return useQuery({
     queryKey: ['case', id, 'handover', today, 'mdt'],
     queryFn: async () =>
-      adaptHandover(unwrap(await client.POST('/api/cases/{case_id}/handover', { params: { path: { case_id: id } } }))),
+      adaptHandover(
+        unwrap(
+          await client.POST('/api/cases/{case_id}/handover', { params: { path: { case_id: id } } }),
+        ),
+      ),
   })
 }
 
+/** File formats of `GET …/mdt-record` (same content; the PDF embeds its fonts). */
+export type MdtRecordFormat = 'docx' | 'pdf'
+
 /** Our file name for the downloaded record; `NAVRH` while a section is unconfirmed, like the API's own name. */
-export function mdtRecordFileName(caseId: string, asOf: string, draft: boolean): string {
-  return `MDT_zapis_${caseId}_${asOf.slice(0, 10)}${draft ? '_NAVRH' : ''}.docx`
+export function mdtRecordFileName(
+  caseId: string,
+  asOf: string,
+  draft: boolean,
+  format: MdtRecordFormat = 'docx',
+): string {
+  return `MDT_zapis_${caseId}_${asOf.slice(0, 10)}${draft ? '_NAVRH' : ''}.${format}`
 }
 
 /** Hands the blob to the browser under `fileName` (the API's Content-Disposition name is not used). */
@@ -43,13 +55,16 @@ export function saveBlob(blob: Blob, fileName: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-/** `GET /api/cases/{id}/mdt-record?format=docx`, saved via blob. Failures surface as `ApiProblem`. */
+/**
+ * `GET /api/cases/{id}/mdt-record?format=docx|pdf`, saved via blob. Failures surface as `ApiProblem`. Once a physician
+ * has signed the MDT conclusion the server prints it in section 6; the screen sends nothing about it.
+ */
 export function useDownloadMdtRecord(caseId: string) {
-  return useMutation<void, ApiProblem, { fileName: string }>({
-    mutationFn: async ({ fileName }) => {
+  return useMutation<void, ApiProblem, { fileName: string; format: MdtRecordFormat }>({
+    mutationFn: async ({ fileName, format }) => {
       const blob = unwrap(
         await client.GET('/api/cases/{case_id}/mdt-record', {
-          params: { path: { case_id: caseId }, query: { format: 'docx' } },
+          params: { path: { case_id: caseId }, query: { format } },
           parseAs: 'blob',
         }),
       )
@@ -66,7 +81,11 @@ export function useConclusion(caseId: string, enabled: boolean) {
     enabled,
     fetch: async () => {
       try {
-        return unwrap(await client.GET('/api/cases/{case_id}/mdt-conclusion', { params: { path: { case_id: caseId } } }))
+        return unwrap(
+          await client.GET('/api/cases/{case_id}/mdt-conclusion', {
+            params: { path: { case_id: caseId } },
+          }),
+        )
       } catch (error) {
         if (error instanceof ApiProblem && error.status === 404) return null
         throw error
@@ -93,9 +112,13 @@ export interface Waiver {
  * form, and readiness itself is never sent: the server computes it from the persisted handover.
  */
 export function loopBody(v: LoopEvent) {
-  if (v.event === 'record_mdt_conclusion') return { event: v.event, conclusion: v.conclusion.trim() }
+  if (v.event === 'record_mdt_conclusion')
+    return { event: v.event, conclusion: v.conclusion.trim() }
   if (v.event === 'mark_ready_mdt' && v.waivers?.length)
-    return { event: v.event, waivers: v.waivers.map((w) => ({ item: w.item, reason: w.reason.trim() })) }
+    return {
+      event: v.event,
+      waivers: v.waivers.map((w) => ({ item: w.item, reason: w.reason.trim() })),
+    }
   return { event: v.event }
 }
 
@@ -113,7 +136,12 @@ export function useLoopEvent(caseId: string) {
   return useApiMutation({
     schema: caseSummary,
     mutate: async (v: LoopEvent) =>
-      unwrap(await client.POST('/api/cases/{case_id}/transitions', { params: { path: { case_id: caseId } }, body: loopBody(v) })),
+      unwrap(
+        await client.POST('/api/cases/{case_id}/transitions', {
+          params: { path: { case_id: caseId } },
+          body: loopBody(v),
+        }),
+      ),
   })
 }
 

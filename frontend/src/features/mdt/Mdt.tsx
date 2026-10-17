@@ -11,24 +11,51 @@ import { mdt as t } from '@/i18n/cs/mdt'
 import { ApiProblem } from '@/lib/api/problem'
 import { formatDate, formatDateTime } from '@/lib/date'
 import type { DocumentInfo, Role } from '@/lib/domain'
-import { mdtRecordFileName, problemTitle, useDownloadMdtRecord, useMdtHandover } from './api'
+import {
+  type MdtRecordFormat,
+  mdtRecordFileName,
+  problemTitle,
+  useDownloadMdtRecord,
+  useMdtHandover,
+} from './api'
 import { ConclusionPanel } from './ConclusionPanel'
 import { LoopActions } from './LoopActions'
 import { MarkReady } from './MarkReady'
 import { Waivers } from './Waivers'
+
+/** The record downloads: the same content from the server as DOCX (to edit) or PDF (to print or forward). */
+const RECORD_FORMATS = [
+  { format: 'docx', label: t.download, variant: 'primary' },
+  { format: 'pdf', label: t.downloadPdf, variant: 'secondary' },
+] as const satisfies readonly {
+  format: MdtRecordFormat
+  label: string
+  variant: 'primary' | 'secondary'
+}[]
 
 type CountKey = keyof typeof t.summaryCounts
 const COUNT_KEYS = Object.keys(t.summaryCounts) as CountKey[]
 
 /** Status counts straight from the API's section statuses; the UI decides nothing about readiness. */
 function summarize(sections: SectionView[]) {
-  const counts = COUNT_KEYS.map((key) => ({ key, n: sections.filter((s) => s.status === key).length })).filter((c) => c.n > 0)
+  const counts = COUNT_KEYS.map((key) => ({
+    key,
+    n: sections.filter((s) => s.status === key).length,
+  })).filter((c) => c.n > 0)
   return { confirmed: sections.filter((s) => s.confirmed).length, counts }
 }
 
 /** Findings of all sections, each once, with the sections that cite it. */
 function collectFindings(sections: SectionView[]) {
-  const byId = new Map<string, { id: string; message: string; evidence: SectionView['findings'][number]['evidence']; sections: string[] }>()
+  const byId = new Map<
+    string,
+    {
+      id: string
+      message: string
+      evidence: SectionView['findings'][number]['evidence']
+      sections: string[]
+    }
+  >()
   for (const s of sections)
     for (const f of s.findings) {
       const known = byId.get(f.id)
@@ -41,7 +68,10 @@ function collectFindings(sections: SectionView[]) {
 function Summary({ sections }: { sections: SectionView[] }) {
   const { confirmed, counts } = summarize(sections)
   return (
-    <section aria-labelledby="sum-h" className="space-y-2 rounded-lg border border-hairline bg-card p-4">
+    <section
+      aria-labelledby="sum-h"
+      className="space-y-2 rounded-lg border border-hairline bg-card p-4"
+    >
       <h3 id="sum-h" className="text-xl">
         {t.summaryTitle}
       </h3>
@@ -60,10 +90,19 @@ function Summary({ sections }: { sections: SectionView[] }) {
   )
 }
 
-function Findings({ sections, docs }: { sections: SectionView[]; docs: Map<string, DocumentInfo> }) {
+function Findings({
+  sections,
+  docs,
+}: {
+  sections: SectionView[]
+  docs: Map<string, DocumentInfo>
+}) {
   const findings = collectFindings(sections)
   return (
-    <section aria-labelledby="find-h" className="space-y-2 rounded-lg border border-hairline bg-card p-4">
+    <section
+      aria-labelledby="find-h"
+      className="space-y-2 rounded-lg border border-hairline bg-card p-4"
+    >
       <h3 id="find-h" className="text-xl">
         {t.findingsTitle}
       </h3>
@@ -79,7 +118,12 @@ function Findings({ sections, docs }: { sections: SectionView[]; docs: Map<strin
             {f.evidence.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {f.evidence.map((e, i) => (
-                  <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={docs.get(e.docId)} />
+                  <EvidenceChip
+                    key={`${e.docId}-${i}`}
+                    docId={e.docId}
+                    quote={e.quote}
+                    doc={docs.get(e.docId)}
+                  />
                 ))}
               </div>
             )}
@@ -90,9 +134,24 @@ function Findings({ sections, docs }: { sections: SectionView[]; docs: Map<strin
   )
 }
 
-function Record({ view, docs, caseId, state, role }: { view: HandoverView; docs: Map<string, DocumentInfo>; caseId: string; state: string | undefined; role: Role }) {
+function Record({
+  view,
+  docs,
+  caseId,
+  state,
+  role,
+}: {
+  view: HandoverView
+  docs: Map<string, DocumentInfo>
+  caseId: string
+  state: string | undefined
+  role: Role
+}) {
   return (
-    <section aria-labelledby="rec-h" className="space-y-3 rounded-lg border border-hairline bg-card p-5">
+    <section
+      aria-labelledby="rec-h"
+      className="space-y-3 rounded-lg border border-hairline bg-card p-5"
+    >
       <h3 id="rec-h" className="text-xl">
         {t.recordTitle}
       </h3>
@@ -115,7 +174,12 @@ function Record({ view, docs, caseId, state, role }: { view: HandoverView; docs:
           {s.evidence.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {s.evidence.map((e, i) => (
-                <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={docs.get(e.docId)} />
+                <EvidenceChip
+                  key={`${e.docId}-${i}`}
+                  docId={e.docId}
+                  quote={e.quote}
+                  doc={docs.get(e.docId)}
+                />
               ))}
             </div>
           )}
@@ -148,14 +212,28 @@ export function Mdt() {
         </div>
         {canDownload && (
           <div className="max-w-sm text-right">
-            <Button
-              variant="primary"
-              disabled={!view || view.sections.length === 0 || download.isPending}
-              onClick={() => view && download.mutate({ fileName: mdtRecordFileName(id, view.asOf, draft) })}
-            >
-              {download.isPending ? t.downloading : t.download}
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              {RECORD_FORMATS.map(({ format, label, variant }) => (
+                <Button
+                  key={format}
+                  variant={variant}
+                  disabled={!view || view.sections.length === 0 || download.isPending}
+                  onClick={() =>
+                    view &&
+                    download.mutate({
+                      fileName: mdtRecordFileName(id, view.asOf, draft, format),
+                      format,
+                    })
+                  }
+                >
+                  {download.isPending && download.variables.format === format
+                    ? t.downloading
+                    : label}
+                </Button>
+              ))}
+            </div>
             {draft && <p className="mt-1 text-xs text-muted">{t.downloadDraftNote}</p>}
+            <p className="mt-1 text-xs text-muted">{t.downloadConclusionNote}</p>
             {download.isError && (
               <p role="alert" className="mt-1 text-xs text-missing">
                 {t.downloadError} {problemTitle(download.error)}
@@ -172,7 +250,9 @@ export function Mdt() {
         ) : (
           <ErrorState onRetry={() => void q.refetch()} />
         ))}
-      {view && view.sections.length === 0 && <EmptyState title={t.notAvailable} hint={t.notAvailableHint} />}
+      {view && view.sections.length === 0 && (
+        <EmptyState title={t.notAvailable} hint={t.notAvailableHint} />
+      )}
 
       {view && view.sections.length > 0 && (
         <>
@@ -185,7 +265,10 @@ export function Mdt() {
             <aside className="space-y-4">
               <Findings sections={view.sections} docs={docs} />
               {view.excluded.length > 0 && (
-                <section aria-labelledby="exc-h" className="rounded-lg border border-dashed border-hairline bg-stale-bg/40 p-4">
+                <section
+                  aria-labelledby="exc-h"
+                  className="rounded-lg border border-dashed border-hairline bg-stale-bg/40 p-4"
+                >
                   <h3 id="exc-h" className="text-xl">
                     {t.excludedTitle}
                   </h3>
@@ -195,7 +278,9 @@ export function Mdt() {
                       const doc = docs.get(d.id)
                       return (
                         <li key={d.id}>
-                          <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span> {doc?.title ?? d.id}{' '}
+                          <StatusPill kind="excluded" />{' '}
+                          <span className="font-mono text-xs">{d.id.slice(0, 2)}</span>{' '}
+                          {doc?.title ?? d.id}{' '}
                           {doc && <span className="text-muted">{formatDate(doc.authored)}</span>}
                           <span className="block text-xs text-muted">{d.reason}</span>
                         </li>

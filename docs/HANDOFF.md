@@ -155,3 +155,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #183 (MDT held with a waived open predecessor still ends cancelled), #184 (board card shows the raw conclusion id)
   Risks: not run against IRIS (Docker off); Task.output of the mdt step now references a Composition by identifier (P1 mapping)
   Issues: closes #149; #183, #184 new
+- 2026-10-17 · claude (P4) · fix/closed-case-no-new-tasks · #166: a case in `uzavreno` answers 409 `conflict` ("Případ je uzavřen: úkoly a kroky už nelze zakládat ani měnit.") to POST /cases/{id}/tasks, POST /cases/{id}/pathways and task transitions (role denial stays 403; `cancel` still allowed to clear steps left open before the fix); the SLA watchdog (`TaskStore.list_open_everywhere`) and the demo advance (escalation, result delivery) skip closed cases
+  Verified: ruff, ruff format --check, mypy app, `pytest -m "not iris"` 1154 passed
+  Next: #186 (document 409 on POST /cases/{id}/tasks in the contract, `make contract`); report requests were already refused outside triage/ceka_na_podklady
+  Risks: not run against IRIS (Docker off); steps created on closed cases before this fix stay open until cancelled (the watchdog ignores them)
+  Issues: closes #166; #186 new

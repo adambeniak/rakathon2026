@@ -28,6 +28,7 @@ from app.api.schemas.demo import AdvancedStep, SkippedStep
 from app.api.services.demo_story import STORY, StoryStep
 from app.domain import board as board_logic
 from app.domain import clock
+from app.domain.case import CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.document import SourceDocument
 from app.domain.errors import ConflictError, ForbiddenError, InvalidInputError
@@ -142,9 +143,19 @@ MSG_MDT_START_REQUIRED = "Pro spuštění sady je nutné zadat termín MDT."
 MSG_INDICATION_NOT_PHYSICIAN = "Indikujícím lékařem může být jen lékař KOC (role koc_physician)."
 
 
+MSG_CASE_CLOSED = "Případ je uzavřen: úkoly a kroky už nelze zakládat ani měnit."
+
+
 def _require_coordinator(actor: PartyRef, what: str) -> None:
     if actor.role is not Role.COORDINATOR:
         raise ForbiddenError(f"Tuto akci smí provést jen koordinátorka: {what}")
+
+
+def _refuse_if_closed(header: CaseHeader) -> None:
+    """A closed case leaves nobody on the move (#133): no new task, pathway or step change after `uzavreno` (#166).
+    Checked after the role check, so a role denial stays 403."""
+    if header.case.state is CaseState.UZAVRENO:
+        raise ConflictError(MSG_CASE_CLOSED)
 
 
 def transition_steps(event: str, task: Task) -> list[str]:
@@ -223,6 +234,7 @@ class CoordinationService:
             raise InvalidInputError(MSG_INDICATION_NOT_PHYSICIAN)
         physician = PractitionerRoleRef(entry.ref, entry.role.id, entry.display, entry.role.role)
         header = await self._header(case_id, actor)
+        _refuse_if_closed(header)
         plan = await self._store.get_plan_definition(request.plan_url)
         mdt_start = request.mdt_start or header.case.mdt_start
         if mdt_start is None:
@@ -346,6 +358,8 @@ class CoordinationService:
         """The watchdog's rule for this case only, at `now` (the demo clock was just moved). A failed save is logged and
         left to the background watchdog: the clock has already moved, so the call must not fail after the fact."""
         header = await self._header(case_id, actor)
+        if header.case.state is CaseState.UZAVRENO:
+            return []  # a closed case is not escalated (#166)
         escalated: list[str] = []
         for stored in await self._store.list_for_case(header.task_reference):
             result = escalate_if_overdue(stored.task, now)
@@ -370,6 +384,8 @@ class CoordinationService:
     async def deliver_received_results(self, case_id: str, actor: PartyRef) -> list[AdvancedStep]:
         """Complete the steps of this case whose result report is already in the case at the (demo) clock (#132)."""
         header = await self._header(case_id, actor)
+        if header.case.state is CaseState.UZAVRENO:
+            return []  # nothing moves on a closed case (#166)
         stored = await self._store.list_for_case(header.task_reference)
         delivered = await deliver_received_results(self._store, stored, self._now())
         return [AdvancedStep(task_id=task_id, events=events) for task_id, events in delivered]
@@ -379,6 +395,7 @@ class CoordinationService:
     async def create_task(self, case_id: str, request: CreateTaskRequest, actor: PartyRef) -> TaskOut:
         _require_coordinator(actor, "zakládat úkoly")
         header = await self._header(case_id, actor)
+        _refuse_if_closed(header)
         existing = await self._store.list_for_case(header.task_reference)
         if len(existing) >= MAX_TASKS_PER_CASE:
             raise InvalidInputError(f"Případ může mít nejvýše {MAX_TASKS_PER_CASE} úkolů")
@@ -409,7 +426,7 @@ class CoordinationService:
         if actor.role is Role.SYSTEM:
             raise ForbiddenError("Úkoly nelze posouvat bez identifikovaného uživatele (přihlášení není nastaveno)")
         stored = await self._store.get(task_id)
-        await self._header(stored.task.case_id, actor)  # membership: only a participant of the case moves its tasks
+        header = await self._header(stored.task.case_id, actor)  # membership: only a participant moves its tasks
         now = self._now()
         task = stored.task
         steps = transition_steps(request.event, task)
@@ -429,6 +446,8 @@ class CoordinationService:
                     log.info("notification_pending", template=event.action, task_id=task.id)
         if on_behalf and "performed" in steps and not (request.note and request.note.strip()):
             raise InvalidInputError("Při zápisu za pracoviště je nutná poznámka se zdrojem informace")
+        if request.event != "cancel":  # cancelling still clears a step left open on a closed case (data before #166)
+            _refuse_if_closed(header)  # after the machine: its role denial (403) and state conflicts answer first
         updates: dict[str, object] = {}
         if claims_ownership(stored.task, request.event, actor, on_behalf):
             updates["owner"] = actor  # who acted on their own step holds it from now on (#137)

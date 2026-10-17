@@ -200,8 +200,8 @@ def test_list_cases(client: TestClient) -> None:
     assert case["state"] == "pripraveno_mdt"
     assert case["baton_holder"]["role"] == "koc_physician"
     assert case["document_count"] == 13
-    assert case["missing_count"] is None
-    assert case["conflict_count"] is None
+    assert case["missing_count"] == case["counts"]["missing"]  # computed from the handover (test_case_counts.py)
+    assert case["conflict_count"] == case["counts"]["conflict"]
     assert "birth_number" not in case["patient"]
 
 
@@ -312,12 +312,12 @@ def test_cors_preflight_gets_a_request_id(client: TestClient) -> None:
     assert response.headers["X-Request-ID"]
 
 
-def test_case_summary_has_the_header_fields_and_null_counters(client: TestClient) -> None:
+def test_case_summary_has_the_header_fields_and_the_handover_counters(client: TestClient) -> None:
     [case] = client.get("/api/cases").json()
 
     assert case["postponed"] is False
     assert case["bucket"] == "aktivni"
-    assert case["counts"] is None  # not 0: the handover service does not exist yet
+    assert set(case["counts"]) == {"missing", "conflict", "stale"}  # values: tests/unit/api/test_case_counts.py
     assert case["suspected_diagnosis"] is None
     assert case["koc"] is None
     assert case["referring_gp"] is None

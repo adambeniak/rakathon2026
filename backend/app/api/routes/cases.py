@@ -6,9 +6,10 @@ from datetime import date
 
 from fastapi import APIRouter, Path
 
-from app.api.deps import CaseReaderDep, SettingsDep
+from app.api.deps import CaseReaderDep, HandoverStoreDep, LlmClientsDep, SettingsDep
 from app.api.schemas.cases import (
     BatonHolder,
+    CaseCounts,
     CaseDetail,
     CaseSummary,
     DocumentSummary,
@@ -18,6 +19,7 @@ from app.api.schemas.cases import (
     SuspectedDiagnosis,
 )
 from app.api.schemas.common import problem_responses
+from app.api.services.case_counts import case_counts, counts_for
 from app.domain.case import Case
 from app.domain.common import BUSINESS_ID_PATTERN
 from app.fhir.cases import CaseExtras
@@ -25,7 +27,9 @@ from app.fhir.cases import CaseExtras
 router = APIRouter(prefix="/cases", tags=["cases"])
 
 
-def summary_fields(case: Case, today: date, extras: CaseExtras | None = None) -> dict[str, object]:
+def summary_fields(
+    case: Case, today: date, extras: CaseExtras | None = None, counts: CaseCounts | None = None
+) -> dict[str, object]:
     extras = extras or CaseExtras()
     patient = case.patient
     return {
@@ -52,7 +56,10 @@ def summary_fields(case: Case, today: date, extras: CaseExtras | None = None) ->
         else None,
         "koc": extras.koc_name,
         "referring_gp": ReferringGp(name=extras.gp_name, practice=extras.gp_practice) if extras.gp_name else None,
-        "counts": None,
+        "counts": counts,
+        # The same numbers under their older names; null when the handover cannot be built.
+        "missing_count": counts.missing if counts else None,
+        "conflict_count": counts.conflict if counts else None,
     }
 
 
@@ -62,12 +69,15 @@ def summary_fields(case: Case, today: date, extras: CaseExtras | None = None) ->
     summary="List cases",
     responses=problem_responses(500, 502, 503),
 )
-async def list_cases(reader: CaseReaderDep, settings: SettingsDep) -> list[CaseSummary]:
+async def list_cases(
+    reader: CaseReaderDep, settings: SettingsDep, store: HandoverStoreDep, llm: LlmClientsDep
+) -> list[CaseSummary]:
     today = settings.now().date()
     overviews = await reader.list_cases()
+    counts = await counts_for([o.case for o in overviews], reader=reader, store=store, settings=settings, llm=llm)
     return [
-        CaseSummary.model_validate({**summary_fields(o.case, today, o.extras), "document_count": o.document_count})
-        for o in overviews
+        CaseSummary.model_validate({**summary_fields(o.case, today, o.extras, c), "document_count": o.document_count})
+        for o, c in zip(overviews, counts, strict=True)
     ]
 
 
@@ -80,15 +90,18 @@ async def list_cases(reader: CaseReaderDep, settings: SettingsDep) -> list[CaseS
 async def get_case(
     reader: CaseReaderDep,
     settings: SettingsDep,
+    store: HandoverStoreDep,
+    llm: LlmClientsDep,
     case_id: str = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2026-prochazkova"]),
 ) -> CaseDetail:
     view = await reader.get_case(case_id)
     documents = [
         DocumentSummary.model_validate(d.model_dump(exclude={"file_name", "content_type"})) for d in view.documents
     ]
+    counts = await case_counts(view.case, reader=reader, store=store, settings=settings, llm=llm)
     return CaseDetail.model_validate(
         {
-            **summary_fields(view.case, settings.now().date(), view.extras),
+            **summary_fields(view.case, settings.now().date(), view.extras, counts),
             "document_count": len(documents),
             "documents": documents,
         }

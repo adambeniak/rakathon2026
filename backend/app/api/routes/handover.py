@@ -18,26 +18,22 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 from app.api.deps import ActorDep, CaseReaderDep, HandoverStoreDep, LlmClientsDep, SettingsDep
 from app.api.schemas.common import problem_responses
+from app.api.services.handover_assembly import assemble_handover, default_cut_off, with_review
 from app.domain.common import BUSINESS_ID_PATTERN, PartyRef, Role
 from app.domain.errors import ConflictError, ForbiddenError, InvalidInputError
 from app.domain.handover import Handover, HandoverStatus, ReviewState, SectionReview
 from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
 from app.extraction.handover.export import to_markdown
-from app.extraction.handover.facts import HandoverRules
 from app.extraction.handover.review import (
     field_of,
-    overlay_review,
     section_key,
     validate_edited_value,
     value_hash,
 )
-from app.extraction.handover.service import build_handover
 from app.extraction.llm import CACHE_MODEL
 from app.extraction.prompt import PROMPT_VERSION
 from app.fhir.cases import CaseReader
-from app.fhir.client import Resource
 from app.fhir.handover_store import HandoverStore
-from app.fhir.mappers.handover import stored_review
 from app.settings import PRAGUE, Settings
 
 router = APIRouter(prefix="/cases", tags=["handover"])
@@ -88,13 +84,9 @@ class ConfirmSection(BaseModel):
 
 
 async def parse_as_of(value: str | None, settings: Settings, reader: CaseReader, case_id: str) -> datetime:
-    """Without `as_of` the cut-off is the case's `mdt_start` (set at pathway launch), else the demo-aware now.
-
-    A fixed default makes repeated reads and confirmations hit the same Composition (its business id carries as_of).
-    """
+    """Without `as_of` the cut-off is `default_cut_off` (the case's `mdt_start`, else the demo-aware now)."""
     if value is None:
-        mdt_start = (await reader.load(case_id)).case.mdt_start
-        return mdt_start if mdt_start is not None else settings.now()
+        return default_cut_off((await reader.load(case_id)).case, settings)
     try:
         if len(value) == 10:
             return datetime.combine(date.fromisoformat(value), MDT_START_TIME, tzinfo=PRAGUE)
@@ -111,36 +103,6 @@ def device_display(settings: Settings) -> str:
     return f"Štafeta AI · {model} · {PROMPT_VERSION}, {EPICRISIS_PROMPT_VERSION}"
 
 
-async def _assemble(
-    reader: CaseReaderDep, settings: SettingsDep, llm: LlmClientsDep, case_id: str, cut_off: datetime
-) -> Handover:
-    view = await reader.get_case_contents(case_id)
-    return await build_handover(
-        case_id,
-        cut_off,
-        view.documents,
-        view.contents,
-        extraction=llm.extraction,
-        epicrisis=llm.epicrisis,
-        patient=view.case.patient,
-        rules=HandoverRules(stale_vitals_days=settings.handover_stale_vitals_days),
-        generated_at=settings.now(),
-    )
-
-
-def _with_review(handover: Handover, composition: Resource | None) -> Handover:
-    if composition is None:
-        return handover
-    stored = stored_review(composition)
-    return overlay_review(
-        handover,
-        composition_id=stored.business_id,
-        status=stored.status,
-        sections=stored.sections,
-        edited_values=stored.edited_values,
-    )
-
-
 async def _reviewed(
     reader: CaseReaderDep,
     settings: SettingsDep,
@@ -150,8 +112,8 @@ async def _reviewed(
     as_of: str | None,
 ) -> Handover:
     cut_off = await parse_as_of(as_of, settings, reader, case_id)
-    handover = await _assemble(reader, settings, llm, case_id, cut_off)
-    return _with_review(handover, await store.find(case_id, cut_off))
+    handover = await assemble_handover(reader, settings, llm, case_id, cut_off)
+    return with_review(handover, await store.find(case_id, cut_off))
 
 
 @router.get(
@@ -190,9 +152,9 @@ async def persist_handover(
     as_of: str | None = AS_OF,
 ) -> Handover:
     cut_off = await parse_as_of(as_of, settings, reader, case_id)
-    handover = await _assemble(reader, settings, llm, case_id, cut_off)
+    handover = await assemble_handover(reader, settings, llm, case_id, cut_off)
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
-    return _with_review(handover, composition)
+    return with_review(handover, composition)
 
 
 @router.post(
@@ -218,12 +180,12 @@ async def confirm_section(
     _require_confirming_role(actor)
     key = section_key(number)
     cut_off = await parse_as_of(as_of, settings, reader, case_id)
-    handover = await _assemble(reader, settings, llm, case_id, cut_off)
+    handover = await assemble_handover(reader, settings, llm, case_id, cut_off)
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
     assembled = field_of(handover, key)
     if body.expected_value_hash != assembled.value_hash:
         raise ConflictError(f"section {key} changed since it was shown; reload the handover before confirming")
-    current = field_of(_with_review(handover, composition), key)
+    current = field_of(with_review(handover, composition), key)
     missing = current.status == HandoverStatus.MISSING
     if body.accept_missing and body.edited_value is not None:
         raise InvalidInputError("use either edited_value or accept_missing, not both")
@@ -242,7 +204,7 @@ async def confirm_section(
     updated = await store.confirm_section(
         composition, key, review, edited_value=edited, previous_hash=value_hash(current)
     )
-    return _with_review(handover, updated)
+    return with_review(handover, updated)
 
 
 def _require_confirming_role(actor: PartyRef) -> None:

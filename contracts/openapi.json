@@ -4310,18 +4310,50 @@
         "type": "object"
       },
       "ProblemDetails": {
-        "description": "RFC 7807 problem details (`application/problem+json`). The UI maps `type` to a Czech message.",
+        "description": "RFC 7807 problem details (`application/problem+json`). `title` and `detail` are Czech texts for people;\nprograms branch on `type`, `status`, `code` and `blocking_items`, never on the wording.",
         "examples": [
           {
-            "detail": "case 'rakathon-2026-xyz' not found",
+            "detail": "Nenalezeno: Případ 'rakathon-2026-xyz'",
             "instance": "/api/cases/rakathon-2026-xyz",
             "request_id": "4f1c2a9e0b7d4c55",
             "status": 404,
-            "title": "Not Found",
+            "title": "Záznam nebyl nalezen",
             "type": "https://stafeta.example/problems/not-found"
+          },
+          {
+            "blocking_items": [
+              "performance_status"
+            ],
+            "code": "guard_failed",
+            "detail": "Připravenost k MDT není splněna, chybí: performance_status",
+            "instance": "/api/cases/rakathon-2026-prochazkova/transitions",
+            "request_id": "9a2b7c1d3e4f5a60",
+            "status": 409,
+            "title": "Podmínky akce nejsou splněny",
+            "type": "https://stafeta.example/problems/conflict"
           }
         ],
         "properties": {
+          "blocking_items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only with `code` = guard_failed of `mark_ready_mdt`: keys of the blocking readiness items that are not waived (e.g. `performance_status`), the same keys as the waiver `item`. English identifiers; the UI maps them to Czech labels. Absent for every other problem. Read this field, never parse `detail`.",
+            "examples": [
+              [
+                "performance_status"
+              ]
+            ],
+            "title": "Blocking Items"
+          },
           "code": {
             "anyOf": [
               {
@@ -4357,7 +4389,7 @@
                 "type": "null"
               }
             ],
-            "description": "Present for 422 validation problems.",
+            "description": "Present for 422 validation problems; `msg` is Czech, `type` is the stable machine key.",
             "title": "Errors"
           },
           "instance": {
@@ -6095,7 +6127,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -6105,7 +6137,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6115,7 +6147,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "List cases",
@@ -6179,7 +6211,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6189,7 +6221,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -6199,7 +6231,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -6209,7 +6241,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6219,7 +6251,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Case detail with its documents",
@@ -6287,7 +6319,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -6297,7 +6329,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6307,7 +6339,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6317,7 +6349,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -6327,7 +6359,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -6337,7 +6369,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6347,7 +6379,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Overdue tasks and missed promised turnarounds at the (demo) current time",
@@ -6422,7 +6454,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -6432,7 +6464,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6442,7 +6474,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6452,7 +6484,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -6462,7 +6494,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6472,7 +6504,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Ask the case (AI draft with citations, no advice)",
@@ -6536,7 +6568,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -6546,7 +6578,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6556,7 +6588,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6566,7 +6598,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -6576,7 +6608,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -6586,7 +6618,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6596,7 +6628,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Board: lanes by owner role and the baton holder of the case",
@@ -6664,7 +6696,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6674,7 +6706,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6694,7 +6726,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6704,7 +6736,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Report requests of the case",
@@ -6777,7 +6809,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6787,7 +6819,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -6797,7 +6829,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6807,7 +6839,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -6817,7 +6849,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6827,7 +6859,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Request reports from workplaces (one click)",
@@ -6892,7 +6924,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6902,7 +6934,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6922,7 +6954,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -6932,7 +6964,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Reports the referral letter lists but nobody attached (triage notice)",
@@ -7004,7 +7036,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -7014,7 +7046,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7024,7 +7056,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -7034,7 +7066,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "413": {
             "content": {
@@ -7044,7 +7076,7 @@
                 }
               }
             },
-            "description": "Upload too large (application/problem+json)"
+            "description": "Soubor je příliš velký (upload too large) (application/problem+json)"
           },
           "415": {
             "content": {
@@ -7054,7 +7086,7 @@
                 }
               }
             },
-            "description": "Unsupported document type (application/problem+json)"
+            "description": "Nepodporovaný typ dokumentu (unsupported document type) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7064,7 +7096,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -7074,7 +7106,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7084,7 +7116,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Upload a received report (DOCX/PDF)",
@@ -7172,7 +7204,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7182,7 +7214,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -7192,7 +7224,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -7202,7 +7234,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7212,7 +7244,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Handover (15 fields) as of a timestamp",
@@ -7298,7 +7330,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7308,7 +7340,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -7318,7 +7350,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -7328,7 +7360,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7338,7 +7370,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Persist the handover for review (Composition preliminary + Provenance)",
@@ -7443,7 +7475,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7453,7 +7485,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -7463,7 +7495,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -7473,7 +7505,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7483,7 +7515,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Handover as copyable text (Markdown), one block per section",
@@ -7594,7 +7626,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7604,7 +7636,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -7614,7 +7646,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7624,7 +7656,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -7634,7 +7666,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -7644,7 +7676,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7654,7 +7686,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "A KOC physician confirms, edits or accepts as missing one handover section",
@@ -7719,7 +7751,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -7729,7 +7761,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7739,7 +7771,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7759,7 +7791,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7769,7 +7801,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "The signed MDT conclusion of the case",
@@ -7848,7 +7880,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -7858,7 +7890,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7868,7 +7900,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -7878,7 +7910,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -7888,7 +7920,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -7898,7 +7930,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -7908,7 +7940,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "MDT record in the MDT_zapis layout (DOCX), as of the MDT start",
@@ -7982,7 +8014,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7992,7 +8024,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -8002,7 +8034,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8012,7 +8044,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -8022,7 +8054,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8032,7 +8064,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8042,7 +8074,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Launch a care pathway (CarePlan + step tasks) for the case",
@@ -8116,7 +8148,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -8126,7 +8158,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8136,7 +8168,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -8146,7 +8178,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8156,7 +8188,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8166,7 +8198,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Create a single (ad-hoc) task",
@@ -8241,7 +8273,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -8251,7 +8283,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -8261,7 +8293,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -8271,7 +8303,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8281,7 +8313,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8291,7 +8323,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8301,7 +8333,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Apply a case event (state machine)",
@@ -8380,7 +8412,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -8390,7 +8422,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -8400,7 +8432,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -8410,7 +8442,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8420,7 +8452,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8430,7 +8462,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8440,7 +8472,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Move the demo clock and replay the story steps up to it (demo mode only)",
@@ -8490,7 +8522,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -8500,7 +8532,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8569,7 +8601,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -8579,7 +8611,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8589,7 +8621,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8599,7 +8631,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8609,7 +8641,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Move or reset the demo clock (demo mode only)",
@@ -8663,7 +8695,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8683,7 +8715,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8693,7 +8725,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "List KOCs with their coordinator contact",
@@ -8785,7 +8817,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "403": {
             "content": {
@@ -8795,7 +8827,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -8805,7 +8837,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "413": {
             "content": {
@@ -8815,7 +8847,7 @@
                 }
               }
             },
-            "description": "Upload too large (application/problem+json)"
+            "description": "Soubor je příliš velký (upload too large) (application/problem+json)"
           },
           "415": {
             "content": {
@@ -8825,7 +8857,7 @@
                 }
               }
             },
-            "description": "Unsupported document type (application/problem+json)"
+            "description": "Nepodporovaný typ dokumentu (unsupported document type) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8835,7 +8867,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8845,7 +8877,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8855,7 +8887,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Confirm the referral: creates the case in ONE FHIR transaction",
@@ -8916,7 +8948,7 @@
                 }
               }
             },
-            "description": "Actor not identified (application/problem+json)"
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
           },
           "413": {
             "content": {
@@ -8926,7 +8958,7 @@
                 }
               }
             },
-            "description": "Upload too large (application/problem+json)"
+            "description": "Soubor je příliš velký (upload too large) (application/problem+json)"
           },
           "415": {
             "content": {
@@ -8936,7 +8968,7 @@
                 }
               }
             },
-            "description": "Unsupported document type (application/problem+json)"
+            "description": "Nepodporovaný typ dokumentu (unsupported document type) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -8946,7 +8978,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -8956,7 +8988,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -8966,7 +8998,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Prefill the referral from the GP letter (DOCX/PDF); nothing is stored",
@@ -9041,7 +9073,7 @@
                 }
               }
             },
-            "description": "Role not allowed (application/problem+json)"
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -9051,7 +9083,7 @@
                 }
               }
             },
-            "description": "Not found (application/problem+json)"
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
           "409": {
             "content": {
@@ -9061,7 +9093,7 @@
                 }
               }
             },
-            "description": "Not allowed in the current state (application/problem+json)"
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -9071,7 +9103,7 @@
                 }
               }
             },
-            "description": "Request validation failed (application/problem+json)"
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
           },
           "500": {
             "content": {
@@ -9081,7 +9113,7 @@
                 }
               }
             },
-            "description": "Unexpected server error (application/problem+json)"
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
           },
           "502": {
             "content": {
@@ -9091,7 +9123,7 @@
                 }
               }
             },
-            "description": "FHIR storage rejected the operation (application/problem+json)"
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
           },
           "503": {
             "content": {
@@ -9101,7 +9133,7 @@
                 }
               }
             },
-            "description": "IRIS or the AI service unavailable (application/problem+json)"
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
         "summary": "Confirm, perform, deliver the result of, fail or cancel a task",

@@ -67,9 +67,19 @@ function requests(): Schemas['DocumentRequestOut'][] {
 /** Items the mock gate blocks on (the demo case has no ECOG). */
 const MOCK_BLOCKING = ['performance_status']
 
-/** `guard_failed` like the backend: generic title "Conflict", the reason in `detail`, `code` for the machine. */
-const guardFailed = (detail: string) =>
-  HttpResponse.json({ type: 'about:blank', title: 'Conflict', status: 409, detail, code: 'guard_failed' }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+/** `guard_failed` like the backend: Czech title, the reason in `detail` (for people), `code` and the structured
+ * `blocking_items` (readiness item keys) for the machine. */
+const guardFailed = (detail: string, blockingItems: string[]) => {
+  const body: Schemas['ProblemDetails'] = {
+    type: 'https://stafeta.example/problems/conflict',
+    title: 'Podmínky akce nejsou splněny',
+    status: 409,
+    detail,
+    code: 'guard_failed',
+    blocking_items: blockingItems,
+  }
+  return HttpResponse.json(body, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+}
 
 export const handlers = [
   http.get('/api/cases', ({ request }) => {
@@ -129,7 +139,7 @@ export const handlers = [
       if (c.state !== 'kompletni') return problem(409, 'Přechod není ve stavu případu povolen')
       // The server's gate, as the mock plays it: the ECOG is missing in the demo case, so it blocks unless waived.
       const open = MOCK_BLOCKING.filter((item) => !(waivers ?? []).some((w) => w.item === item && w.reason.trim()))
-      if (open.length > 0) return guardFailed(`Připravenost k MDT není splněna, chybí: ${open.join(', ')}`)
+      if (open.length > 0) return guardFailed(`Připravenost k MDT není splněna, chybí: ${open.join(', ')}`, open)
       store.markedReady = true
       return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }

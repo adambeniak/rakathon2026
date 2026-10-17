@@ -12,7 +12,7 @@ from typing import Final
 from app.domain.document import SourceDocument
 from app.domain.evidence import Certainty, DatePrecision, Evidence, Fact, FactType
 from app.domain.handover import HandoverItem, ItemEvidence
-from app.extraction.handover.headers import DocumentHeader
+from app.extraction.handover.headers import DocumentHeader, is_pathology_report
 from app.extraction.values import (
     CodedValue,
     DateValue,
@@ -79,9 +79,7 @@ class Context:
 
     def is_pathology_report(self, doc_id: str) -> bool:
         """Pathology report by its LOINC type in the metadata or by its own title line ("Bioptický nález")."""
-        header = self.headers.get(doc_id)
-        titled = header is not None and header.examination is not None and header.examination.pathology_title
-        return self.docs[doc_id].type_code == LOINC_PATHOLOGY or titled
+        return is_pathology_report(self.headers.get(doc_id), self.docs[doc_id].type_code)
 
     def authored(self, fact: Fact) -> date:
         return self.docs[fact.doc_id].authored_at

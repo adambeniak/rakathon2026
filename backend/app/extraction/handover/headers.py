@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Final
 
+from app.documents.doc_type import PATHOLOGY
 from app.documents.normalize import Block, NormalizedDoc, find_dates
 from app.domain.evidence import Evidence
 
@@ -28,9 +29,15 @@ _DASH: Final = " – "
 # Title prefixes that only name the kind of report; the examination is what follows the dash.
 _GENERIC_TITLE_PREFIXES: Final = ("výsledek vyšetření", "výsledky vyšetření", "protokol o výkonu")
 _CONTACT = re.compile(r"@|https?://|www\.|\btel\b|\bfax\b|\+\d{3}", re.IGNORECASE)
-_PATHOLOGY_TITLE = re.compile(r"\b(?:bioptick|histologick)\w*\s+(?:nález|vyšetření)", re.IGNORECASE)
+# Anchored: "Bioptický nález", "Histologické vyšetření"; never a request form ("Žádanka o histologické vyšetření").
+_PATHOLOGY_TITLE = re.compile(r"^(?:bioptick|histologick)\w*\s+(?:nález|vyšetření)", re.IGNORECASE)
 _REPORT_ID = re.compile(r"^Číslo vyšetření:\s*(\S*\d\S*)$")
 _ISSUED = re.compile(r"^(?:Datum vydání|Vydáno):\s*(.+)$")
+_PROCEDURE = re.compile(r"^Datum výkonu:\s*(.+)$")
+# Specimen collection with an explicit year, only on a specimen line: "Odběr: 15. 10. 2026 7:45",
+# "Materiál: … (odběr 20. 10. 2026)". A line naming several specimens keeps all their dates.
+_SPECIMEN_LINE = re.compile(r"^(?:Materiál|(?:Datum\s+)?odběru?)\s*:", re.IGNORECASE)
+_SPECIMEN = re.compile(r"\bodběru?:?\s+(?:dne\s+)?(\d{1,2}\.\s*\d{1,2}\.\s*\d{4})", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -43,12 +50,20 @@ class HeaderValue:
     @property
     def pathology_title(self) -> bool:
         """The title line names a histological report ("Bioptický nález", "Histologické vyšetření")."""
-        return any(_PATHOLOGY_TITLE.search(ev.quote) for ev in self.evidence)
+        return _PATHOLOGY_TITLE.match(self.text) is not None
 
 
 @dataclass(frozen=True)
 class HeaderDate:
     date: date
+    evidence: Evidence
+
+
+@dataclass(frozen=True)
+class HeaderDates:
+    """All explicit-year dates of one quoted line (a specimen line may name several specimens)."""
+
+    dates: tuple[date, ...]
     evidence: Evidence
 
 
@@ -59,6 +74,20 @@ class DocumentHeader:
     place: HeaderValue | None = None
     report_id: HeaderValue | None = None
     issued: HeaderDate | None = None
+    specimen: HeaderDates | None = None
+    procedure: HeaderDate | None = None
+
+
+def is_pathology_report(header: DocumentHeader | None, type_code: str | None) -> bool:
+    """Pathology report by its LOINC type in the metadata or by its own title line ("Bioptický nález")."""
+    titled = header is not None and header.examination is not None and header.examination.pathology_title
+    return type_code == PATHOLOGY or titled
+
+
+def _single_date(text: str) -> date | None:
+    """The one explicit-year date of a labelled line; none for a year-less date or for two dates."""
+    dates = find_dates(text)
+    return dates[0] if len(dates) == 1 else None
 
 
 def _evidence(doc_id: str, block: Block) -> Evidence:
@@ -98,15 +127,21 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
     blocks = _header_blocks(doc)
     report_id: HeaderValue | None = None
     issued: HeaderDate | None = None
+    specimen: HeaderDates | None = None
+    procedure: HeaderDate | None = None
     for block in blocks:
         if report_id is None and (m := _REPORT_ID.match(block.text)):
             report_id = HeaderValue(m.group(1), (_evidence(doc.doc_id, block),))
-        if issued is None and (m := _ISSUED.match(block.text)):
-            # No year hint: a year-less "19. 10." gives no date. Two dates ("Vydáno: 4. 9. 2026 (kultivace),
-            # 1. 9. 2026 (ostatní)") name no single issue date.
-            dates = find_dates(m.group(1))
-            if len(dates) == 1:
-                issued = HeaderDate(dates[0], _evidence(doc.doc_id, block))
+        # No year hint: a year-less "19. 10." gives no date. Two dates ("Vydáno: 4. 9. 2026 (kultivace),
+        # 1. 9. 2026 (ostatní)") name no single issue date.
+        if issued is None and (m := _ISSUED.match(block.text)) and (day := _single_date(m.group(1))):
+            issued = HeaderDate(day, _evidence(doc.doc_id, block))
+        if procedure is None and (m := _PROCEDURE.match(block.text)) and (day := _single_date(m.group(1))):
+            procedure = HeaderDate(day, _evidence(doc.doc_id, block))
+        if specimen is None and _SPECIMEN_LINE.match(block.text):
+            days = tuple(d for m in _SPECIMEN.finditer(block.text) for d in find_dates(m.group(1)))
+            if days:
+                specimen = HeaderDates(days, _evidence(doc.doc_id, block))
 
     # Letterhead: lines before the patient line; the address (postcode) separates the workplace from the title.
     letterhead: list[Block] = []
@@ -118,7 +153,7 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
         letterhead.append(block)
     address = next((i for i, b in enumerate(letterhead) if _POSTCODE.search(b.text)), None)
     if address is None:
-        return DocumentHeader(doc.doc_id, report_id=report_id, issued=issued)
+        return DocumentHeader(doc.doc_id, report_id=report_id, issued=issued, specimen=specimen, procedure=procedure)
 
     place_parts: list[tuple[str, Block]] = []
     for block in letterhead[:address]:
@@ -144,7 +179,15 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
         None,
     )
     examination = HeaderValue(_examination(title.text), (_evidence(doc.doc_id, title),)) if title else None
-    return DocumentHeader(doc.doc_id, examination=examination, place=place, report_id=report_id, issued=issued)
+    return DocumentHeader(
+        doc.doc_id,
+        examination=examination,
+        place=place,
+        report_id=report_id,
+        issued=issued,
+        specimen=specimen,
+        procedure=procedure,
+    )
 
 
 def parse_headers(docs: dict[str, NormalizedDoc]) -> dict[str, DocumentHeader]:

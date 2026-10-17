@@ -80,8 +80,8 @@ async def build(
     included, _ = split_documents(documents, as_of)
     known = included_facts(facts, included)
     field4 = await generate_epicrisis(known, included, epicrisis_client, case_id=CASE_ID)
-    findings = detect_findings(known)
-    headers = parse_headers(docs) if docs is not None else None
+    headers = parse_headers({k: v for k, v in docs.items() if k in included}) if docs is not None else None
+    findings = detect_findings(known, headers, {k: d.type_code for k, d in included.items()})
     handover = assemble_handover(
         CASE_ID, as_of, known, documents, patient=PATIENT, findings=findings, epicrisis=field4, headers=headers
     )

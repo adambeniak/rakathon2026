@@ -67,18 +67,20 @@ async def build_handover(
     usable = {k: v for k, v in included.items() if k not in unavailable}
     facts = included_facts(filter_as_of(accepted, normalized, as_of, require_received=True), usable)
     field4 = await generate_epicrisis(facts, usable, epicrisis, case_id=case_id)
+    headers = parse_headers({k: v for k, v in normalized.items() if k in usable})
+    type_codes = {k: d.type_code for k, d in usable.items()}
     handover = assemble_handover(
         case_id,
         as_of,
         facts,
         by_id,
         patient=patient,
-        findings=[*findings, *detect_findings(facts)],
+        findings=[*findings, *detect_findings(facts, headers, type_codes)],
         epicrisis=field4,
         rules=rules,
         generated_at=generated_at,
         unavailable=unavailable,
-        headers=parse_headers({k: v for k, v in normalized.items() if k in usable}),
+        headers=headers,
     )
     log.info(
         "handover_assembled",

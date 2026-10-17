@@ -10,7 +10,7 @@ describe('StatusPill', () => {
     ['missing', 'Chybí'],
     ['conflict', 'Nesouhlasí'],
     ['stale', 'Zastaralé'],
-    ['verified', 'Ověřeno lékařem'],
+    ['verified', 'Potvrzeno lékařem'],
     ['ai', 'Návrh AI'],
   ] as const)('renders text %s with an icon', (kind, text) => {
     const { container } = render(<StatusPill kind={kind} />)

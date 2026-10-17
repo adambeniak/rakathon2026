@@ -37,8 +37,11 @@ CaseId = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2
     summary="Apply a case event (state machine)",
     description="Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | "
     "guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). "
-    "`record_mdt_conclusion` is signed by the acting KOC physician; the GP recipient of `send_feedback` is the "
-    "referring GP of the case. Every event writes one AuditEvent.",
+    "`record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with "
+    "`GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case "
+    "(no clinical text, link to the GP portal) and, once the mail relay accepted it, the system confirms the "
+    "delivery (`delivery_confirmed`); a mail failure answers 503 `mail-unavailable` and changes nothing. "
+    "Every event writes an AuditEvent.",
     responses=problem_responses(401, 403, 404, 409, 422, 502, 503),
 )
 async def transition_case(

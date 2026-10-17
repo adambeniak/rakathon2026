@@ -13,6 +13,7 @@ from app.api.clients import get_directory_provider as get_directory_provider
 from app.api.clients import get_fhir_client as get_fhir_client
 from app.api.clients import get_http as get_http
 from app.api.clients import get_settings as get_settings
+from app.api.services.closed_loop import ClosedLoopWorkflow
 from app.api.services.coordination import CoordinationService
 from app.domain.common import PartyRef
 from app.extraction.handover.epicrisis import EPICRISIS_PROMPT_VERSION
@@ -26,8 +27,10 @@ from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
 from app.fhir.tasks import TaskStore
 from app.fhir.triage import TriageReader
-from app.fhir.workflow import CaseWorkflow, RequestWorkflow, authorize_case
+from app.fhir.workflow import RequestWorkflow, authorize_case
 from app.iris.db import IrisPool
+from app.notify.feedback_mail import portal_url
+from app.notify.mailer import Mailer, SmtpMailer
 from app.retrieval.ask import AskService
 from app.retrieval.indexing import DocumentIndexer
 from app.retrieval.search import HybridRetriever
@@ -57,11 +60,21 @@ def get_case_reader(repository: RepositoryDep) -> CaseReader:
 CaseReaderDep = Annotated[CaseReader, Depends(get_case_reader)]
 
 
-def get_case_workflow(repository: RepositoryDep, reader: CaseReaderDep) -> CaseWorkflow:
-    return CaseWorkflow(repository, reader)
+def get_mailer(settings: SettingsDep) -> Mailer:
+    return SmtpMailer(settings.smtp_host, settings.smtp_port)
 
 
-CaseWorkflowDep = Annotated[CaseWorkflow, Depends(get_case_workflow)]
+MailerDep = Annotated[Mailer, Depends(get_mailer)]
+
+
+def get_case_workflow(
+    repository: RepositoryDep, reader: CaseReaderDep, mailer: MailerDep, settings: SettingsDep
+) -> ClosedLoopWorkflow:
+    """The transition entry point; also stores the MDT conclusion and e-mails the GP (`ClosedLoopWorkflow`)."""
+    return ClosedLoopWorkflow(repository, reader, mailer, portal_url(settings))
+
+
+CaseWorkflowDep = Annotated[ClosedLoopWorkflow, Depends(get_case_workflow)]
 
 
 def get_llm_client(settings: SettingsDep) -> LLMClient:

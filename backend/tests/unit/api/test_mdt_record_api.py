@@ -221,8 +221,9 @@ def test_the_signed_conclusion_is_printed_in_section_6_and_its_read_is_audited(
     else:
         text = _pdf_text(response.content)
         assert " ".join(SIGNED.text.split()) in text
-    assert "Potvrzeno lékařem (MUDr. Lenka Marková, 21. 10. 2026 09:30)" in text
-    assert "Závěr MDT podepsán lékařem MUDr. Lenka Marková, 21. 10. 2026 09:30 (oddíl 6)." in text
+    who = "MUDr. Lenka Marková, 21. 10. 2026 09:30"
+    assert f"Potvrzeno lékařem – závěr zapsal(a) a v systému potvrdil(a) {who}" in text
+    assert f"Závěr MDT zapsal(a) a v systému potvrdil(a) {who} (oddíl 6; nejde o elektronický podpis)." in text
     assert "12_Algeziologie_2026-10-26 – po MDT" in text  # the handover stays as of the MDT start
     entities, description = repository.exports[-1]
     assert entities == ["Task/5", "Patient/2", "EpisodeOfCare/1", "Composition/77"]

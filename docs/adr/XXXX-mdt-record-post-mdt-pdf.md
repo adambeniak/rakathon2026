@@ -21,17 +21,20 @@
   conclusion is the meeting's output, not an input document, so the as-of rule for the handover does not cover it.
   Only a conclusion signed **at or after** `mdt_start` is printed (the state machine already refuses an earlier one;
   a conclusion of an earlier, moved meeting is never printed under a later date). The meta line says
-  "Závěr MDT podepsán lékařem <kdo>, <kdy> (oddíl 6)", so "Stav podkladů k 08:00" next to a 09:30 signature does not
-  read as a contradiction.
-- **Section 6** = label "Potvrzeno lékařem (<jméno>, <datum> <čas>)" (the shape of every confirmed section), a grey
-  note "Text závěru MDT tak, jak jej lékař zapsal a podepsal; systém jej nemění ani nedoplňuje (rodná čísla
-  vynechána)" and the signed text in the form's box. The text goes through the same sanitiser as every other value:
-  line breaks kept, XML-illegal and layout control characters dropped, **birth numbers replaced by
-  "[RČ vynecháno]"** (minimisation; the marker is visible). Otherwise the text is not touched.
+  "Závěr MDT zapsal(a) a v systému potvrdil(a) <kdo>, <kdy> (oddíl 6; nejde o elektronický podpis)", so "Stav podkladů
+  k 08:00" next to a 09:30 sign-off does not read as a contradiction. The record never says "podepsáno": the demo has
+  no electronic signature (clinical-safety review).
+- **Section 6** = label "Potvrzeno lékařem – závěr zapsal(a) a v systému potvrdil(a) <jméno>, <datum> <čas>" (keeps
+  the approved "Potvrzeno lékařem" but says the physician wrote the text, so it does not read as a confirmed AI draft;
+  row added to the approved-wording table in docs/demo-script.md), a grey note "Text závěru MDT tak, jak jej lékař
+  zapsal; systém obsah nedoplňuje ani nepřeformulovává. Případné rodné číslo je v tisku nahrazeno značkou
+  [RČ vynecháno]. Nejde o elektronický podpis." and the text in the form's box. The text goes through the same
+  sanitiser as every other value: line breaks kept, XML-illegal and layout control characters dropped, birth numbers
+  (pattern `\d{6}/\d{3,4}`) replaced by "[RČ vynecháno]" (minimisation; the marker is visible).
 - **Section 7** has no data source of its own. It is never filled by splitting the signed text at a "DOPORUČENÍ"
-  heading, because that would mean the system interprets clinical text. After the sign-off it says "Samostatně zapsáno
-  není. Doporučení MDT, pokud je lékař uvedl, je součástí podepsaného závěru v oddílu 6. Systém doporučení
-  nevytváří."; before, "Vyplní lékař na jednání MDT…" as now.
+  heading, because that would mean the system interprets clinical text. After the sign-off it says "Doporučení MDT
+  nejsou zapsána samostatně. Pokud je lékař uvedl, jsou součástí závěru v oddílu 6. Systém doporučení nevytváří.";
+  before, "Vyplní lékař na jednání MDT…" as now. The form's empty box stays (same as the DOCX template).
 - **Section 2 (members) unchanged: "Chybí – prezence členů MDT není v systému zaznamenána."** We preferred an optional
   `members` field on the `record_mdt_conclusion` payload, stored in the conclusion Composition. It has to go through
   `ClosedLoopWorkflow.record_conclusion` (`backend/app/api/services/closed_loop.py`), which another task (#149) is

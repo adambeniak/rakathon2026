@@ -14,6 +14,7 @@ Presenter lines are Czech (spoken); everything else is English. All data is fict
 | --- | --- |
 | **Návrh AI – čeká na potvrzení** | every handover section until a physician acts |
 | **Potvrzeno lékařem** | section confirmed unchanged; summary line **Potvrzeno lékařem: n z 15** |
+| **Potvrzeno lékařem – závěr zapsal(a) a v systému potvrdil(a) …** | section 6 of the MDT record after the conclusion was entered (text written by the physician, not by AI; no electronic signature) |
 | **Upraveno lékařem** | section saved with the physician's own value (no source quote) |
 | **Ponecháno jako chybějící** | physician accepted a missing value as missing (button **Ponechat jako chybějící**) |
 | **Doplněno lékařem** | a missing value filled in by the physician (button **Upravit**) |
@@ -236,10 +237,12 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   1. Role **Lékař KOC 2** → case → **Připravit MDT** → **Závěr MDT**: paste the text from the fictitious
      `data/raw/MDT_zaver.docx` into **Text závěru MDT** → **Zapsat závěr MDT**. The signed block shows
      **Podepsaný závěr MDT**, **Podepsal(a) <name> · <time>**; state **Závěr KOC/MDT**, baton Koordinátor.
-     Optional: on the same page **Stáhnout zápis (PDF)**. Section 6 now holds the signed text as written under
-     **Potvrzeno lékařem (<name>, 21. 10. 2026 <time>)**, a birth number in the pasted text shows as
-     **[RČ vynecháno]**, section 7 points to section 6, and sections 1–5 are still the basis as of 08:00 (reports 12
-     and 13 still **po MDT**). Section 2 still says the attendance is not recorded.
+     Paste from the heading **ZÁVĚR MDT** to the end (not the header with the patient's basic data). Optional: on the
+     same page **Stáhnout zápis (PDF)**. Section 6 now holds the text as written under **Potvrzeno lékařem – závěr
+     zapsal(a) a v systému potvrdil(a) <name>, 21. 10. 2026 <time>** and the note **… Nejde o elektronický podpis.**;
+     a birth number, if the pasted text contains one, shows as **[RČ vynecháno]**; section 7 points to section 6;
+     sections 1–5 are still the basis as of 08:00 (reports 12 and 13 still **po MDT**). Section 2 still says the
+     attendance is not recorded.
   2. Role **Koordinátorka KOC 2** → case → link **Odeslat závěr** → button **Odeslat závěr PL**. Shows **Závěr je předán k
      doručení praktickému lékaři.** and state **Zpětná vazba odeslána**.
   3. Mailpit (http://localhost:8025): message **Štafeta: zpětná vazba z MDT je k dispozici**. The mail has no clinical

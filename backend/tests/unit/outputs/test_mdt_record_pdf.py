@@ -126,7 +126,7 @@ def test_without_a_signed_conclusion_sections_6_and_7_are_left_for_the_physician
     text = _text(render_mdt_record_pdf(story_handover, GP, EXPORTED_AT))
 
     assert text.count(FOR_PHYSICIANS) == 2
-    assert "Potvrzeno lékařem (MUDr." not in text
+    assert "závěr zapsal(a)" not in text
 
 
 def test_the_signed_conclusion_is_printed_as_signed_with_who_and_when(story_handover: Handover) -> None:
@@ -134,7 +134,11 @@ def test_the_signed_conclusion_is_printed_as_signed_with_who_and_when(story_hand
 
     section_6 = text[text.index(HEADINGS[5]) : text.index(HEADINGS[6])]
     section_7 = text[text.index(HEADINGS[6]) : text.index("Příloha A")]
-    assert "Potvrzeno lékařem (MUDr. Lenka Marková, 21. 10. 2026 09:30)" in section_6
+    assert (
+        "Potvrzeno lékařem – závěr zapsal(a) a v systému potvrdil(a) MUDr. Lenka Marková, 21. 10. 2026 09:30"
+        in section_6
+    )
+    assert "Nejde o elektronický podpis." in section_6
     assert _norm(CONCLUSION.text) in section_6
     assert _norm(RECOMMENDATION_IN_CONCLUSION) in section_7
     assert "Bod zapsaný lékařem" not in section_7  # never split out of the signed text

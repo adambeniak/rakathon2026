@@ -172,14 +172,15 @@ def test_after_the_sign_off_section_6_prints_the_signed_conclusion_and_7_points_
     lines = _lines(render_mdt_record(story_handover, GP, EXPORTED_AT, conclusion=signed))
 
     at = lines.index("6  Závěr MDT")
-    assert lines[at + 1] == f"{LABEL_CONFIRMED} (MUDr. Lenka Marková, 21. 10. 2026 09:30)\n{CONCLUSION_NOTE}"
+    who = "MUDr. Lenka Marková, 21. 10. 2026 09:30"
+    assert lines[at + 1] == f"{LABEL_CONFIRMED} – závěr zapsal(a) a v systému potvrdil(a) {who}\n{CONCLUSION_NOTE}"
     assert lines[at + 2] == text.replace("635722/1013", "[RČ vynecháno]")  # as signed; birth number left out
     at = lines.index("7  Doporučení MDT")
     assert lines[at + 1] == RECOMMENDATION_IN_CONCLUSION  # never split out of the signed text
     assert lines[at + 2] == ""
-    assert any(
-        line.endswith("Závěr MDT podepsán lékařem MUDr. Lenka Marková, 21. 10. 2026 09:30 (oddíl 6).") for line in lines
-    )
+    meta = f"Závěr MDT zapsal(a) a v systému potvrdil(a) {who} (oddíl 6; nejde o elektronický podpis)."
+    assert any(line.endswith(meta) for line in lines)
+    assert "Závěr MDT podepsán" not in "\n".join(lines)  # no electronic signature in the demo: never claimed
 
 
 def test_minimisation_no_birth_number_in_the_record(story_handover: Handover) -> None:

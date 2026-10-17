@@ -149,7 +149,7 @@ describe('record download (DOCX, PDF)', () => {
     expect(blob.type).toBe('application/pdf')
     expect(blob.size).toBe(5)
     expect(
-      screen.getByText(/Po zapsání závěru MDT obsahuje zápis v oddílu 6 jeho podepsané znění/),
+      screen.getByText(/Po zapsání závěru MDT obsahuje zápis v oddílu 6 jeho znění potvrzené lékařem v systému/),
     ).toBeInTheDocument()
   })
 

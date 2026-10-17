@@ -24,7 +24,7 @@ export const mdt = {
   downloadError: 'Zápis se nepodařilo stáhnout.',
   downloadDraftNote: 'Dokud není každá sekce potvrzena lékařem, je zápis označen jako návrh.',
   downloadConclusionNote:
-    'Po zapsání závěru MDT obsahuje zápis v oddílu 6 jeho podepsané znění (kdo a kdy podepsal). Systém závěr ani doporučení nevytváří.',
+    'Po zapsání závěru MDT obsahuje zápis v oddílu 6 jeho znění potvrzené lékařem v systému (kdo a kdy). Systém závěr ani doporučení nevytváří.',
   recordTitle: 'Náhled MDT zápisu',
   recordHint: 'Sestaveno pouze z potvrzených a navržených údajů handoveru, vždy se zdrojem.',
   conclusionTitle: 'Závěr MDT',

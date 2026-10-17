@@ -165,3 +165,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: live emits only C1/C2 findings (#195); #184 board label and #183 waived predecessor not started (stack on #185)
   Risks: not run against IRIS; full `make check`/e2e not run (time limit); mock Alena after send_feedback now shows the coordinator closing
   Issues: closes #179, #180, #186; new #195; open #184, #183
+- 2026-10-17 · claude (P4) · feat/mdt-record-post-mdt-pdf · #92: the MDT record prints the conclusion entered and confirmed by the physician in section 6 once it exists (same endpoint, no stage param; only if signed ≥ mdt_start; audited with its Composition), section 7 points to it, never split; #89: `format=pdf` via reportlab + bundled DejaVu Sans, one document model for DOCX and PDF; PDF button next to DOCX on Příprava MDT (ADR mdt-record-post-mdt-pdf)
+  Verified: backend ruff/format/mypy + pytest -m "not iris" 1166 passed (before the wording fixes; targeted outputs/API tests 53 passed after); frontend lint/typecheck, vitest 182/182 (targeted 31/31 after); e2e timed out on a cold Vite start (408, machine load), not re-run
+  Next: MDT members recorded with the conclusion (#192, needs closed_loop.py after #149); birth-number pattern (#193); re-run make e2e on a quiet machine
+  Risks: new dependency reportlab 4.4.4 (uv.lock changed) and 1.4 MB fonts in the image; new section 6 wording row in the approved-wording table needs a human OK
+  Issues: #92, #89 closed by this PR; #192, #193 new

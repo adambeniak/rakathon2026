@@ -59,11 +59,16 @@ LABEL_DRAFT: Final = "Návrh AI – čeká na potvrzení lékařem"
 LABEL_MISSING: Final = "Chybí"
 MISSING_TEXT: Final = "Chybí"
 FOR_PHYSICIANS: Final = "Vyplní lékař na jednání MDT. Systém závěr ani doporučení nevytváří."
+# Section 6 after the sign-off: who entered and confirmed the conclusion in Štafeta. The demo has no electronic
+# signature, so the record never says "podepsáno".
+CONCLUSION_LABEL: Final = LABEL_CONFIRMED + " – závěr zapsal(a) a v systému potvrdil(a) {signed}"
 CONCLUSION_NOTE: Final = (
-    "Text závěru MDT tak, jak jej lékař zapsal a podepsal; systém jej nemění ani nedoplňuje (rodná čísla vynechána)."
+    "Text závěru MDT tak, jak jej lékař zapsal; systém obsah nedoplňuje ani nepřeformulovává. "
+    "Případné rodné číslo je v tisku nahrazeno značkou [RČ vynecháno]. Nejde o elektronický podpis."
 )
+CONCLUSION_META: Final = " Závěr MDT zapsal(a) a v systému potvrdil(a) {signed} (oddíl 6; nejde o elektronický podpis)."
 RECOMMENDATION_IN_CONCLUSION: Final = (
-    "Samostatně zapsáno není. Doporučení MDT, pokud je lékař uvedl, je součástí podepsaného závěru v oddílu 6. "
+    "Doporučení MDT nejsou zapsána samostatně. Pokud je lékař uvedl, jsou součástí závěru v oddílu 6. "
     "Systém doporučení nevytváří."
 )
 NO_MEMBERS: Final = "Chybí – prezence členů MDT není v systému zaznamenána."
@@ -320,7 +325,7 @@ def build_context(
         "meta": (
             f"Stav podkladů k {mdt_text}. "
             f"Zahrnuto dokumentů: {len(handover.included_documents)}, nezahrnuto: {len(handover.excluded_documents)}."
-            + (f" Závěr MDT podepsán lékařem {signed} (oddíl 6)." if signed else "")
+            + (CONCLUSION_META.format(signed=signed) if signed else "")
         ),
         "s1": section_label(
             _titled(handover, "patient", "contacts", "weight_height"),
@@ -545,7 +550,8 @@ def _signed_text(conclusion: SignedConclusion) -> str:
 
 
 def _conclusion_label(signed: str) -> Rich:
-    return Rich().add(f"{LABEL_CONFIRMED} ({signed})", bold=True).add("\n" + CONCLUSION_NOTE, italic=True, color=GREY)
+    label = CONCLUSION_LABEL.format(signed=signed)
+    return Rich().add(label, bold=True).add("\n" + CONCLUSION_NOTE, italic=True, color=GREY)
 
 
 def _contact(phone: str | None, email: str | None) -> str:

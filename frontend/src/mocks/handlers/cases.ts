@@ -81,6 +81,18 @@ const guardFailed = (detail: string, blockingItems: string[]) => {
   return HttpResponse.json(body, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
 }
 
+/** A role that may not fire the event, like the backend (#136): 403 `forbidden` with the shared title, `code` kept. */
+const roleDenied = (detail: string) => {
+  const body: Schemas['ProblemDetails'] = {
+    type: 'https://stafeta.example/problems/forbidden',
+    title: 'Přístup byl odepřen',
+    status: 403,
+    detail,
+    code: 'forbidden_role',
+  }
+  return HttpResponse.json(body, { status: 403, headers: { 'Content-Type': 'application/problem+json' } })
+}
+
 export const handlers = [
   http.get('/api/cases', ({ request }) => {
     const today = todayOf(request)
@@ -129,13 +141,13 @@ export const handlers = [
     const { event, conclusion, waivers } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
     if (event === 'gp_opened') {
       // The GP's read receipt: no state change, only while the feedback is out and not yet closed.
-      if (roleOf(request) !== 'gp') return problem(409, 'Otevření závěru potvrzuje pouze praktický lékař')
+      if (roleOf(request) !== 'gp') return roleDenied('Otevření závěru potvrzuje pouze praktický lékař')
       if (c.state !== 'zpetna_vazba_odeslana') return problem(409, 'Zpětná vazba není ve stavu k otevření')
       return HttpResponse.json(toApiCase(c, today))
     }
     // Demo step 5-6 loop; the guards mirror the state machine (case_machine.py), the texts are the mock's.
     if (event === 'mark_ready_mdt') {
-      if (roleOf(request) !== 'physician') return problem(409, 'Připravenost k MDT označuje pouze lékař KOC')
+      if (roleOf(request) !== 'physician') return roleDenied('Připravenost k MDT označuje pouze lékař KOC')
       if (c.state !== 'kompletni') return problem(409, 'Přechod není ve stavu případu povolen')
       // The server's gate, as the mock plays it: the ECOG is missing in the demo case, so it blocks unless waived.
       const open = MOCK_BLOCKING.filter((item) => !(waivers ?? []).some((w) => w.item === item && w.reason.trim()))
@@ -144,7 +156,7 @@ export const handlers = [
       return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     if (event === 'record_mdt_conclusion') {
-      if (roleOf(request) !== 'physician') return problem(409, 'Závěr MDT může zapsat pouze lékař KOC')
+      if (roleOf(request) !== 'physician') return roleDenied('Závěr MDT může zapsat pouze lékař KOC')
       if (c.state !== 'pripraveno_mdt') return problem(409, 'Přechod není ve stavu případu povolen')
       if (today < '2026-10-21') return problem(409, 'Splněná podmínka přechodu: MDT ještě nezačalo')
       if (!conclusion?.trim()) return problem(422, 'Závěr MDT je povinný')
@@ -152,19 +164,19 @@ export const handlers = [
       return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     if (event === 'send_feedback') {
-      if (roleOf(request) !== 'coordinator') return problem(409, 'Závěr odesílá pouze koordinátorka')
+      if (roleOf(request) !== 'coordinator') return roleDenied('Závěr odesílá pouze koordinátorka')
       if (c.state !== 'zaver_mdt') return problem(409, 'Přechod není ve stavu případu povolen')
       store.feedbackSent = true
       return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     if (event === 'close') {
-      if (roleOf(request) !== 'coordinator') return problem(409, 'Případ uzavírá pouze koordinátorka')
+      if (roleOf(request) !== 'coordinator') return roleDenied('Případ uzavírá pouze koordinátorka')
       if (c.state !== 'zpetna_vazba_odeslana') return problem(409, 'Přechod není ve stavu případu povolen')
       store.closed = true
       return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     if (event !== 'accept') return problem(422, 'Událost není v této ukázce podporována')
-    if (roleOf(request) !== 'coordinator') return problem(409, 'Případ smí převzít pouze koordinátorka')
+    if (roleOf(request) !== 'coordinator') return roleDenied('Případ smí převzít pouze koordinátorka')
     if (c.state !== 'odeslano') return problem(409, 'Případ už byl převzat')
     store.claimed.push(id)
     return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))

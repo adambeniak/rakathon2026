@@ -104,7 +104,7 @@ export interface paths {
         put?: never;
         /**
          * Request reports from workplaces (one click)
-         * @description Creates a CommunicationRequest and a tracking Task (owner: the coordinator, due: +2 working days) per item. While the case is in `triage` the same transaction moves it to `ceka_na_podklady`. Coordinator only.
+         * @description Creates a CommunicationRequest and a tracking Task (owner: the coordinator, due: +2 working days) per item. While the case is in `triage` the same transaction moves it to `ceka_na_podklady`. Coordinator only (any other role: 403, `code` = forbidden_role).
          */
         post: operations["cases-create_document_requests"];
         delete?: never;
@@ -299,7 +299,7 @@ export interface paths {
         put?: never;
         /**
          * Apply a case event (state machine)
-         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed; a `guard_failed` of `mark_ready_mdt` also lists the blocking readiness item keys in `blocking_items` (read them there, never parse `detail`). The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with `GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case (no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records it as handed over for delivery (`delivery_confirmed`, receipt = SMTP Message-ID; the GP opening the feedback is recorded separately by `gp_opened`); a mail failure answers 503 `mail-unavailable` and changes nothing. Every event writes an AuditEvent.
+         * @description Refused transitions answer 409 problem+json with `code` = invalid_transition | guard_failed | case_postponed; a role that may not fire the event answers 403 (`forbidden`, `code` = forbidden_role). A `guard_failed` of `mark_ready_mdt` also lists the blocking readiness item keys in `blocking_items` (read them there, never parse `detail`). The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with `GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case (no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records it as handed over for delivery (`delivery_confirmed`, receipt = SMTP Message-ID; the GP opening the feedback is recorded separately by `gp_opened`); a mail failure answers 503 `mail-unavailable` and changes nothing. Every event writes an AuditEvent.
          */
         post: operations["cases-transition_case"];
         delete?: never;
@@ -434,7 +434,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm, perform, deliver the result of, fail or cancel a task
-         * @description Roles are checked by the task state machine. For a task owned by an external workplace the coordinator may record perform / deliver_result on its behalf; the audit trail says so.
+         * @description Roles are checked by the task state machine. For a task owned by an external workplace the coordinator may record perform / deliver_result on its behalf; the audit trail says so. A refused transition answers 409 with `code` = invalid_transition | guard_failed; a role that may not fire it answers 403 (`forbidden`, `code` = forbidden_role).
          */
         post: operations["tasks-transition_task"];
         delete?: never;
@@ -2384,7 +2384,7 @@ export interface components {
             blocking_items?: string[] | null;
             /**
              * Code
-             * @description Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.
+             * @description Refused transition: invalid_transition | guard_failed | case_postponed (409) or forbidden_role (403, a role denial).
              */
             code?: string | null;
             /** Detail */
@@ -3559,6 +3559,15 @@ export interface operations {
             };
             /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

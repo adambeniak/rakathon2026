@@ -43,9 +43,10 @@ log = structlog.get_logger(__name__)
 
 # Czech `title` of a problem (RFC 7807: short, the same for every occurrence of the type). Neutral system wording only.
 # Resolved most specific first: transition `code`, then problem `type`, then HTTP status, then the English phrase.
+# `forbidden_role` has no own title: a role denial is a 403 `forbidden` like on every other endpoint (ADR
+# transition-role-denial-403), so it shares that title; the body keeps `code` for the machine.
 CODE_TITLES: Mapping[str, str] = {
     "invalid_transition": "Akce není v tomto stavu povolena",
-    "forbidden_role": "Role nemá k akci oprávnění",
     "guard_failed": "Podmínky akce nejsou splněny",
     "case_postponed": "Případ je odložen",
 }
@@ -198,6 +199,9 @@ def _request_id(request: Request) -> str | None:
 
 
 def _domain_status(exc: DomainError) -> tuple[int, str]:
+    if isinstance(exc, TransitionError) and exc.code == "forbidden_role":
+        # "Your role may not do this" is authorisation, not a state conflict: 403 like every other role denial.
+        return 403, "forbidden"
     if isinstance(exc, NotFoundError):
         return 404, "not-found"
     if isinstance(exc, UnauthenticatedError):

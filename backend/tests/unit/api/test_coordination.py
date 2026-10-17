@@ -509,7 +509,7 @@ def test_refused_transitions_say_why(harness: Harness) -> None:
     harness.move("eus-fnb", "confirm", date="2026-10-12", place="KOC 2")
 
     forbidden = harness.move("eus-fnb", "perform", headers=COORDINATOR)  # the physician owns EUS-FNB
-    assert forbidden.status_code == 409
+    assert forbidden.status_code == 403
     assert forbidden.json()["code"] == "forbidden_role"
 
     blocked = harness.move("eus-fnb", "perform", headers=PHYSICIAN)  # CT is not finished
@@ -544,7 +544,7 @@ def test_fail_and_cancel_need_a_reason_and_the_right_role(harness: Harness) -> N
 
     assert harness.move("ct", "cancel").status_code == 422
     assert harness.move("ct", "cancel", note="  ").status_code == 422
-    assert harness.move("ct", "cancel", note="Pacientka odmítla", headers=PHYSICIAN).status_code == 409
+    assert harness.move("ct", "cancel", note="Pacientka odmítla", headers=PHYSICIAN).status_code == 403
 
     cancelled = harness.move("ct", "cancel", note="Pacientka odmítla")
     assert cancelled.status_code == 200

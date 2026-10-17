@@ -36,10 +36,10 @@ CaseId = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2
     "/{case_id}/transitions",
     response_model=CaseSummary,
     summary="Apply a case event (state machine)",
-    description="Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | "
-    "guard_failed | case_postponed; a `guard_failed` of `mark_ready_mdt` also lists the blocking readiness item keys "
-    "in `blocking_items` (read them there, never parse `detail`). The acting role comes from the `X-Demo-Role` header "
-    "(demo mode). "
+    description="Refused transitions answer 409 problem+json with `code` = invalid_transition | guard_failed | "
+    "case_postponed; a role that may not fire the event answers 403 (`forbidden`, `code` = forbidden_role). A "
+    "`guard_failed` of `mark_ready_mdt` also lists the blocking readiness item keys in `blocking_items` (read them "
+    "there, never parse `detail`). The acting role comes from the `X-Demo-Role` header (demo mode). "
     "`record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with "
     "`GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case "
     "(no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records "
@@ -127,8 +127,9 @@ async def list_document_requests(
     response_model=DocumentRequestsCreated,
     summary="Request reports from workplaces (one click)",
     description="Creates a CommunicationRequest and a tracking Task (owner: the coordinator, due: +2 working days) per "
-    "item. While the case is in `triage` the same transaction moves it to `ceka_na_podklady`. Coordinator only.",
-    responses=problem_responses(401, 404, 409, 422, 502, 503),
+    "item. While the case is in `triage` the same transaction moves it to `ceka_na_podklady`. Coordinator only (any "
+    "other role: 403, `code` = forbidden_role).",
+    responses=problem_responses(401, 403, 404, 409, 422, 502, 503),
 )
 async def create_document_requests(
     body: DocumentRequestsBody,

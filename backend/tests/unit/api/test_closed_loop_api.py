@@ -224,8 +224,8 @@ def test_sign_off_stores_the_text_with_provenance_in_the_same_transaction(
 @pytest.mark.parametrize(
     ("headers", "body", "status", "code"),
     [
-        (COORDINATOR_HEADERS, {"conclusion": CONCLUSION}, 409, "forbidden_role"),
-        (GP_HEADERS, {"conclusion": CONCLUSION}, 409, "forbidden_role"),
+        (COORDINATOR_HEADERS, {"conclusion": CONCLUSION}, 403, "forbidden_role"),
+        (GP_HEADERS, {"conclusion": CONCLUSION}, 403, "forbidden_role"),
         (PHYSICIAN_HEADERS, {"conclusion": "   "}, 409, "guard_failed"),
         (PHYSICIAN_HEADERS, {}, 409, "guard_failed"),
         (REVIEWER_HEADERS, {"conclusion": CONCLUSION}, 403, None),
@@ -306,7 +306,7 @@ def test_a_failed_mail_changes_nothing_and_the_coordinator_can_retry(
 
 @pytest.mark.parametrize(
     ("headers", "status", "code"),
-    [(PHYSICIAN_HEADERS, 409, "forbidden_role"), (GP_HEADERS, 409, "forbidden_role")],
+    [(PHYSICIAN_HEADERS, 403, "forbidden_role"), (GP_HEADERS, 403, "forbidden_role")],
 )
 def test_only_the_coordinator_sends_and_nothing_goes_out_when_refused(
     client: TestClient, mailer: FakeMailer, headers: dict[str, str], status: int, code: str
@@ -348,7 +348,7 @@ def test_delivery_cannot_be_confirmed_by_a_user_and_the_gp_receipt_then_close_co
     opened = _post(client, "gp_opened", GP_HEADERS)
     closed = _post(client, "close", COORDINATOR_HEADERS)
 
-    assert forged.status_code == 409
+    assert forged.status_code == 403
     assert forged.json()["code"] == "forbidden_role"
     assert opened.status_code == 200
     assert opened.json()["state"] == "zpetna_vazba_odeslana"
@@ -381,7 +381,7 @@ def test_a_failed_write_after_a_sent_mail_is_an_error_and_leaves_the_state_alone
 
 @pytest.mark.parametrize(
     ("headers", "status"),
-    [(COORDINATOR_HEADERS, 409), (GP_HEADERS, 409), (PHYSICIAN_HEADERS, 409), (REVIEWER_HEADERS, 403)],
+    [(COORDINATOR_HEADERS, 403), (GP_HEADERS, 403), (PHYSICIAN_HEADERS, 403), (REVIEWER_HEADERS, 403)],
 )
 def test_no_demo_role_can_confirm_delivery_or_supply_a_receipt(
     client: TestClient, store: MemoryFhir, headers: dict[str, str], status: int

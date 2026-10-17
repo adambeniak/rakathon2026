@@ -18,7 +18,9 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
     summary="Confirm, perform, deliver the result of, fail or cancel a task",
     description=(
         "Roles are checked by the task state machine. For a task owned by an external workplace the coordinator "
-        "may record perform / deliver_result on its behalf; the audit trail says so."
+        "may record perform / deliver_result on its behalf; the audit trail says so. A refused transition answers 409 "
+        "with `code` = invalid_transition | guard_failed; a role that may not fire it answers 403 (`forbidden`, "
+        "`code` = forbidden_role)."
     ),
     responses=problem_responses(403, 404, 409, 422, 500, 502, 503),
 )

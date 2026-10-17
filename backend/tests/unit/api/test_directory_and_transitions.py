@@ -102,18 +102,19 @@ def test_transition_uses_the_role_from_the_directory_not_from_the_client(
     assert workflow.calls == [("rakathon-2026-prochazkova", "accept", Role.COORDINATOR, None)]
 
 
-def test_forbidden_transition_is_a_409_problem_with_a_machine_code(client: TestClient, workflow: FakeWorkflow) -> None:
+def test_a_role_denial_is_a_403_problem_that_keeps_the_machine_code(client: TestClient, workflow: FakeWorkflow) -> None:
     workflow.error = TransitionError("forbidden_role", "role 'gp' may not 'accept'")
 
     response = client.post(
         "/api/cases/rakathon-2026-prochazkova/transitions", json={"event": "accept"}, headers={"X-Demo-Role": "gp"}
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 403  # #136: authorisation, not a state conflict
     assert response.headers["content-type"].startswith("application/problem+json")
     body = response.json()
     assert body["code"] == "forbidden_role"
-    assert body["type"].endswith("/conflict")
+    assert body["type"].endswith("/forbidden")
+    assert body["title"] == "Přístup byl odepřen"  # the same title as every other role denial
 
 
 def test_unknown_role_is_401(client: TestClient) -> None:

@@ -69,7 +69,8 @@ class ProblemDetails(BaseModel):
     )
     code: str | None = Field(
         None,
-        description="Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.",
+        description="Refused transition: invalid_transition | guard_failed | case_postponed (409) or forbidden_role "
+        "(403, a role denial).",
     )
     blocking_items: list[str] | None = Field(
         None,

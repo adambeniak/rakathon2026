@@ -271,7 +271,7 @@ def test_a_coordinator_is_refused_by_role_with_or_without_waivers(make_client: A
 
     response = _post(make_client(store), "mark_ready_mdt", COORDINATOR_HEADERS, waivers=waivers)
 
-    assert response.status_code == 409
+    assert response.status_code == 403
     assert response.json()["code"] == "forbidden_role"
     assert store.transactions == 0
 

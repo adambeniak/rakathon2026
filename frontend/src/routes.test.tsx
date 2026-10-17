@@ -80,7 +80,7 @@ describe('route smoke + axe', () => {
     expect(submit).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: /Použít ukázkovou žádost/ }))
     expect(await screen.findByText('635722/1013')).toBeInTheDocument()
-    await userEvent.selectOptions(screen.getByLabelText('Cílové onkologické centrum'), 'koc2')
+    await userEvent.selectOptions(screen.getByLabelText('Cílové onkologické centrum'), 'koc2-nemocnice-lipova')
     expect(submit).toBeDisabled()
     await userEvent.click(screen.getByRole('checkbox'))
     expect(submit).toBeEnabled()

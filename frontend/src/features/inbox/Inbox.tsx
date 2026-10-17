@@ -2,7 +2,9 @@ import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { LoadingBlock } from '@/components/Skeleton'
 import { useDemo } from '@/app/DemoContext'
 import { useClaimCase, useInbox } from '@/features/cases/api'
+import { cases } from '@/i18n/cs/cases'
 import { inbox as t } from '@/i18n/cs/inbox'
+import { problemTitle } from '@/lib/api/problem'
 import type { CaseSummary } from '@/lib/domain'
 import { InboxCard } from './components/InboxCard'
 
@@ -30,6 +32,11 @@ export function Inbox() {
   return (
     <div className="space-y-4">
       <h1 className="text-3xl">{t.title}</h1>
+      {claim.isError && (
+        <p role="alert" className="rounded border border-missing/40 bg-missing-bg p-3 text-missing">
+          {cases.actions.claimError} {problemTitle(claim.error)}
+        </p>
+      )}
       <div className="grid gap-4 lg:grid-cols-3">
         {COLUMNS.map((col) => {
           const items: CaseSummary[] = q.data.filter((c) => c.column === col && c.state !== 'uzavreno').sort(byDeadline)

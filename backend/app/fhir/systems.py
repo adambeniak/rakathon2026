@@ -77,6 +77,7 @@ EXT_HANDOVER_FIELD_STATUS: Final = SD + "handover-field-status"
 EXT_HANDOVER_REVIEW: Final = SD + "handover-review"
 EXT_HANDOVER_EDITED_VALUE: Final = SD + "handover-edited-value"
 EXT_HANDOVER_SECTION: Final = SD + "handover-section"
+EXT_HANDOVER_CONFLICTS: Final = SD + "handover-conflicts"
 EXT_EVIDENCE_QUOTE: Final = SD + "evidence-quote"
 EXT_PREVIOUS_VALUE_HASH: Final = SD + "previous-value-sha256"
 EXT_READINESS_ITEM: Final = SD + "readiness-item"  # Provenance (waiver): the MDT readiness item that was waived

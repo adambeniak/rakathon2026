@@ -14,6 +14,7 @@ from app.fhir.mappers.handover import (
     stored_review,
     with_section_review,
 )
+from app.fhir.systems import CS_HANDOVER_STATUS, EXT_HANDOVER_CONFLICTS, EXT_HANDOVER_FIELD_STATUS
 from app.settings import PRAGUE
 from tests.unit.fhir.test_handover_mapper import CTX, PHYSICIAN, handover
 
@@ -133,3 +134,41 @@ def test_all_sections_carried_make_a_final_composition_attested_by_the_latest_de
     assert composition["status"] == "final"
     assert composition["attester"][0]["time"] == (last + timedelta(minutes=1)).isoformat(timespec="seconds")
     assert stored_review({**composition, "id": "new"}).edited_values == {"8_allergies": "neguje"}
+
+
+def _with_section_extension(composition: dict[str, Any], key: str, url: str, part: dict[str, Any] | None) -> None:
+    """Replace (or with None remove) one extension of a section in place."""
+    for section in composition["section"]:
+        if section["code"]["coding"][0]["code"] == key:
+            kept = [e for e in section["extension"] if e["url"] != url]
+            section["extension"] = kept + ([{"url": url, **part}] if part else [])
+
+
+def test_same_value_but_another_status_stays_a_draft() -> None:
+    """Clinical safety: the value is the same but the section turned `stale`; the confirmation does not cover it."""
+    h = handover()
+    snapshot = _confirm(_snapshot(h, "50"), h, "8_allergies")
+    _with_section_extension(
+        snapshot,
+        "8_allergies",
+        EXT_HANDOVER_FIELD_STATUS,
+        {"valueCoding": {"system": CS_HANDOVER_STATUS, "code": "stale"}},
+    )
+
+    assert carried_reviews(h, [snapshot]) == []
+
+
+def test_same_value_but_another_conflict_stays_a_draft() -> None:
+    h = handover()
+    snapshot = _confirm(_snapshot(h, "50"), h, "8_allergies")
+    _with_section_extension(snapshot, "8_allergies", EXT_HANDOVER_CONFLICTS, {"valueString": '["C1"]'})
+
+    assert carried_reviews(h, [snapshot]) == []
+
+
+def test_snapshot_without_stored_conflicts_is_not_comparable() -> None:
+    h = handover()
+    snapshot = _confirm(_snapshot(h, "50"), h, "8_allergies")
+    _with_section_extension(snapshot, "8_allergies", EXT_HANDOVER_CONFLICTS, None)
+
+    assert carried_reviews(h, [snapshot]) == []

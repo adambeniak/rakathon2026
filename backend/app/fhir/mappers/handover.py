@@ -9,7 +9,8 @@
   `evidence-quote` extension, agent = Device (model + prompt versions). Confirmation by a physician adds a Provenance
   targeting the Composition (agent = PractitionerRole by business identifier, previous value hash).
 - A new snapshot of the case (another as_of) carries over the physician's decisions on sections whose content is
-  identical (same value hash), each with a `carry-over` Provenance (ADR handover-confirmation-carry-over).
+  identical (same value hash, field status and conflicts), each with a `carry-over` Provenance
+  (ADR handover-confirmation-carry-over).
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ from app.fhir.systems import (
     CS_WORKFLOW_ROLE,
     EXT_EVIDENCE_QUOTE,
     EXT_HANDOVER_AS_OF,
+    EXT_HANDOVER_CONFLICTS,
     EXT_HANDOVER_EDITED_VALUE,
     EXT_HANDOVER_EPISODE,
     EXT_HANDOVER_FIELD_STATUS,
@@ -414,6 +416,8 @@ def _section(key: str, title: str, field: HandoverFieldBase, refs: list[Resource
                 "url": EXT_HANDOVER_FIELD_STATUS,
                 "valueCoding": {"system": CS_HANDOVER_STATUS, "code": field.status.value},
             },
+            # Always written (also "[]"): a carry-over compares it, and its absence means "not known".
+            {"url": EXT_HANDOVER_CONFLICTS, "valueString": json.dumps(sorted(field.conflicts))},
             _review_extension(review),
         ],
     }
@@ -563,12 +567,15 @@ def confirmation_provenance(
 def carried_reviews(handover: Handover, snapshots: Sequence[Resource]) -> list[CarriedReview]:
     """The physician's decisions from the case's other handover snapshots that still cover this one.
 
-    Per section the latest decision (by its time) among the snapshots counts; it is carried only when the section
-    content is identical (stored value hash == assembled value hash), so a section that changed stays a draft.
+    Per section the latest decision (by its time) among the snapshots counts; it is carried only when the section is
+    identical: the value hash the physician confirmed, the field status and the conflicts all equal the assembled
+    section. A value can stay the same while the section turns `stale` or gains a conflict; it then stays a draft, as
+    does a section of a snapshot that did not store its conflicts.
     Ordered by time: applied in this order, the latest decision attests a Composition that becomes final.
     """
     own = handover_business_id(handover.case_id, handover.as_of)
     latest: dict[str, CarriedReview] = {}
+    states: dict[str, tuple[str, str] | None] = {}
     for resource in snapshots:
         identifier = resource.get("identifier", {})
         value = str(identifier.get("value", ""))
@@ -580,6 +587,7 @@ def carried_reviews(handover: Handover, snapshots: Sequence[Resource]) -> list[C
         ):
             continue
         stored = stored_review(resource)
+        shown = _section_states(resource)
         for key, review in stored.sections.items():
             if review.state not in REVIEW_DONE or review.by is None or review.at is None:
                 continue
@@ -587,10 +595,38 @@ def carried_reviews(handover: Handover, snapshots: Sequence[Resource]) -> list[C
             if known is None or review.at > known.at:
                 version = resource.get("meta", {}).get("versionId")
                 source = f"Composition/{stored.fhir_id}" + (f"/_history/{version}" if version else "")
-                latest[key] = CarriedReview(key, review, review.by, review.at, stored.edited_values.get(key), source)
-    hashes = {key: field.value_hash for key, _, field in _fields(handover)}
-    carried = [c for c in latest.values() if c.review.value_hash and c.review.value_hash == hashes.get(c.key)]
-    return sorted(carried, key=lambda c: c.at)
+                carried = CarriedReview(key, review, review.by, review.at, stored.edited_values.get(key), source)
+                latest[key] = carried
+                states[key] = shown.get(key)
+    current = {
+        key: (field.value_hash, (field.status.value, json.dumps(sorted(field.conflicts))))
+        for key, _, field in _fields(handover)
+    }
+    kept = [
+        c
+        for c in latest.values()
+        if c.key in current
+        and c.review.value_hash
+        and c.review.value_hash == current[c.key][0]
+        and states.get(c.key) == current[c.key][1]
+    ]
+    return sorted(kept, key=lambda c: c.at)
+
+
+def _section_states(resource: Resource) -> dict[str, tuple[str, str]]:
+    """(field status, conflicts as stored) per section key; a section without both is left out (= not comparable)."""
+    states: dict[str, tuple[str, str]] = {}
+    for section in resource.get("section", []):
+        key = next(
+            (c["code"] for c in section.get("code", {}).get("coding", []) if c.get("system") == CS_HANDOVER_SECTION),
+            None,
+        )
+        ext = {e.get("url"): e for e in section.get("extension", [])}
+        status = ext.get(EXT_HANDOVER_FIELD_STATUS, {}).get("valueCoding", {}).get("code")
+        conflicts = ext.get(EXT_HANDOVER_CONFLICTS, {}).get("valueString")
+        if key is not None and status is not None and conflicts is not None:
+            states[key] = (str(status), str(conflicts))
+    return states
 
 
 def carry_over_provenance(composition_ref: str, carried: CarriedReview, ctx: FhirContext) -> Resource:

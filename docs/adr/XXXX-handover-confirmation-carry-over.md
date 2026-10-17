@@ -1,6 +1,8 @@
 # ADR-XXXX: Handover snapshots carry over the physician's decisions on unchanged sections; the MDT screen stores the mdt_start snapshot
 
 - Date: 2026-10-17 · Status: proposed · Owner: P2 (files in P1/P3 areas, approved by the session owner) · Issue: #122
+- Reviewed: clinical-safety-reviewer (identical value is not enough: status and conflicts must match too, applied);
+  fhir-architect (Device as the only agent, physician as `entity.agent`, versioned source reference, applied).
 - The number is assigned by the merge captain; until then the file is named `XXXX-<slug>.md`.
 
 ## Context
@@ -18,8 +20,13 @@
   Composition, it searches the patient's Compositions (an audited search) and keeps the handover snapshots of the same
   case (`carried_reviews`, a pure function in `mappers/handover.py`). For each section, the latest physician decision
   across those snapshots counts (confirmed or accepted as missing, by its `at`). It is copied (review and edited value)
-  only when its stored `value_hash` equals the newly assembled section's `value_hash`. A section whose content changed
-  stays a draft, and an older decision that matched does not outrank a newer one that does not.
+  only when the section is identical: the confirmed `value_hash`, the field status and the conflicts (finding ids,
+  stored per section in the `handover-conflicts` extension) all equal the newly assembled section. The value alone is
+  not enough: with the same value a section can turn `stale` (vitals older than the rule at the later as_of) or gain a
+  conflict (`complete_with_conflict`), and the physician did not confirm that. In the story data this happens for
+  Léková anamnéza and Výška a hmotnost between 9. 10. and 20. 10. A section that differs stays a draft, an older
+  decision that matched does not outrank a newer one that does not, and a snapshot stored before this ADR (no
+  `handover-conflicts`) is not comparable, so nothing is carried from it.
 - **Who and when stay the physician's.** The copied review keeps the original `by` and `at`. Each copied section gets
   a `Provenance` (activity `provenance-activity|carry-over`) in the same transaction as the new Composition: target =
   the new Composition, agent assembler = the Štafeta Device that copied it (the only agent), entity source = the
@@ -39,6 +46,11 @@
   same rule as the existing reopen-on-change (`overlay_review`).
 - Carry-over runs once, when the new snapshot is created. Decisions made later on another snapshot are not copied into
   a Composition that already exists.
+- `GET /handover` at `mdt_start` shows the carried decisions only once the snapshot is stored (the MDT screen opened
+  once, or one section confirmed there). Until then the Handover tab shows drafts; the demo opens **Připravit MDT**
+  first (#156).
+- The carried review shows the physician and the original time but no visible "převzato" marker; the Provenance
+  records the copy. A marker in the MDT record DOCX and the UI needs an additive contract field (follow-up issue).
 - Opening the MDT screen writes (an idempotent persist, audited). Before the pathway launch there is no `mdt_start`,
   so the snapshot is at the demo clock, the same as a confirmation without `as_of`.
 - One extra audited Composition search per new snapshot (all of the patient's Compositions, filtered client-side).

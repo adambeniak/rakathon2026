@@ -14,12 +14,16 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_case_reader, get_case_workflow, get_directory_provider, get_fhir_client, get_iris_pool
 from app.api.services.closed_loop import ClosedLoopWorkflow
+from app.domain.board import build_board, collect_alerts
 from app.domain.case import Case, CaseState
 from app.domain.common import Role
+from app.domain.task import Task, TaskBusinessStatus, TaskStatus
+from app.domain.task_machine import OPEN_STATUSES
 from app.fhir.cases import CaseOverview, LoadedCase
 from app.fhir.client import Resource
 from app.fhir.directory import Directory
 from app.fhir.mappers.case import case_from_fhir, case_task_to_fhir
+from app.fhir.mappers.task import task_from_fhir, task_to_fhir
 from app.main import create_app
 from app.notify.mailer import MailDeliveryError, MailMessage
 from app.seed import demo_case
@@ -62,6 +66,9 @@ class MemoryFhir:
         if resource_type == "Composition":
             found = [r for r in found if r["subject"]["reference"] == params["subject"]]
         return found
+
+    async def read(self, resource_type: str, resource_id: str) -> Resource:
+        return dict(self.resources[(resource_type, resource_id)])
 
     async def audit_read(self, entities: list[str], **_: object) -> None:
         self.audit_reads.append(list(entities))
@@ -387,3 +394,136 @@ def test_no_demo_role_can_confirm_delivery_or_supply_a_receipt(
 
     assert response.status_code == status
     assert store.resources[("Task", "5")]["meta"]["versionId"] == before  # nothing written
+
+
+# --- close: a closed case leaves no open step, alert or escalation behind (#133) ---
+
+HISTOLOGY_DUE = datetime(2026, 10, 9, 16, 0, tzinfo=PRAGUE)  # overdue at the MDT clock
+STEPS = {  # FHIR id -> (step, FHIR id of its order)
+    "201": (
+        Task(
+            id="step-histology",
+            case_id=demo_case.CASE_ID,
+            code="histology",
+            title="Histologie",
+            status=TaskStatus.ACCEPTED,
+            business_status=TaskBusinessStatus.POTVRZENO,
+            owner_role=Role.EXTERNAL_WORKPLACE,
+            due=HISTOLOGY_DUE,
+            sla_due=HISTOLOGY_DUE,
+        ),
+        "301",
+    ),
+    "202": (
+        Task(
+            id="step-call-patient",
+            case_id=demo_case.CASE_ID,
+            code="ad-hoc",
+            title="Zavolat pacientce",
+            status=TaskStatus.REQUESTED,
+            owner_role=Role.COORDINATOR,
+            ad_hoc=True,
+        ),
+        None,
+    ),
+    "203": (
+        Task(
+            id="step-ct",
+            case_id=demo_case.CASE_ID,
+            code="ct-staging",
+            title="CT hrudníku a břicha",
+            status=TaskStatus.COMPLETED,
+            business_status=TaskBusinessStatus.VYSLEDEK_DORUCEN,
+            owner_role=Role.EXTERNAL_WORKPLACE,
+            result_doc_id="09",
+        ),
+        "303",
+    ),
+}
+
+
+@pytest.fixture
+def steps(store: MemoryFhir) -> MemoryFhir:
+    for fhir_id, (task, order_id) in STEPS.items():
+        resource = task_to_fhir(
+            task,
+            case_task_reference="Task/5",
+            patient_reference="Patient/2",
+            service_request_reference=f"ServiceRequest/{order_id}" if order_id else None,
+        )
+        store.resources[("Task", fhir_id)] = {**resource, "id": fhir_id, "meta": {"versionId": "1"}}
+        if order_id:
+            store.resources[("ServiceRequest", order_id)] = {
+                "resourceType": "ServiceRequest",
+                "id": order_id,
+                "status": "completed" if task.status is TaskStatus.COMPLETED else "active",
+                "meta": {"versionId": "1"},
+            }
+    return store
+
+
+def _step_tasks(store: MemoryFhir) -> list[Task]:
+    return [task_from_fhir(store.resources[("Task", fhir_id)]) for fhir_id in STEPS]
+
+
+def _feedback_sent(client: TestClient) -> None:
+    assert _sign_off(client).status_code == 200
+    assert _post(client, "send_feedback", COORDINATOR_HEADERS).status_code == 200
+
+
+def test_close_cancels_the_open_steps_and_revokes_their_orders_in_the_same_transaction(
+    client: TestClient, steps: MemoryFhir
+) -> None:
+    _feedback_sent(client)
+    before = steps.transactions
+
+    closed = _post(client, "close", COORDINATOR_HEADERS)
+
+    assert closed.status_code == 200
+    assert closed.json()["state"] == "uzavreno"
+    assert closed.json()["baton_holder"] is None
+    assert steps.transactions == before + 1  # case, steps, orders and audit commit together
+    for fhir_id in ("201", "202"):
+        step = steps.resources[("Task", fhir_id)]
+        assert step["status"] == "cancelled"
+        assert step["statusReason"] == {"text": "Případ uzavřen"}
+        assert step["meta"]["versionId"] == "2"
+    assert steps.resources[("Task", "201")]["focus"] == {"reference": "ServiceRequest/301"}
+    assert steps.resources[("Task", "201")]["businessStatus"]["coding"][0]["code"] == "potvrzeno"  # never backwards
+    assert steps.resources[("ServiceRequest", "301")]["status"] == "revoked"
+    # A completed step and its order are history: untouched.
+    assert steps.resources[("Task", "203")]["status"] == "completed"
+    assert steps.resources[("Task", "203")]["meta"]["versionId"] == "1"
+    assert steps.resources[("ServiceRequest", "303")]["status"] == "completed"
+    cancels = [a for a in steps.of_type("AuditEvent") if a["subtype"][0]["code"] == "cancel"]
+    assert sorted(a["entity"][0]["what"]["reference"] for a in cancels) == ["Task/201", "Task/202"]
+    closes = [a for a in steps.of_type("AuditEvent") if a["subtype"][0]["code"] == "close"]
+    assert [a["entity"][0]["what"]["reference"] for a in closes] == ["Task/5"]
+
+
+def test_a_closed_case_has_no_alert_no_baton_and_nothing_left_to_escalate(
+    client: TestClient, steps: MemoryFhir
+) -> None:
+    _feedback_sent(client)
+    assert [a.task_id for a in collect_alerts(_step_tasks(steps), MDT_START)] == ["step-histology"]  # the #133 alert
+
+    assert _post(client, "close", COORDINATOR_HEADERS).status_code == 200
+
+    tasks = _step_tasks(steps)
+    assert collect_alerts(tasks, MDT_START) == []
+    board = build_board(demo_case.CASE_ID, tasks, MDT_START)
+    assert board.baton_holder is None
+    assert not any(bt.overdue for lane in board.lanes for bt in lane.tasks)
+    assert [t for t in tasks if t.status in OPEN_STATUSES] == []  # what the SLA watchdog looks at
+
+
+def test_a_refused_close_changes_no_step(client: TestClient, steps: MemoryFhir) -> None:
+    _sign_off(client)  # no feedback sent yet: close is not allowed
+
+    refused = _post(client, "close", COORDINATOR_HEADERS)
+    waived = _post(client, "close", COORDINATOR_HEADERS, waivers=[{"item": "histology", "reason": "x"}])
+
+    assert refused.status_code == 409
+    assert waived.status_code == 422
+    assert all(steps.resources[("Task", fhir_id)]["meta"]["versionId"] == "1" for fhir_id in STEPS)
+    assert steps.resources[("ServiceRequest", "301")]["status"] == "active"

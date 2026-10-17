@@ -93,3 +93,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: a human dry-runs the runbook on a fresh `make up-local` (never run live); Adam fills the `TODO(Adam):` items and re-runs `make eval` for the numbers
   Risks: UI upload cannot close a document request (step 3 uses curl, #120); step 3 needs a clock the switcher lacks (#121); confirmations do not carry from step 3 to step 5 (#122); reviewer screen and Audit/Časová osa/Komunikace tabs sit on provisional endpoints (#105, #47)
   Issues: #120, #121, #122, #123 (Ověřeno string), #124 (stale demo-flow skill), #125 (no make e2e), #126 (no HL7 v2)
+- 2026-10-17 · claude (P4) · fix/closed-case-tasks · #133: `close` (intercepted in `ClosedLoopWorkflow`) cancels every still open step with reason "Případ uzavřen" and revokes its ServiceRequest in ONE transaction with the case Task; completed/failed steps untouched; per-step cancel AuditEvent on the step Task. Board shows them cancelled, /alerts empty, the watchdog skips them (it reads open steps only)
+  Next: live run on a local IRIS (`make up-local`): close the story case and check /board and /alerts; #149 (the MDT step is never completed by `record_mdt_conclusion`, so it ends as cancelled)
+  Risks: closing now writes the steps too, so a concurrent step update makes `close` fail with 412 (retry); no contract change
+  Issues: #148 (Loop.test.tsx flake under parallel vitest, alongside #144), #149

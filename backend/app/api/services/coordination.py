@@ -24,6 +24,8 @@ from app.api.schemas.coordination import (
     TaskOwner,
     TransitionRequest,
 )
+from app.api.schemas.demo import AdvancedStep, SkippedStep
+from app.api.services.demo_story import STORY, StoryStep
 from app.domain import board as board_logic
 from app.domain import clock
 from app.domain.common import PartyRef, Role
@@ -31,7 +33,7 @@ from app.domain.errors import ConflictError, ForbiddenError, InvalidInputError
 from app.domain.events import EventKind, TransitionError
 from app.domain.pathway import instantiate
 from app.domain.task import Task, TaskBusinessStatus, TaskStatus
-from app.domain.task_machine import TaskContext, transition
+from app.domain.task_machine import ON_BEHALF_EVENTS, TaskContext, escalate_if_overdue, transition
 from app.fhir.cases import CaseHeader, CaseReader
 from app.fhir.directory import DirectoryProvider
 from app.fhir.mappers.plan_definition import plan_definition_to_template
@@ -132,6 +134,8 @@ def alert_out(alert: board_logic.Alert) -> AlertOut:
 MAX_TASKS_PER_CASE = 200
 MSG_INDICATION_REQUIRED = "Sada vyšetření vyžaduje indikujícího lékaře KOC."
 MSG_INDICATION_UNKNOWN = "Zadaný indikující lékař neexistuje."
+DEMO_REPLAY_NOTE = "Demo: přehráno ze scénáře."
+MSG_NO_PATHWAY = "Sada vyšetření není pro případ spuštěná."
 MSG_MDT_START_REQUIRED = "Pro spuštění sady je nutné zadat termín MDT."
 MSG_INDICATION_NOT_PHYSICIAN = "Indikujícím lékařem může být jen lékař KOC (role koc_physician)."
 
@@ -230,6 +234,116 @@ class CoordinationService:
             tasks=[task_out(by_id[t.id]) for t in tasks],
             baton_holder=baton_out(board.baton_holder),
         )
+
+    # --- demo story ---
+
+    async def replay_story(
+        self, case_id: str, to: datetime, actor: PartyRef
+    ) -> tuple[list[AdvancedStep], list[SkippedStep]]:
+        """Bring the story steps of the demo case to where they were at `to`, through the task state machine.
+
+        Idempotent: only events that are due at `to` and not yet applied are applied (a repeat saves nothing).
+        The machine's rules hold: the coordinator confirms and accepts the order and records start / performed /
+        result for an external workplace (its on-behalf path). A step owned by a KOC physician cannot be recorded by
+        the coordinator, so the owner's role is used there. Either way the Task says it was recorded on behalf by the
+        real actor (`recorded_on_behalf_by`, the AuditEvent agent) with a "demo replay" note. A result document must
+        exist for the patient; its receipt time is not compared with `to` (documents may have been uploaded live in an
+        earlier demo step, the replay simulates history).
+        """
+        if actor.role is not Role.COORDINATOR:
+            raise ForbiddenError("only the coordinator may advance the demo")
+        header = await self._header(case_id, actor)
+        stored = {s.task.id: s for s in await self._store.list_for_case(header.task_reference)}
+        if not any(f"{case_id}.{step.step}" in stored for step in STORY):
+            raise InvalidInputError(MSG_NO_PATHWAY)
+        completed = {t_id for t_id, s in stored.items() if s.task.status is TaskStatus.COMPLETED}
+        applied: list[AdvancedStep] = []
+        skipped: list[SkippedStep] = []
+        for step in STORY:
+            current = stored.get(f"{case_id}.{step.step}")
+            if current is None:
+                continue
+            task, events, problem = await self._replay_step(current, step, to, frozenset(completed))
+            if events:
+                recorded_for_owner = bool(set(events) & ON_BEHALF_EVENTS)
+                if recorded_for_owner:
+                    task = task.model_copy(update={"recorded_on_behalf_by": actor, "note": DEMO_REPLAY_NOTE})
+                await self._store.save(
+                    current,
+                    task,
+                    description=f"{_describe(current.task, task, events, None, recorded_for_owner)}; demo replay",
+                    on_behalf_of=(task.owner.display if task.owner else task.location or "externí pracoviště")
+                    if recorded_for_owner
+                    else None,
+                )
+                applied.append(AdvancedStep(task_id=task.id, events=events))
+            if problem:
+                skipped.append(SkippedStep(task_id=task.id, reason=problem))
+            if task.status is TaskStatus.COMPLETED:
+                completed.add(task.id)
+        return applied, skipped
+
+    async def _replay_step(
+        self, stored: StoredTask, step: StoryStep, to: datetime, completed: frozenset[str]
+    ) -> tuple[Task, list[str], str | None]:
+        task = stored.task
+        owner = task.owner.role if task.owner else task.owner_role
+        if owner is Role.EXTERNAL_WORKPLACE:
+            owner = Role.COORDINATOR  # the machine's on-behalf path
+        timeline = (
+            ("order_confirmed", step.confirmed_at, Role.COORDINATOR),
+            ("accept", step.confirmed_at, Role.COORDINATOR),
+            ("start", step.examined_at, owner),
+            ("performed", step.examined_at, owner),
+            ("result_delivered", step.result_at, owner),
+        )
+        events: list[str] = []
+        for event, at, role in timeline:
+            if at > to or role is None or not _due_in_story(task, event):
+                continue
+            if event == "result_delivered":
+                received = await self._store.patient_document_received_at(
+                    str(stored.resource["for"]["reference"]), step.result_doc_id
+                )
+                if received is None:
+                    return task, events, f"Dokument {step.result_doc_id} není u pacienta nahrán."
+            ctx = TaskContext(
+                place=task.location,
+                scheduled_at=step.scheduled_at,
+                result_doc_id=step.result_doc_id,
+                completed_task_ids=completed,
+            )
+            try:
+                task = transition(task, event, role, ctx, at).task
+            except TransitionError as exc:  # e.g. an earlier step is not finished: report it, keep what was applied
+                return task, events, f"Krok {event} nelze provést: {exc.detail}"
+            events.append(event)
+        return task, events, None
+
+    async def escalate_overdue(self, case_id: str, now: datetime, actor: PartyRef) -> list[str]:
+        """The watchdog's rule for this case only, at `now` (the demo clock was just moved). A failed save is logged and
+        left to the background watchdog: the clock has already moved, so the call must not fail after the fact."""
+        header = await self._header(case_id, actor)
+        escalated: list[str] = []
+        for stored in await self._store.list_for_case(header.task_reference):
+            result = escalate_if_overdue(stored.task, now)
+            if not result.events:
+                continue
+            payload = result.events[0].payload
+            try:
+                await self._store.save(
+                    stored,
+                    result.task,
+                    description=(
+                        f"task {stored.task.id}: overdue escalation ({payload['basis']}, "
+                        f"{payload['overdue_workdays']} working day(s) after {payload['deadline']}); demo advance"
+                    ),
+                )
+            except Exception:
+                log.exception("escalation_not_saved", task_id=stored.task.id)
+                continue
+            escalated.append(stored.task.id)
+        return escalated
 
     # --- single tasks ---
 
@@ -333,6 +447,21 @@ class CoordinationService:
         ordered = sorted(tasks, key=board_logic.due_order)
         board = board_logic.build_board(ordered[0].case_id, ordered, self._now())
         return next(task_out(bt) for lane in board.lanes for bt in lane.tasks if bt.task.id == task_id)
+
+
+def _due_in_story(task: Task, event: str) -> bool:
+    """Whether the story event is the next one for `task` (so a repeated replay applies nothing)."""
+    business = task.business_status or TaskBusinessStatus.OBJEDNANO
+    status = task.status
+    if event == "order_confirmed":
+        return status is TaskStatus.REQUESTED and business is TaskBusinessStatus.OBJEDNANO
+    if event == "accept":
+        return status is TaskStatus.REQUESTED and business is TaskBusinessStatus.POTVRZENO
+    if event == "start":
+        return status is TaskStatus.ACCEPTED
+    if event == "performed":
+        return status is TaskStatus.IN_PROGRESS and business is TaskBusinessStatus.POTVRZENO
+    return status is TaskStatus.IN_PROGRESS and business is TaskBusinessStatus.PROVEDENO  # result_delivered
 
 
 def _case_task_reference(stored: StoredTask) -> str:

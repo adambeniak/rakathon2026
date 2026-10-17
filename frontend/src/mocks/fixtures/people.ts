@@ -8,23 +8,29 @@ export interface DemoUser {
   landing: string
 }
 
+/**
+ * The person each demo role stands for, named exactly as the backend records them. `X-Demo-Role` maps a role to the
+ * first seeded person of that role by PractitionerRole id (`backend/app/security/actor.py` `current_actor`, people in
+ * `backend/app/seed/demo_case.py`), and that person is the signer in Provenance and AuditEvent. The contract has no
+ * "who am I" endpoint, so the names are mirrored here; `backend/tests/unit/test_demo_actor.py` pins the backend side.
+ */
 export const DEMO_USERS: Record<Role, DemoUser> = {
-  gp: { role: 'gp', name: 'MUDr. Řezníček', title: 'Praktický lékař', landing: '/gp' },
+  gp: { role: 'gp', name: 'MUDr. Tomáš Řezníček', title: 'Praktický lékař', landing: '/gp' },
   coordinator: {
     role: 'coordinator',
-    name: 'Bc. Dvořáková',
+    name: 'Bc. Lucie Dvořáková',
     title: 'Koordinátorka KOC 2',
     landing: '/inbox',
   },
   physician: {
     role: 'physician',
-    name: 'MUDr. Havelka',
+    name: 'doc. MUDr. Pavel Hrubý, Ph.D.',
     title: 'Lékař KOC 2',
     landing: '/inbox',
   },
   reviewer: {
     role: 'reviewer',
-    name: 'MUDr. Soukupová',
+    name: 'MUDr. Jitka Benešová',
     title: 'Revizní lékař ZP 211',
     landing: '/reviewer',
   },

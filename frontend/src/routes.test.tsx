@@ -135,7 +135,7 @@ describe('review fixes', () => {
   it('records the confirming physician, not a fixed user', async () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
     await userEvent.click(await screen.findByRole('button', { name: 'Potvrdit sekci: Alergie' }))
-    expect(await screen.findByText('Potvrdil(a) MUDr. Havelka')).toBeInTheDocument()
+    expect(await screen.findByText('Potvrdil(a) doc. MUDr. Pavel Hrubý, Ph.D.')).toBeInTheDocument()
   })
 
   it('unlabeled rows keep a term for assistive technology', async () => {

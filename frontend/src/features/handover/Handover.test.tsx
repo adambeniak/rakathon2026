@@ -72,11 +72,11 @@ describe('handover step 3', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Kopírovat sekci: Alergie' }))
     expect(writeText).toHaveBeenLastCalledWith(expect.stringMatching(/^Návrh AI – čeká na potvrzení\n8\. Alergie/))
     await userEvent.click(screen.getByRole('button', { name: 'Potvrdit sekci: Alergie' }))
-    await within(screen.getByRole('region', { name: /Alergie/ })).findByText('Potvrdil(a) MUDr. Havelka')
+    await within(screen.getByRole('region', { name: /Alergie/ })).findByText('Potvrdil(a) doc. MUDr. Pavel Hrubý, Ph.D.')
     await userEvent.click(screen.getByRole('button', { name: 'Kopírovat sekci: Alergie' }))
     // A confirmed copy says it was assembled with AI, by whom it was confirmed, and which documents it cites.
     expect(writeText).toHaveBeenLastCalledWith(
-      expect.stringMatching(/^Sestaveno s pomocí AI z dokumentace, potvrdil\(a\) MUDr\. Havelka\n8\. Alergie[\s\S]*\nZdroje: 07_PL_zadost_KOC2_2026-10-02$/),
+      expect.stringMatching(/^Sestaveno s pomocí AI z dokumentace, potvrdil\(a\) doc\. MUDr\. Pavel Hrubý, Ph\.D\.\n8\. Alergie[\s\S]*\nZdroje: 07_PL_zadost_KOC2_2026-10-02$/),
     )
   })
 
@@ -111,7 +111,7 @@ describe('handover step 3', () => {
     server.use(
       http.post('/api/cases/:id/handover/sections/:number/confirm', async () => {
         await gate
-        store.confirmed['8_allergies'] = 'MUDr. Havelka' // what the real mock route would record
+        store.confirmed['8_allergies'] = 'doc. MUDr. Pavel Hrubý, Ph.D.' // what the real mock route would record
         return HttpResponse.json(toWire(ALENA_ID, AS_OF_DEFAULT, buildSections(store.confirmed, AS_OF_DEFAULT), {}))
       }),
     )
@@ -133,7 +133,7 @@ describe('handover step 3', () => {
     renderRoute(HANDOVER, physician)
     await userEvent.click(await screen.findByRole('button', { name: 'Potvrdit sekci: Alergie' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Akce se nezdařila: Hodnota sekce se mezitím změnila')
-    expect(screen.queryByText('Potvrdil(a) MUDr. Havelka')).toBeNull() // rolled back
+    expect(screen.queryByText('Potvrdil(a) doc. MUDr. Pavel Hrubý, Ph.D.')).toBeNull() // rolled back
   })
 
   describe('a section whose open question the physician answered with a value of their own', () => {

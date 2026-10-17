@@ -10,12 +10,13 @@ import { AUDIT, MESSAGES } from '../fixtures/messages'
 import { store } from '../fixtures/store'
 import { timelineAt } from '../fixtures/timeline'
 import { problem, roleOf, todayOf } from './util'
+import { DEMO_USERS } from '../fixtures/people'
 
 type Schemas = components['schemas']
 
 const isAlena = (id: string | readonly string[] | undefined) => id === ALENA_ID
 
-const GP = 'MUDr. Řezníček' // the demo GP of the mock cases (`MockCase.gp`)
+const GP = DEMO_USERS.gp.name // the demo GP of the mock cases (`MockCase.gp`)
 
 const LETTER = '07_PL_zadost_KOC2_2026-10-02'
 

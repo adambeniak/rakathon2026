@@ -77,3 +77,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: human runs the stack on current main (running :8000 is an old build) and screenshots /gp + ux-reviewer (#106); reviewer screen needs a scoped API first (#104, #105)
   Risks: GET /api/cases is unfiltered, so a GP sees every case (TODO(#16)); reviewer gets full names from /api/cases (#104); outside #42's file list I touched mocks/handlers/cases.ts (GP-aware list, gp_opened) and the two GP tests in routes.test.tsx; no browser in the session
   Issues: #104, #105, #106, #107
+- 2026-10-17 · claude (P3) · fe/header-actor-95 · #95: header names the person the backend maps each demo role to (gp MUDr. Tomáš Řezníček, coordinator Bc. Lucie Dvořáková, physician doc. MUDr. Pavel Hrubý, Ph.D., reviewer MUDr. Jitka Benešová); mock fixtures take their names from `DEMO_USERS`; case header leaves out unknown fields (no "RČ — · —"); dead `useFindings` removed (Overview already uses the handover); pinned by `AppShell.test.tsx` + `backend/tests/unit/test_demo_actor.py`; frontend 141, backend 996 tests green
+  Next: #111 `GET /api/me` so the names are no longer mirrored by hand
+  Risks: names are a hand-kept mirror of the seed (both tests fail if they drift); the overview card "Zjištění z dokumentace" is still only a hint + link to the handover, no findings list; no browser screenshots
+  Issues: #95 (closes), #111

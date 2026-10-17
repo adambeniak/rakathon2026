@@ -6,10 +6,9 @@ import { queryKey, useApiMutation, useApiQuery } from '@/lib/api/query'
 import type { components } from '@/lib/api/schema'
 import { adaptCase, adaptDetail } from './adapter'
 import { caseSummary, documentRequests, documentRequestsCreated, proposals } from './schemas'
-import type { AuditEntry, Finding, Message, TimelineEvent } from '@/lib/domain'
+import type { AuditEntry, Message, TimelineEvent } from '@/lib/domain'
 
 // The `api` (lib/api/http.ts) calls below are not in contracts/openapi.json.
-// TODO(#33) findings -> the handover; Overview no longer reads them, the Handover screen still does
 // TODO(#47) timeline, messages and audit have no contract endpoint yet
 // Task hooks live in features/coordination/api.ts, document hooks in features/documents/api.ts.
 function useCaseQuery<T>(id: string, part: string) {
@@ -28,7 +27,6 @@ export function useCase(id: string) {
   })
 }
 
-export const useFindings = (id: string) => useCaseQuery<Finding[]>(id, 'findings')
 export const useTimeline = (id: string) => useCaseQuery<TimelineEvent[]>(id, 'timeline')
 export const useMessages = (id: string) => useCaseQuery<Message[]>(id, 'messages')
 export const useAudit = (id: string) => useCaseQuery<AuditEntry[]>(id, 'audit')

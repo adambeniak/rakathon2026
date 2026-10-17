@@ -175,3 +175,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #188 (record first GP visit -> T1), #189 (oncology consult -> T3), #190 (reviewer list reads all cases), #35 (other case sub-routes)
   Risks: live mode untested (Docker off); live T1 always "nezaznamenáno", T3 "běží" after the MDT until #188/#189
   Issues: closes #104, #105; #188, #189, #190 new
+- 2026-10-17 · claude (sprint P3/P4/P2, 3 parallel agents) · fe/design-system #207, wf/patient-sms-notifications #211, be/insurer-analytics #214: design-system tokens + rem type + "A+ Větší písmo" (no features/* edits); patient SMS confirmation + day-before reminder via a Mailpit demo gateway, recorded as FHIR Communication (SMSWRIT), idempotent; `GET /api/insurer/analytics` (reviewer) + `/insurer` screen on a simulated cohort with a transparent operational indicator
+  Next: merge #207 → #211 → #214 (#214 already merged with main and contract regenerated, additive only); after merge a human walks steps 1–4 on local IRIS (`make demo-reset`, advance to 16. 10.) and checks Mailpit holds 3 SMS once each; Chromium needs libnspr4/libnss3 (agents used LD_LIBRARY_PATH to libs extracted in their scratchpad)
+  Risks: SMS consent not modelled (#205); exam label + workplace in SMS is health data on an unencrypted channel; insurer numbers are fictitious (notice always shown); demo-case CT/biopsy order date 2. 10. is a labelled demo assumption awaiting product-owner OK; P1 to confirm the contract addition
+  Issues: #194, #196 (P3), #203, #205, #209, #210 (P4), #191, #212, #213 (P2)

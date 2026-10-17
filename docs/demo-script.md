@@ -51,13 +51,13 @@ Before step 1:
 
 ### Clock cheat sheet
 
-The header switcher offers 2. 10., 12. 10., 16. 10., 19. 10. and 21. 10. and sets the server clock to **09:00** of that
-day. Any other moment needs `PUT /api/demo/clock`; **reload the page afterwards** (the UI reads the clock only on load).
+The header switcher offers 2. 10., 12. 10., 16. 10., 19. 10., 20. 10. and 21. 10. and sets the server clock to **09:00** of that
+day. Any other moment (28. 10. in step 3b) needs `PUT /api/demo/clock`; **reload the page afterwards** (the UI reads the clock only on load).
 
 | Step | Clock | How |
 | --- | --- | --- |
 | 1, 2 | 2. 10. 2026 | switcher |
-| 3 | 20. 10. 2026 14:00 | curl (not a preset), see step 3 |
+| 3 | 20. 10. 2026 09:00 | switcher |
 | 3b (upload 12, 13) | 28. 10. 2026 09:00 | curl, see step 3 |
 | 4 | 2. 10. 2026, then 16. 10. 2026 | switcher, then `POST /api/demo/advance` |
 | 5, 6 | 21. 10. 2026 09:00 (≥ 08:00, MDT start) | switcher |
@@ -68,9 +68,9 @@ the handover for the MDT is cut at `mdt_start` (21. 10. 08:00, set at the launch
 that moment would be excluded.
 
 ```bash
-# bash, repo root
+# bash, repo root; step 3b only (28. 10. has no preset; CET, so +01:00); reload the page afterwards
 curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content-Type: application/json' \
-  -d '{"now": "2026-10-20T14:00:00+02:00"}'
+  -d '{"now": "2026-10-28T09:00:00+01:00"}'
 ```
 
 `X-Demo-Role` values: `gp`, `coordinator`, `koc_physician`, `reviewer`. The case id appears in the browser URL
@@ -81,7 +81,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 | Gap | Effect | Workaround in this runbook |
 | --- | --- | --- |
 | `GET /handover` does not persist; only a section confirmation does; the readiness gate needs a handover persisted for `mdt_start` | **Označit jako připravený k MDT** is refused until a section has been confirmed after the launch | Step 5: confirm one section first |
-| Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 14:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots (#122) | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
+| Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 09:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots (#122) | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
 | Audit, Časová osa and Komunikace tabs use provisional endpoints that are not in the contract (#47) | They can fail against the real backend | Do not show them; use the proofs named in each step |
 | Reviewer screen uses the provisional `/api/reviewer/cases` (#104, #105); the reviewer is not notified (#74) | **Přehled pro pojišťovnu** can fail; no automatic reviewer message exists | Skip the reviewer live; see step 6 |
 | HL7 v2 ingestion is not implemented (no production under `iris/`, #126) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
@@ -128,7 +128,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 
 ## 3 · Handover extraction
 
-- **Clock:** set 20. 10. 2026 14:00 (curl above) and reload.
+- **Clock:** 20. 10. 2026 (switcher, 09:00).
 - **Role:** Koordinátorka (uploads) → Lékař KOC 2 (confirms). The physician is `doc. MUDr. Pavel Hrubý, Ph.D.`
 - **Prepare (off stage, or quickly before the click part):**
   1. Case tab **Dokumenty** → **Přidat zprávu k případu** → choose the reports the coordinator requested in step 2
@@ -140,9 +140,9 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   2. Clock 28. 10. 2026 09:00 (curl, reload); on **Dokumenty** upload `12_Algeziologie_2026-10-26.docx` and
      `13_Psychologie_KOC2_2026-10-27.docx`. Then continue at step 4. Doing this before the pathway launch keeps the
      watchdog from escalating anything at 28. 10.
-  3. Clock 20. 10. 2026 14:00 again, reload, for the live part below.
+  3. Clock 20. 10. 2026 (switcher, 09:00) again, reload, for the live part below.
 - **Click (live):**
-  1. Case tab **Handover**: **Stav k termínu** (20. 10. 2026 14:00) and **Souhrn handoveru**.
+  1. Case tab **Handover**: **Stav k termínu** (20. 10. 2026 09:00) and **Souhrn handoveru**.
   2. Open the evidence of one value: **Zobrazit zdroj a citaci** shows document, **Vyhotoveno**, **Přijato** and the
      verbatim quote.
   3. Role **Lékař KOC 2**: on one section **Potvrdit sekci** (for example **Pacient**).

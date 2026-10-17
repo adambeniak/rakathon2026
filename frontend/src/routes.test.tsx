@@ -62,7 +62,7 @@ describe('route smoke + axe', () => {
     expect(screen.getAllByText('Po MDT')).toHaveLength(2)
     await userEvent.click(screen.getByRole('button', { name: 'Potvrdit sekci: Alergie' }))
     const section = screen.getByRole('region', { name: /Alergie/ })
-    await waitFor(() => expect(within(section).getByText('Ověřeno lékařem')).toBeInTheDocument())
+    await waitFor(() => expect(within(section).getByText('Potvrzeno lékařem')).toBeInTheDocument())
     expect(await axe(container)).toHaveNoViolations()
   })
 

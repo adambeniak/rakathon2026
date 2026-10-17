@@ -28,9 +28,9 @@ describe('handover step 3', () => {
     renderRoute(HANDOVER, physician)
     const ecog = await screen.findByRole('region', { name: /Stav výkonnosti/ })
     expect(within(ecog).getByText('Stav výkonnosti (ECOG)')).toBeInTheDocument()
-    expect(within(ecog).getByText(/v dokumentaci neuvedeno · Může doplnit: lékař KOC/)).toBeInTheDocument()
+    expect(within(ecog).getByText(/v dokumentaci neuvedeno · Může doplnit: ošetřující lékař KOC/)).toBeInTheDocument()
     const contacts = screen.getByRole('region', { name: /Kontakty/ })
-    expect(within(contacts).getByText(/Může doplnit: koordinace KOC/)).toBeInTheDocument()
+    expect(within(contacts).getByText(/Může doplnit: koordinátor KOC/)).toBeInTheDocument()
   })
 
   it('shows the findings of a conflicting section with the wording of the API', async () => {
@@ -65,12 +65,12 @@ describe('handover step 3', () => {
     expect(confirmBody({ kind: 'confirm', section })).not.toHaveProperty('edited_value')
   })
 
-  it('copy of an unconfirmed section is prefixed "Návrh AI – nepotvrzeno"; a confirmed one is not', async () => {
+  it('copy of an unconfirmed section is prefixed "Návrh AI – čeká na potvrzení"; a confirmed one is not', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
     renderRoute(HANDOVER, physician)
     await userEvent.click(await screen.findByRole('button', { name: 'Kopírovat sekci: Alergie' }))
-    expect(writeText).toHaveBeenLastCalledWith(expect.stringMatching(/^Návrh AI – nepotvrzeno\n8\. Alergie/))
+    expect(writeText).toHaveBeenLastCalledWith(expect.stringMatching(/^Návrh AI – čeká na potvrzení\n8\. Alergie/))
     await userEvent.click(screen.getByRole('button', { name: 'Potvrdit sekci: Alergie' }))
     await within(screen.getByRole('region', { name: /Alergie/ })).findByText('Potvrdil(a) MUDr. Havelka')
     await userEvent.click(screen.getByRole('button', { name: 'Kopírovat sekci: Alergie' }))
@@ -119,9 +119,9 @@ describe('handover step 3', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Potvrdit sekci: Alergie' }))
     const section = screen.getByRole('region', { name: /Alergie/ })
     expect(await within(section).findByText('Ukládám potvrzení…')).toBeInTheDocument()
-    expect(within(section).queryByText('Ověřeno lékařem')).toBeNull()
+    expect(within(section).queryByText('Potvrzeno lékařem')).toBeNull()
     release()
-    await within(section).findByText('Ověřeno lékařem')
+    await within(section).findByText('Potvrzeno lékařem')
   })
 
   it('shows the problem title when the server refuses a confirmation', async () => {

@@ -115,11 +115,11 @@ describe('adaptHandover', () => {
       }),
     )
     expect(v.sections.find((s) => s.key === '9_performance_status')!.missingItems).toEqual([
-      { key: 'ecog', label: 'Stav výkonnosti (ECOG)', reason: 'v dokumentaci neuvedeno', owner: 'lékař KOC' },
+      { key: 'ecog', label: 'Stav výkonnosti (ECOG)', reason: 'v dokumentaci neuvedeno', owner: 'ošetřující lékař KOC' },
     ])
     // A key the API lists without detail still shows, but no owner is invented for it.
     expect(v.sections.find((s) => s.key === '2_contacts')!.missingItems).toEqual([
-      { key: 'patient_email', label: 'E-mail pacientky', reason: 'v dokumentaci neuvedeno', owner: 'koordinace KOC' },
+      { key: 'patient_email', label: 'E-mail pacientky', reason: 'v dokumentaci neuvedeno', owner: 'koordinátor KOC' },
       { key: 'unknown_key', label: 'unknown_key', reason: 'v dokumentaci neuvedeno' },
     ])
   })

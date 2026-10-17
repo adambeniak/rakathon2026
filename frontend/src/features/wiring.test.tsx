@@ -114,8 +114,8 @@ describe('handover review', () => {
   it('sticky summary bar keeps the AI-draft label until everything is confirmed', async () => {
     renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
     const bar = await screen.findByRole('group', { name: 'Souhrn handoveru' })
-    expect(within(bar).getByText('Návrh AI – čeká na potvrzení lékařem')).toBeInTheDocument()
-    expect(within(bar).getByText(/^Zkontrolováno: 0 z /)).toBeInTheDocument()
+    expect(within(bar).getByText('Návrh AI – čeká na potvrzení')).toBeInTheDocument()
+    expect(within(bar).getByText(/^Potvrzeno lékařem: 0 z /)).toBeInTheDocument()
     expect(within(bar).getByText('Chybí').nextElementSibling).toHaveTextContent('3')
     expect(within(bar).getByText('Nesouhlasí').nextElementSibling).toHaveTextContent('2')
     // There is no bulk confirmation: the physician confirms the sections one by one and accepts the missing one.
@@ -123,9 +123,9 @@ describe('handover review', () => {
     const names = screen.getAllByRole('button', { name: /^Potvrdit sekci:/ }).map((b) => b.getAttribute('aria-label')!)
     for (const name of names) await userEvent.click(screen.getByRole('button', { name }))
     await userEvent.click(screen.getByRole('button', { name: 'Ponechat údaj v sekci Stav výkonnosti jako chybějící' }))
-    await within(bar).findByText('Všechny sekce zkontrolovány lékařem · ponecháno jako chybějící: 1')
-    expect(within(bar).queryByText('Návrh AI – čeká na potvrzení lékařem')).toBeNull()
-    expect(within(bar).getByText('Zkontrolováno: 15 z 15')).toBeInTheDocument()
+    await within(bar).findByText('Všechny sekce potvrzeny lékařem · ponecháno jako chybějící: 1')
+    expect(within(bar).queryByText('Návrh AI – čeká na potvrzení')).toBeNull()
+    expect(within(bar).getByText('Potvrzeno lékařem: 15 z 15')).toBeInTheDocument()
   })
 
   it('inline edit of a plain-text section saves and confirms in one step, without a reason field', async () => {

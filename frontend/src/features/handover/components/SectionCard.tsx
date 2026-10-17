@@ -117,7 +117,7 @@ export function SectionCard({
         </h2>
         <span className="flex flex-wrap gap-1">
           {pills.map((p) => (
-            <StatusPill key={p} kind={p} />
+            <StatusPill key={p} kind={p} label={p === 'verified' ? t.confirmedPill : p === 'ai' ? t.draftLabel : undefined} />
           ))}
           {s.edited && (
             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-hairline px-2.5 py-0.5 text-xs font-medium">

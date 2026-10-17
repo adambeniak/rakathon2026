@@ -62,7 +62,7 @@ export const common = {
     close: 'Zavřít',
     open: 'Zobrazit zdroj a citaci',
     panelDescription: 'Zdrojový dokument a citace, ze které byla hodnota převzata.',
-    afterAsOf: 'Dokument byl vyhotoven nebo přijat po začátku MDT (21. 10. 2026, 8:00) a do předávacího souhrnu není zahrnut.',
+    afterAsOf: 'Dokument byl vyhotoven nebo přijat po začátku MDT a do předávacího souhrnu není zahrnut.',
   },
   loading: 'Načítání…',
   error: 'Data se nepodařilo načíst. Zkuste to prosím znovu.',

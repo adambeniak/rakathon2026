@@ -1,176 +1,203 @@
-import { BadgeCheck, CircleAlert, Info, TriangleAlert } from 'lucide-react'
-import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useDemo } from '@/app/DemoContext'
 import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { EvidenceChip } from '@/components/EvidenceChip'
 import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill, pillForHandover } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
-import { ApiError } from '@/lib/api/http'
+import { useCase } from '@/features/cases/api'
+import { useHandover } from '@/features/handover/api'
+import type { HandoverView, SectionView } from '@/features/handover/types'
 import { mdt as t } from '@/i18n/cs/mdt'
-import { formatDate, formatDateTime, isoToPragueLocal, pragueLocalToIso } from '@/lib/date'
-import { cn } from '@/lib/cn'
-import { useGenerateMdt, useMdt, useSendFeedback } from './api'
-import type { GateItem } from './types'
+import { ApiProblem } from '@/lib/api/problem'
+import { formatDate, formatDateTime } from '@/lib/date'
+import type { DocumentInfo } from '@/lib/domain'
+import { mdtRecordFileName, problemTitle, useDownloadMdtRecord } from './api'
 
-const AS_OF_DEFAULT = '2026-10-21T08:00:00+02:00'
+type CountKey = keyof typeof t.summaryCounts
+const COUNT_KEYS = Object.keys(t.summaryCounts) as CountKey[]
 
-const LEVEL = {
-  ok: { Icon: BadgeCheck, cls: 'text-verified' },
-  blocker: { Icon: CircleAlert, cls: 'text-missing' },
-  warning: { Icon: TriangleAlert, cls: 'text-conflict' },
-  info: { Icon: Info, cls: 'text-muted' },
-} as const
+/** Status counts straight from the API's section statuses; the UI decides nothing about readiness. */
+function summarize(sections: SectionView[]) {
+  const counts = COUNT_KEYS.map((key) => ({ key, n: sections.filter((s) => s.status === key).length })).filter((c) => c.n > 0)
+  return { confirmed: sections.filter((s) => s.confirmed).length, counts }
+}
 
-function Gate({ items }: { items: GateItem[] }) {
+/** Findings of all sections, each once, with the sections that cite it. */
+function collectFindings(sections: SectionView[]) {
+  const byId = new Map<string, { id: string; message: string; evidence: SectionView['findings'][number]['evidence']; sections: string[] }>()
+  for (const s of sections)
+    for (const f of s.findings) {
+      const known = byId.get(f.id)
+      if (known) known.sections.push(s.title)
+      else byId.set(f.id, { ...f, sections: [s.title] })
+    }
+  return [...byId.values()]
+}
+
+function Summary({ sections }: { sections: SectionView[] }) {
+  const { confirmed, counts } = summarize(sections)
   return (
-    <ul className="space-y-2">
-      {items.map((g) => {
-        const { Icon, cls } = LEVEL[g.level]
-        return (
-          <li key={g.id} className="flex gap-2">
-            <Icon aria-hidden className={cn('mt-0.5 h-4 w-4 shrink-0', cls)} />
-            <div>
-              <p>
-                <span className={cn('mr-2 text-xs font-semibold', cls)}>{t.gateLevels[g.level]}</span>
-                {g.label}
-              </p>
-              {g.detail && <p className="text-sm text-muted">{g.detail}</p>}
-            </div>
-          </li>
-        )
-      })}
-    </ul>
+    <section aria-labelledby="sum-h" className="space-y-2 rounded-lg border border-hairline bg-card p-4">
+      <h3 id="sum-h" className="text-xl">
+        {t.summaryTitle}
+      </h3>
+      <p>{t.summaryConfirmed(confirmed, sections.length)}</p>
+      {counts.length > 0 && (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {counts.map((c) => (
+            <li key={c.key}>
+              {t.summaryCounts[c.key]}: <strong>{c.n}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="text-sm text-muted">{t.summaryHint}</p>
+    </section>
   )
 }
 
+function Findings({ sections, docs }: { sections: SectionView[]; docs: Map<string, DocumentInfo> }) {
+  const findings = collectFindings(sections)
+  return (
+    <section aria-labelledby="find-h" className="space-y-2 rounded-lg border border-hairline bg-card p-4">
+      <h3 id="find-h" className="text-xl">
+        {t.findingsTitle}
+      </h3>
+      {findings.length === 0 && <p className="text-sm text-muted">{t.findingsNone}</p>}
+      <ul className="space-y-3">
+        {findings.map((f) => (
+          <li key={f.id} className="text-sm">
+            <p>
+              <span className="mr-2 font-mono text-xs text-muted">{f.id}</span>
+              {f.message}
+            </p>
+            <p className="text-xs text-muted">{t.findingSections(f.sections.join(', '))}</p>
+            {f.evidence.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {f.evidence.map((e, i) => (
+                  <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={docs.get(e.docId)} />
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function Record({ view, docs }: { view: HandoverView; docs: Map<string, DocumentInfo> }) {
+  return (
+    <section aria-labelledby="rec-h" className="space-y-3 rounded-lg border border-hairline bg-card p-5">
+      <h3 id="rec-h" className="text-xl">
+        {t.recordTitle}
+      </h3>
+      <p className="text-sm text-muted">{t.recordHint}</p>
+      {view.sections.map((s) => (
+        <div key={s.key} className="border-t border-hairline pt-2">
+          <p className="flex flex-wrap items-center gap-2 font-medium">
+            <span className="font-mono text-xs text-muted">{s.number}</span>
+            {s.title}
+            {pillForHandover(s.status, s.confirmed).map((p) => (
+              <StatusPill key={p} kind={p} />
+            ))}
+          </p>
+          <ul className="mt-1 text-sm">
+            {s.rows.slice(0, 4).map((r, i) => (
+              <li key={i}>{r.label ? `${r.label}: ${r.value}` : r.value}</li>
+            ))}
+            {s.rows.length > 4 && <li className="text-muted">… {s.rows.length - 4}</li>}
+          </ul>
+          {s.evidence.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {s.evidence.map((e, i) => (
+                <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={docs.get(e.docId)} />
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      <div className="border-t border-hairline pt-2">
+        <p className="font-medium">{t.conclusionTitle}</p>
+        <p className="rounded border border-dashed border-hairline p-3 text-sm text-muted">{t.conclusionPlaceholder}</p>
+      </div>
+    </section>
+  )
+}
+
+/** Demo step 5: the case as of the MDT start. As-of and the excluded reports are the API's, never computed here. */
 export function Mdt() {
   const { id = '' } = useParams()
-  const [asOf, setAsOf] = useState(AS_OF_DEFAULT)
-  const q = useMdt(id, asOf)
-  const gen = useGenerateMdt(id, asOf)
-  const send = useSendFeedback(id)
-  // Generation belongs to the selected cutoff: a different as-of is not generated yet.
-  const generated = q.data?.generatedAt === asOf
+  const { role } = useDemo()
+  const q = useHandover(id)
+  const c = useCase(id)
+  const download = useDownloadMdtRecord(id)
+  const docs = new Map((c.data?.documents ?? []).map((d) => [d.id, d]))
+  const view = q.data
+  const draft = view ? view.sections.some((s) => !s.confirmed) : true
+  const canDownload = role === 'coordinator' || role === 'physician'
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl">{t.title}</h2>
-          <label className="mt-2 flex flex-col text-sm">
-            <span className="font-medium">{t.asOfLabel}</span>
-            <input
-              type="datetime-local"
-              value={isoToPragueLocal(asOf)}
-              onChange={(e) => e.target.value && setAsOf(pragueLocalToIso(e.target.value))}
-              className="min-h-9 w-64 rounded border border-hairline bg-card px-2"
-              aria-describedby="asof-hint"
-            />
-            <span id="asof-hint" className="text-xs text-muted">
-              {t.asOfHint}
-            </span>
-          </label>
+          {view && <p className="mt-1 font-medium">{t.asOf(formatDateTime(view.asOf))}</p>}
+          <p className="text-xs text-muted">{t.asOfHint}</p>
         </div>
-        <div className="max-w-sm text-right">
-          {generated ? (
-            <Button variant="primary" disabled={send.isPending || send.isSuccess} onClick={() => send.mutate()}>
-              {t.sendFeedback}
+        {canDownload && (
+          <div className="max-w-sm text-right">
+            <Button
+              variant="primary"
+              disabled={!view || view.sections.length === 0 || download.isPending}
+              onClick={() => view && download.mutate({ fileName: mdtRecordFileName(id, view.asOf, draft) })}
+            >
+              {download.isPending ? t.downloading : t.download}
             </Button>
-          ) : (
-            <Button variant="primary" disabled={!q.data?.ready || gen.isPending} aria-describedby="gate-h" onClick={() => gen.mutate()}>
-              {t.generate}
-            </Button>
-          )}
-          {send.isSuccess && generated && <p role="status" className="mt-1 text-xs text-verified">{t.feedbackSent}</p>}
-          {q.data && !generated && !q.data.ready && <p className="mt-1 text-xs text-missing">{t.generateBlocked}</p>}
-        </div>
+            {draft && <p className="mt-1 text-xs text-muted">{t.downloadDraftNote}</p>}
+            {download.isError && (
+              <p role="alert" className="mt-1 text-xs text-missing">
+                {t.downloadError} {problemTitle(download.error)}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {q.isPending && <LoadingBlock lines={6} />}
       {q.isError &&
-        (q.error instanceof ApiError && q.error.status === 404 ? (
+        (q.error instanceof ApiProblem && q.error.status === 404 ? (
           <EmptyState title={t.notAvailable} hint={t.notAvailableHint} />
         ) : (
           <ErrorState onRetry={() => void q.refetch()} />
         ))}
+      {view && view.sections.length === 0 && <EmptyState title={t.notAvailable} hint={t.notAvailableHint} />}
 
-      {q.data && (
+      {view && view.sections.length > 0 && (
         <>
-          {generated && (
-            <div role="status" className="rounded-lg border border-verified/40 bg-verified-bg p-3 text-verified">
-              {t.generated(formatDateTime(q.data.generatedAt ?? asOf))} <span className="text-muted">{t.exportNote}</span>
-            </div>
-          )}
-          <section aria-labelledby="gate-h" className="rounded-lg border border-hairline bg-card p-4">
-            <h3 id="gate-h" className="mb-3 text-xl">
-              {t.gateTitle}
-            </h3>
-            <Gate items={q.data.gate} />
-          </section>
-
+          <Summary sections={view.sections} />
           <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
-            <section aria-labelledby="rec-h" className="space-y-3 rounded-lg border border-hairline bg-card p-5">
-              <h3 id="rec-h" className="text-xl">
-                {t.recordTitle}
-              </h3>
-              <p className="text-sm text-muted">{t.recordHint}</p>
-              {q.data.sections.map((s) => (
-                <div key={s.key} className="border-t border-hairline pt-2">
-                  <p className="flex flex-wrap items-center gap-2 font-medium">
-                    <span className="font-mono text-xs text-muted">{s.number}</span>
-                    {s.title}
-                    {pillForHandover(s.status, s.confirmed).map((p) => (
-                      <StatusPill key={p} kind={p} />
-                    ))}
-                  </p>
-                  <ul className="mt-1 text-sm">
-                    {s.rows.slice(0, 4).map((r, i) => (
-                      <li key={i}>{r.label ? `${r.label}: ${r.value}` : r.value}</li>
-                    ))}
-                    {s.rows.length > 4 && <li className="text-muted">… {s.rows.length - 4}</li>}
-                  </ul>
-                  {s.evidence.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {s.evidence.map((e, i) => (
-                        <EvidenceChip key={`${e.docId}-${i}`} docId={e.docId} quote={e.quote} doc={q.data.included.find((d) => d.id === e.docId)} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div className="border-t border-hairline pt-2">
-                <p className="font-medium">{t.conclusionTitle}</p>
-                <p className="rounded border border-dashed border-hairline p-3 text-sm text-muted">{t.conclusionPlaceholder}</p>
-              </div>
-            </section>
-
+            <Record view={view} docs={docs} />
             <aside className="space-y-4">
-              <section aria-labelledby="inc-h" className="rounded-lg border border-hairline bg-card p-4">
-                <h3 id="inc-h" className="text-xl">
-                  {t.includedTitle}
-                </h3>
-                <ul className="mt-2 space-y-1 text-sm">
-                  {q.data.included.map((d) => (
-                    <li key={d.id}>
-                      <span className="font-mono text-xs text-muted">{d.id.slice(0, 2)}</span> {d.title}{' '}
-                      <span className="text-muted">{formatDate(d.authored)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-              {q.data.excluded.length > 0 && (
+              <Findings sections={view.sections} docs={docs} />
+              {view.excluded.length > 0 && (
                 <section aria-labelledby="exc-h" className="rounded-lg border border-dashed border-hairline bg-stale-bg/40 p-4">
                   <h3 id="exc-h" className="text-xl">
                     {t.excludedTitle}
                   </h3>
+                  <p className="text-xs text-muted">{t.excludedHint}</p>
                   <ul className="mt-2 space-y-1 text-sm">
-                    {q.data.excluded.map((d) => (
-                      <li key={d.id}>
-                        <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span> {d.title}{' '}
-                        <span className="text-muted">{formatDate(d.authored)}</span>
-                      </li>
-                    ))}
+                    {view.excluded.map((d) => {
+                      const doc = docs.get(d.id)
+                      return (
+                        <li key={d.id}>
+                          <StatusPill kind="excluded" /> <span className="font-mono text-xs">{d.id.slice(0, 2)}</span> {doc?.title ?? d.id}{' '}
+                          {doc && <span className="text-muted">{formatDate(doc.authored)}</span>}
+                          <span className="block text-xs text-muted">{d.reason}</span>
+                        </li>
+                      )
+                    })}
                   </ul>
                 </section>
               )}

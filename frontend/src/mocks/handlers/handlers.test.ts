@@ -51,8 +51,6 @@ describe('section review in the mock handover (contract confirm route)', () => {
     const edited = section((await handover()).sections, '8_allergies')
     expect(edited).toMatchObject({ confirmed: true, edited: true, editableText: 'Bez známých alergií' })
     expect(edited.rows).toEqual([expect.objectContaining({ label: 'Upraveno lékařem', value: 'Bez známých alergií', evidence: undefined })])
-    const mdt = await api.get<{ sections: HandoverSection[] }>(`${CASE}/mdt`)
-    expect(section(mdt.sections, '8_allergies').rows[0]).toMatchObject({ value: 'Bez známých alergií' })
   })
 
   it('refuses an edited value for a section whose value is not plain text', async () => {

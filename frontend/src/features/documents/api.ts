@@ -46,6 +46,7 @@ export function useUploadDocument(id: string) {
           bodySerializer: () => uploadForm(v.file, v),
         }),
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['case', id] }),
+    // A report that closes a request changes the request list and the case state (queue); `cases` is the triage feature.
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ['case', id] }), qc.invalidateQueries({ queryKey: ['cases'] })]),
   })
 }

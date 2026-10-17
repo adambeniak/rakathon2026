@@ -36,7 +36,7 @@ Podrobný scénář po kliknutích: [demo-script.md](demo-script.md).
 1. **Žádost bez formuláře.** PL přetáhne žádost (DOCX), Štafeta předvyplní pacientku a suspektní diagnózu, PL zvolí
    KOC 2 a potvrdí souhlas. Případ je **Odesláno**, na tahu je koordinátorka.
 2. **Triage a chybějící podklady.** Koordinátorka případ převezme (**V triage**). Aplikace z žádosti vyjmenuje
-   odkazované výsledky, které nejsou přiložené (zprávy 01–06), s citací; koordinátorka je jedním krokem vyžádá
+   odkazované výsledky, které nejsou přiložené (zprávy uvedené v žádosti), s citací; koordinátorka je jedním krokem vyžádá
    (**Čeká na podklady**).
 3. **Handover s důkazy.** Z nahraných zpráv vznikne 15 sekcí handoveru (Handover_obsah). U hodnot je zdroj a citace.
    Označeno je, co **chybí** (stav výkonnosti, TNM, e-mail), co si **odporuje** (datum posledního apixabanu vůči
@@ -146,9 +146,7 @@ Dále, bez úplného výčtu (viz [known-issues.md](known-issues.md), issues #4,
 - **Revizní lékař není při odeslání zpětné vazby automaticky informován** (#74); přehled pro pojišťovnu je omezený.
 - Brána připravenosti čte uložený snímek handoveru, který může zastarat (#98), a je volnější než pravidlo „člověk
   ve smyčce“ (#102).
-- Frontend: záložky Audit, Časová osa a Komunikace běží na provizorních koncových bodech (#47); nahrání zprávy v UI
-  nepřiřadí zprávu k otevřenému požadavku, takže případ nepřejde do stavu **Kompletní** (#120, obejití v
-  [demo-script.md](demo-script.md)); potvrzení sekcí handoveru se nepřenášejí mezi časovými body `as_of` (#122).
+- Frontend: záložky Audit, Časová osa a Komunikace běží na provizorních koncových bodech (#47); potvrzení sekcí handoveru se nepřenášejí mezi časovými body `as_of` (#122).
 - Transakce IRIS pro žádost a koordinaci byly ověřeny hlavně mocky a offline validací; živý běh `pytest -m iris` na
   lokálním IRIS je v known-issues K11 a #99.
 - Demo hodiny a role jsou přepínatelné kýmkoli v demo režimu (#55).

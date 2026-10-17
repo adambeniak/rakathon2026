@@ -81,7 +81,6 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 
 | Gap | Effect | Workaround in this runbook |
 | --- | --- | --- |
-| The upload form never sends `request_id` (`frontend/src/features/documents/api.ts`); the backend closes a report request only with it (#120) | Uploading 01–06 in the UI leaves the 6 requests open, the case stays **Čeká na podklady** and never becomes **Kompletní**; the button **Označit jako připravený k MDT** only exists in **Kompletní** | Step 3: upload 01–06 with curl and `request_id` |
 | `GET /handover` does not persist; only a section confirmation does; the readiness gate needs a handover persisted for `mdt_start` | **Označit jako připravený k MDT** is refused until a section has been confirmed after the launch | Step 5: confirm one section first |
 | Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 14:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots (#122) | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
 | Audit, Časová osa and Komunikace tabs use provisional endpoints that are not in the contract (#47) | They can fail against the real backend | Do not show them; use the proofs named in each step |
@@ -119,9 +118,10 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      to **Chybějící podklady k vyžádání**.
   3. The panel marks the proposals **Návrh k vyžádání – zkontrolujte a odešlete.** and quotes the letter (hint chip
      from document 07). **Vybrat vše**, then **Vyžádat vybrané**.
-- **Must be visible:** reports 01–06 as proposals with **Adresát** and the quote; after sending **Vyžádáno: 6.**; state
+- **Must be visible:** the reports the letter lists as proposals with **Adresát** and the quote (five: `01`, `02`,
+  `03`, `05`, `06`; expected from the letter, confirm in the rehearsal); after sending **Vyžádáno: 5.**; state
   **Čeká na podklady** (shown in the header badge).
-- **Say:** „Koordinátorka případ převezme. Aplikace v žádosti najde odkazy na výsledky 01 až 06, které nejsou přiložené,
+- **Say:** „Koordinátorka případ převezme. Aplikace v žádosti najde odkazy na výsledky, které nejsou přiložené,
   a nabídne je k vyžádání. Nic se nepošle bez jejího potvrzení.“
 - **Fallback:** the proposals come from the LLM cache; if the panel is empty or errors, say „tuto část ukážu ze
   záznamu“ and use the global fallbacks below.
@@ -132,21 +132,16 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 - **Clock:** set 20. 10. 2026 14:00 (curl above) and reload.
 - **Role:** Koordinátorka (uploads) → Lékař KOC 2 (confirms). The physician is `doc. MUDr. Pavel Hrubý, Ph.D.`
 - **Prepare (off stage, or quickly before the click part):**
-  1. List the six requests and attach each report (the UI cannot, see the gap table):
-     ```bash
-     # bash, repo root
-     curl -s $BACKEND/api/cases/$CASE/document-requests -H 'X-Demo-Role: coordinator'    # id + label of each request
-     # for each report 01–06, pick the request whose label matches the report and send it with its id:
-     curl -s -X POST $BACKEND/api/cases/$CASE/documents -H 'X-Demo-Role: coordinator' \
-       -F file=@data/raw/Pacient/01_Kardiologie_2026-07-20.docx -F request_id=<id of the matching request>
-     ```
-     After the last one the case moves to **Kompletní** (response field `case_event`).
-  2. Case tab **Dokumenty** → **Přidat zprávu k případu** → choose `08`, `09`, `10`, `11` →
-     **Nahrát** (coordinator only). Each line shows **Nahráno: <file name>**.
-  3. Clock 28. 10. 2026 09:00 (curl, reload); on **Dokumenty** upload `12_Algeziologie_2026-10-26.docx` and
+  1. Case tab **Dokumenty** → **Přidat zprávu k případu** → choose the reports the coordinator requested in step 2
+     (`01`, `02`, `03`, `05`, `06`; the GP's own epicrisis `04` is not requested) together with `04`, `08`, `09`,
+     `10`, `11` → below the file field each file shows **Požadavek pro <file name>**, preselected by the examination
+     date in its file name (check it, change it if it does not fit; `04`, `08`–`11` stay **Bez požadavku**) →
+     **Nahrát**. Each line shows **Nahráno: <file name>**. After the last open request is closed the case moves to
+     **Kompletní** (header badge). Upload under the original file names.
+  2. Clock 28. 10. 2026 09:00 (curl, reload); on **Dokumenty** upload `12_Algeziologie_2026-10-26.docx` and
      `13_Psychologie_KOC2_2026-10-27.docx`. Then continue at step 4. Doing this before the pathway launch keeps the
      watchdog from escalating anything at 28. 10.
-  4. Clock 20. 10. 2026 14:00 again, reload, for the live part below.
+  3. Clock 20. 10. 2026 14:00 again, reload, for the live part below.
 - **Click (live):**
   1. Case tab **Handover**: **Stav k termínu** (20. 10. 2026 14:00) and **Souhrn handoveru**.
   2. Open the evidence of one value: **Zobrazit zdroj a citaci** shows document, **Vyhotoveno**, **Přijato** and the

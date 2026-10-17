@@ -1,1 +1,2 @@
-export type { CaseDetail, CaseSummary, DocumentInfo, Finding, TaskItem, TimelineEvent, Message, AuditEntry } from '@/lib/domain'
+export type { CaseDetail, CaseSummary, DocumentInfo, Finding, TaskItem } from '@/lib/domain'
+export type { AuditItem, CaseAuditTrail, CaseMessage, CaseTimeline, TimelineEntry } from './schemas'

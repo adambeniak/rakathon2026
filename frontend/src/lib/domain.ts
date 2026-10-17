@@ -183,24 +183,4 @@ export interface DocumentRequest {
   evidence: Evidence
 }
 
-export interface TimelineEvent {
-  date: string
-  label: string
-  note?: string
-  excluded?: boolean
-}
-
-export interface Message {
-  id: string
-  at: string
-  from: string
-  to: string
-  subject: string
-  body: string
-}
-
-export interface AuditEntry {
-  at: string
-  who: string
-  action: string
-}
+// Timeline, messages and audit entries are contract types: features/cases/schemas.ts.

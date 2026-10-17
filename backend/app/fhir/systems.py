@@ -30,6 +30,8 @@ SID_REQUEST_TASK: Final = SID + "request-task"
 SID_HANDOVER: Final = SID + "handover"
 SID_HANDOVER_ENTRY: Final = SID + "handover-entry"
 SID_DEVICE: Final = SID + "device"
+SID_SMS_NOTIFICATION: Final = SID + "sms-notification"  # Communication (SMS), value = "<task id>:<kind>"
+SID_SMS_GATEWAY_MESSAGE: Final = SID + "sms-gateway-message-id"  # Communication (SMS): the gateway's receipt
 
 # CZ Core (hl7.cz/fhir/core 1.0.0) identifier systems.
 # Rodné číslo: fixedUri of StructureDefinition cz-rodcis-identifier; value = digits without the slash.
@@ -47,6 +49,7 @@ CS_ORGANIZATION_KIND: Final = CS + "organization-kind"
 CS_EPISODE_TYPE: Final = CS + "episode-type"
 CS_AUDIT_TYPE: Final = CS + "audit-type"
 CS_AUDIT_EVENT_CODE: Final = CS + "audit-event-code"
+CS_COMMUNICATION_CATEGORY: Final = CS + "communication-category"
 
 SD: Final = "https://stafeta.example/fhir/StructureDefinition/"
 EXT_CONSENT_STATEMENT: Final = SD + "consent-statement"
@@ -126,6 +129,7 @@ ORGANIZATION_TYPE: Final = "http://terminology.hl7.org/CodeSystem/organization-t
 AUDIT_EVENT_TYPE: Final = "http://terminology.hl7.org/CodeSystem/audit-event-type"
 RESTFUL_INTERACTION: Final = "http://hl7.org/fhir/restful-interaction"
 V3_DATA_OPERATION: Final = "http://terminology.hl7.org/CodeSystem/v3-DataOperation"
+V3_PARTICIPATION_MODE: Final = "http://terminology.hl7.org/CodeSystem/v3-ParticipationMode"
 SECURITY_SOURCE_TYPE: Final = "http://terminology.hl7.org/CodeSystem/security-source-type"
 
 DOCX_MEDIA_TYPE: Final = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

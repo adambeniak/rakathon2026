@@ -32,6 +32,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | MDT readiness waiver | `Provenance` | target = the coordinating `Task`, activity `provenance-activity|waive-readiness`, agent verifier = the acting KOC physician (PractitionerRole identifier + display, workflow role), `reason.text` = the physician's reason, extension `readiness-item`; written in the same transaction as the `mark_ready_mdt` Task update and its `AuditEvent` (detail `waived`) | #68 `mappers/readiness.py`, `readiness.py` |
 | Consent / wishes | `Consent` | identifier `consent|<case id>`, scope patient-privacy, patient, organization KOC, sourceReference letter, provision permit/disclose to the KOC; statements of the letter verbatim in `consent-statement` extensions (not interpreted) | F2-1 |
 | Messages | `CommunicationRequest` / `Communication` | request missing reports (fixed template + label as written in the letter; status `active` → `completed` when the report arrives); MDT result to GP; `received` = delivery proof | F2-1 / F3-4 |
+| SMS to the patient (demo) | `Communication` | appointment confirmation (on `order_confirmed`) and day-before reminder (watchdog round / demo advance) for steps the patient attends; status `completed` after the gateway accepted it, `medium` v3-ParticipationMode `SMSWRIT`, `category` `communication-category|appointment-reminder`, subject + recipient = Patient, `about` = EpisodeOfCare + step Task, `sender` = managing KOC Organization, `sent` = demo clock (replay: the story's confirmation time), `payload` = SMS text (what/when/where, no diagnosis); demo gateway delivers into Mailpit as `<digits>@sms.demo.stafeta.example` | `mappers/notification.py`, `notify/patient_sms.py` |
 | Report request step | `Task` code `request-report` | partOf case Task, basedOn CommunicationRequest, owner coordinator, `restriction.period.end` = due (+2 working days), `restriction.recipient` = workplace, businessStatus `objednano` → `vysledek_dorucen`, `output` = delivered DocumentReference, extension `request-exam-date` | F2-1 `mappers/document_request.py` |
 | GP confirmation of the AI prefill | `Provenance` | target = resources created by the referral transaction, agent verifier = GP PractitionerRole, entity source = letter DocumentReference, extensions `prefill-comparison` (`compared`/`not-compared`), `prefill-edited-fields`, `prefill-added-fields` (field names only) | F2-1 |
 
@@ -54,6 +55,8 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `https://stafeta.example/fhir/sid/service-request` | ServiceRequest | case id |
 | `https://stafeta.example/fhir/sid/consent` | Consent | case id |
 | `https://stafeta.example/fhir/sid/communication-request` | CommunicationRequest | request task id |
+| `https://stafeta.example/fhir/sid/sms-notification` | Communication (SMS to the patient), idempotency key | `<task id>:<kind>`, kind = `confirmation` \| `reminder` |
+| `https://stafeta.example/fhir/sid/sms-gateway-message-id` | Communication (SMS): the gateway receipt | gateway message id (demo: SMTP Message-ID of the Mailpit hand-over) |
 | `https://stafeta.example/fhir/sid/request-task` | report-request Task | `<case id>-req-<n>` |
 | `https://stafeta.example/fhir/sid/handover` | Composition (handover) | `<case id>@<as_of UTC YYYYMMDDTHHMMZ>` |
 | `https://stafeta.example/fhir/sid/handover-entry` | Condition / MedicationStatement / Observation derived from a handover | `<handover id>#<field key>.<n>` |
@@ -77,6 +80,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `handover-section` | 1_patient … 15_other (keys shared with `data/golden`) |
 | `handover-field-status` | complete, partial, missing, stale, needs_clarification, complete_with_conflict, generated_with_citations |
 | `handover-review-state` | draft, confirmed, accepted_missing (used as `valueCode` in the review extension) |
+| `communication-category` | mdt-feedback (MDT feedback e-mail to the GP), appointment-reminder (SMS to the patient) |
 | `provenance-activity` | assemble, extract, confirm, edit, accept-missing, carry-over, waive-readiness |
 
 ## Our extensions (`https://stafeta.example/fhir/StructureDefinition/<name>`, not loaded into IRIS)

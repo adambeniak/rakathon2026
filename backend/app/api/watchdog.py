@@ -22,9 +22,13 @@ from app.domain.common import PartyRef, Role
 from app.domain.task_machine import escalate_if_overdue
 from app.domain.task_results import result_type
 from app.fhir.client import FhirClient
+from app.fhir.directory import DirectoryProvider
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
 from app.fhir.tasks import StoredTask, TaskStore
+from app.notify.mailer import SmtpMailer
+from app.notify.patient_sms import PatientSmsNotifier
+from app.notify.sms import MailpitSmsGateway
 from app.settings import Settings
 
 log = structlog.get_logger(__name__)
@@ -32,9 +36,9 @@ log = structlog.get_logger(__name__)
 WATCHDOG_ACTOR = PartyRef(id="sla-watchdog", display="Štafeta – hlídání termínů", role=Role.SYSTEM)
 
 
-async def run_once(store: TaskStore, now: datetime) -> list[str]:
+async def run_once(store: TaskStore, now: datetime, *, reminders: PatientSmsNotifier | None = None) -> list[str]:
     """Complete steps whose result report has arrived, then escalate every overdue open task that was not escalated
-    yet; returns the escalated task ids."""
+    yet, then send the day-before SMS reminders (`reminders`, demo mode); returns the escalated task ids."""
     open_tasks = await store.list_open_everywhere()
     delivered = await _deliver_results(store, open_tasks, now)
     escalated: list[str] = []
@@ -59,6 +63,8 @@ async def run_once(store: TaskStore, now: datetime) -> list[str]:
             continue
         escalated.append(stored.task.id)
         log.info("task_escalated", task_id=stored.task.id, basis=event.payload["basis"])
+    if reminders is not None:
+        await reminders.remind_upcoming((s for s in open_tasks if s.task.id not in delivered), now)
     return escalated
 
 
@@ -82,9 +88,16 @@ async def watchdog_loop(settings: Settings, http: httpx.AsyncClient, clock_now: 
     client = FhirClient(http, settings.fhir_base_url, settings.iris_user, settings.iris_password)
     repository = FhirRepository(client, WATCHDOG_ACTOR, tag_code=DEMO_TAG_CODE if settings.stafeta_demo_mode else None)
     store = TaskStore(repository)
+    reminders = (
+        PatientSmsNotifier(
+            repository, MailpitSmsGateway(SmtpMailer(settings.smtp_host, settings.smtp_port)), DirectoryProvider(client)
+        )
+        if settings.stafeta_demo_mode
+        else None
+    )
     while True:
         try:
-            await run_once(store, clock_now())
+            await run_once(store, clock_now(), reminders=reminders)
         except Exception:
             log.exception("watchdog_round_failed")
         await asyncio.sleep(settings.stafeta_watchdog_interval_s)

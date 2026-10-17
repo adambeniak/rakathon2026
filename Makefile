@@ -4,7 +4,7 @@
 # export secrets to every command). Env vars are passed to uv with --env-file instead.
 SHELL := /bin/bash
 
-.PHONY: up up-local down iris-bootstrap seed index check eval eval-ask-record vector-bench e2e demo-reset contract aci-up aci-status aci-down
+.PHONY: up up-local down iris-bootstrap seed index check eval eval-ask-record vector-bench e2e demo-reset contract aci-up aci-status aci-down test-iris-local
 
 up:            ## start backend + mailpit against the IRIS configured in .env (team ACI)
 	docker compose up -d --build
@@ -19,6 +19,9 @@ down:
 
 iris-bootstrap: ## idempotent: namespace, FHIR endpoint, vector table (re-run after every ACI restart)
 	uv run --env-file .env --with intersystems-irispython==5.4.1 python scripts/bootstrap_iris.py
+
+test-iris-local: ## start ONLY the local IRIS container, bootstrap it, run `pytest -m iris` (no .env needed, never the ACI); PYTEST_ARGS='-k x'
+	./scripts/test_iris_local.sh $(PYTEST_ARGS)
 
 seed:          ## idempotent: directory, users, patient, the case and its 13 documents (scenario "story") + vector index
 	cd backend && uv run --env-file ../.env python -m app.seed

@@ -147,3 +147,44 @@ async def test_confirm_without_stored_version_is_refused(store: HandoverStore) -
     review = SectionReview(state=ReviewState.CONFIRMED, by=PHYSICIAN, at=NOW)
     with pytest.raises(ConflictError):
         await store.confirm_section(unsaved, "8_allergies", review, edited_value=None, previous_hash="h")
+
+
+@respx.mock
+async def test_persist_new_carries_over_decisions_from_another_snapshot(store: HandoverStore) -> None:
+    from tests.unit.fhir.test_handover_carry_over import _confirm, _snapshot
+
+    h = handover()
+    earlier = _confirm(_snapshot(h, "50"), h, "8_allergies")
+    respx.get(f"{FHIR_BASE}/Composition", params={"subject": "Patient/1"}).mock(
+        return_value=httpx.Response(200, json=_bundle(earlier))
+    )
+    # the lookup of this snapshot by its identifier: not stored yet
+    respx.get(f"{FHIR_BASE}/Composition").mock(return_value=httpx.Response(200, json=_bundle()))
+    respx.get(f"{FHIR_BASE}/Task").mock(return_value=httpx.Response(200, json=_bundle(TASK)))
+    respx.get(f"{FHIR_BASE}/DocumentReference").mock(return_value=httpx.Response(200, json=_bundle(DOC)))
+    transaction = respx.post(FHIR_BASE).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "resourceType": "Bundle",
+                "type": "transaction-response",
+                "entry": [{"response": {"status": "201 Created", "location": "Composition/77/_history/1"}}],
+            },
+        )
+    )
+    respx.get(f"{FHIR_BASE}/Composition/77").mock(
+        return_value=httpx.Response(200, json={"resourceType": "Composition", "id": "77", "meta": {"versionId": "1"}})
+    )
+    audit = _audit_mock()
+
+    await store.persist(h, device_display="AI", recorded=NOW)
+
+    sent = json.loads(transaction.calls[0].request.content)
+    sections = sent["entry"][0]["resource"]["section"]
+    allergies = next(s for s in sections if s["code"]["coding"][0]["code"] == "8_allergies")
+    assert '"confirmed"' in json.dumps(allergies)
+    carry = [e["resource"] for e in sent["entry"] if "carry-over" in json.dumps(e["resource"].get("activity", {}))]
+    assert [p["entity"][0]["what"]["reference"] for p in carry] == ["Composition/50/_history/1"]
+    # the search of the other snapshots is audited like the case context search
+    searches = [json.loads(c.request.content) for c in audit.calls if json.loads(c.request.content)["action"] == "E"]
+    assert any({"what": {"reference": "Composition/50"}} in e["entity"] for e in searches)

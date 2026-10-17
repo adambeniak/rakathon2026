@@ -24,10 +24,11 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | Comorbidity | `Condition` | category problem-list-item, code ICD-10 if stated + text, `note` = detail as written | F2-2 |
 | Medication (handover field 7) | `MedicationStatement` | status active, medicationCodeableConcept.text = drug as written, dosage.text = dose + schedule, dateAsserted | F2-2 |
 | Weight/height, lab, histology values | `Observation` | category vital-signs (LOINC 29463-7 / 8302-2, UCUM) or laboratory (code.text = test as written), valueQuantity/valueString, effectiveDateTime, interpretation H/L | F2-2 |
-| Handover | `Composition` (preliminary → final) | identifier `sid/handover|<case>@<as_of UTC>`, type `composition-type|handover`, author = Device (logical), extensions episode + as_of; 15 sections: code `handover-section|<key>`, generated narrative, `handover-field-status` + `handover-review` extensions, `handover-edited-value` after an edit, `emptyReason` unavailable when missing, entries → derived resources / DocumentReferences (field 12) / Patient (field 1); `final` + `attester` (professional) when all 15 are confirmed or accepted as missing | F2-2 `mappers/handover.py`, `handover_store.py` |
+| Handover | `Composition` (preliminary → final) | identifier `sid/handover|<case>@<as_of UTC>`, type `composition-type|handover`, author = Device (logical), extensions episode + as_of; 15 sections: code `handover-section|<key>`, generated narrative, `handover-field-status` + `handover-review` extensions, `handover-edited-value` after an edit, `emptyReason` unavailable when missing, entries → derived resources / DocumentReferences (field 12) / Patient (field 1); `final` + `attester` (professional) when all 15 are confirmed or accepted as missing; a new snapshot (other as_of) carries over the latest physician decision per section whose value hash, field status and conflicts are unchanged (ADR handover-confirmation-carry-over) | F2-2 `mappers/handover.py`, `handover_store.py` |
 | MDT record | `Composition` | sections = MDT_zapis | F3-3 |
 | AI evidence | `Provenance` | target = derived resource (or the Composition, activity `assemble`), activity `extract`, agent assembler = Device (model + prompt versions), entity.role source, what = DocumentReference, `evidence-quote` extension (quote, charStart, charEnd) | F2-2 |
 | Physician confirmation | `Provenance` | target = Composition, activity confirm / edit / accept-missing, agent verifier = PractitionerRole (business identifier + display, workflow role), extensions `handover-section` + `previous-value-sha256` | F2-2 |
+| Carried-over decision | `Provenance` | target = the new handover Composition, activity `carry-over`, agent assembler = Device (the only agent: nobody confirms anything at copy time), entity source = the earlier Composition as a versioned reference with entity.agent verifier = the physician who decided (original time stays in `handover-review.at`), extension `handover-section`; same transaction as the Composition | #122 `mappers/handover.py` |
 | MDT readiness waiver | `Provenance` | target = the coordinating `Task`, activity `provenance-activity|waive-readiness`, agent verifier = the acting KOC physician (PractitionerRole identifier + display, workflow role), `reason.text` = the physician's reason, extension `readiness-item`; written in the same transaction as the `mark_ready_mdt` Task update and its `AuditEvent` (detail `waived`) | #68 `mappers/readiness.py`, `readiness.py` |
 | Consent / wishes | `Consent` | identifier `consent|<case id>`, scope patient-privacy, patient, organization KOC, sourceReference letter, provision permit/disclose to the KOC; statements of the letter verbatim in `consent-statement` extensions (not interpreted) | F2-1 |
 | Messages | `CommunicationRequest` / `Communication` | request missing reports (fixed template + label as written in the letter; status `active` → `completed` when the report arrives); MDT result to GP; `received` = delivery proof | F2-1 / F3-4 |
@@ -76,7 +77,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `handover-section` | 1_patient … 15_other (keys shared with `data/golden`) |
 | `handover-field-status` | complete, partial, missing, stale, needs_clarification, complete_with_conflict, generated_with_citations |
 | `handover-review-state` | draft, confirmed, accepted_missing (used as `valueCode` in the review extension) |
-| `provenance-activity` | assemble, extract, confirm, edit, accept-missing, waive-readiness |
+| `provenance-activity` | assemble, extract, confirm, edit, accept-missing, carry-over, waive-readiness |
 
 ## Our extensions (`https://stafeta.example/fhir/StructureDefinition/<name>`, not loaded into IRIS)
 | Name | On | Value |
@@ -84,6 +85,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `handover-episode` | Composition | valueReference → EpisodeOfCare (Composition.encounter allows Encounter only) |
 | `handover-as-of` | Composition | valueDateTime, the cut-off |
 | `handover-field-status` | Composition.section | valueCoding `handover-field-status` |
+| `handover-conflicts` | Composition.section | valueString, JSON array of the sorted finding ids that contradict the section (`[]` when none); compared by the carry-over (#122) |
 | `handover-review` | Composition.section | complex: state (code), by (Reference, PractitionerRole business id), role (code), at (dateTime), edited (boolean), value-hash (string: SHA-256 of the section value the physician confirmed; a later change reopens the review) |
 | `handover-edited-value` | Composition.section | valueString, the physician's value as JSON (validated against `contracts/handover.schema.json`) |
 | `evidence-quote` | Provenance.entity | complex: quote (string), charStart, charEnd (integer) |

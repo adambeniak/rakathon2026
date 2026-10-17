@@ -34,11 +34,25 @@ describe('as-of', () => {
     expect(handover.every((u) => !u.searchParams.has('as_of'))).toBe(true)
   })
 
+  it('stores the MDT-start handover when the screen opens, so earlier decisions carry over (#122)', async () => {
+    const methods: string[] = []
+    server.events.on('request:start', ({ request }) => {
+      if (new URL(request.url).pathname.endsWith('/handover')) methods.push(request.method)
+    })
+    renderRoute(MDT, { role: 'coordinator', today: '2026-10-21' })
+    await screen.findByRole('region', { name: 'Stav handoveru k MDT' })
+    expect(methods).toContain('POST')
+    expect(methods).not.toContain('GET')
+  })
+
   it('follows another cut-off from the API instead of a constant in the UI', async () => {
     const asOf = '2026-10-21T08:00:00+02:00'
     server.use(
-      http.get('/api/cases/:id/handover', () =>
-        HttpResponse.json({ ...toWire(ALENA_ID, asOf, buildSections({}, asOf), {}, new Set()), as_of: '2026-10-22T09:30:00+02:00' }),
+      http.post('/api/cases/:id/handover', () =>
+        HttpResponse.json({
+          ...toWire(ALENA_ID, asOf, buildSections({}, asOf), {}, new Set()),
+          as_of: '2026-10-22T09:30:00+02:00',
+        }),
       ),
     )
     renderRoute(MDT, { role: 'physician', today: '2026-10-21' })
@@ -67,7 +81,7 @@ describe('MDT screen', () => {
   })
 
   it('shows the empty state when no handover could be assembled', async () => {
-    server.use(http.get('/api/cases/:id/handover', () => problem(404, 'Případ nebyl nalezen')))
+    server.use(http.post('/api/cases/:id/handover', () => problem(404, 'Případ nebyl nalezen')))
     renderRoute(MDT, { role: 'physician', today: '2026-10-21' })
     expect(await screen.findByText('MDT podklady nejsou k dispozici')).toBeInTheDocument()
   })
@@ -79,15 +93,21 @@ describe('DOCX download', () => {
     const revoke = vi.fn()
     Object.assign(URL, { createObjectURL: create, revokeObjectURL: revoke })
     const names: string[] = []
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
       names.push(this.download)
     })
     return { create, names }
   }
 
   it('file name is ours: case, cut-off date and NAVRH while a section is unconfirmed', () => {
-    expect(mdtRecordFileName(ALENA_ID, '2026-10-21T08:00:00+02:00', true)).toBe('MDT_zapis_rakathon-2026-prochazkova_2026-10-21_NAVRH.docx')
-    expect(mdtRecordFileName(ALENA_ID, '2026-10-21T08:00:00+02:00', false)).toBe('MDT_zapis_rakathon-2026-prochazkova_2026-10-21.docx')
+    expect(mdtRecordFileName(ALENA_ID, '2026-10-21T08:00:00+02:00', true)).toBe(
+      'MDT_zapis_rakathon-2026-prochazkova_2026-10-21_NAVRH.docx',
+    )
+    expect(mdtRecordFileName(ALENA_ID, '2026-10-21T08:00:00+02:00', false)).toBe(
+      'MDT_zapis_rakathon-2026-prochazkova_2026-10-21.docx',
+    )
   })
 
   it('fetches mdt-record as docx and saves the blob under our file name', async () => {
@@ -97,18 +117,26 @@ describe('DOCX download', () => {
     const button = await screen.findByRole('button', { name: 'Stáhnout zápis (DOCX)' })
     await waitFor(() => expect(button).toBeEnabled())
     await userEvent.click(button)
-    await waitFor(() => expect(names).toEqual(['MDT_zapis_rakathon-2026-prochazkova_2026-10-21_NAVRH.docx']))
+    await waitFor(() =>
+      expect(names).toEqual(['MDT_zapis_rakathon-2026-prochazkova_2026-10-21_NAVRH.docx']),
+    )
     const record = urls.find((u) => u.pathname.endsWith('/mdt-record'))
     expect(record?.searchParams.get('format')).toBe('docx')
     expect(create).toHaveBeenCalledOnce()
     const blob = (create.mock.calls[0] as unknown as [Blob])[0]
     expect(blob.size).toBe(4) // the bytes the server sent
-    expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    expect(blob.type).toBe(
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    )
   })
 
   it('shows the API problem title when the record is refused', async () => {
     stubDownload()
-    server.use(http.get('/api/cases/:id/mdt-record', () => problem(403, 'Zápis může stáhnout pouze tým KOC')))
+    server.use(
+      http.get('/api/cases/:id/mdt-record', () =>
+        problem(403, 'Zápis může stáhnout pouze tým KOC'),
+      ),
+    )
     renderRoute(MDT, { role: 'coordinator', today: '2026-10-21' })
     const button = await screen.findByRole('button', { name: 'Stáhnout zápis (DOCX)' })
     await waitFor(() => expect(button).toBeEnabled())

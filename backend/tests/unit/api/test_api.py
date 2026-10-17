@@ -533,3 +533,27 @@ def test_handover_without_as_of_and_without_mdt_start_uses_the_demo_clock(client
         response = client.get("/api/cases/rakathon-2026-prochazkova/handover")
 
     assert response.json()["as_of"] == "2026-10-19T10:00:00+02:00"
+
+
+@pytest.mark.usefixtures("physician")
+def test_step_3_decision_carries_over_to_the_mdt_start_handover(app: FastAPI, client: TestClient) -> None:
+    """#122: the physician's decision on an unchanged section at the step-3 clock is not lost at mdt_start."""
+    url = "/api/cases/rakathon-2026-prochazkova/handover"
+    step3 = {"as_of": "2026-10-20T14:00:00+02:00"}
+    shown = client.get(url, params=step3).json()["fields"]["9_performance_status"]
+    confirmed = client.post(
+        f"{url}/sections/9/confirm",
+        params=step3,
+        json={"expected_value_hash": shown["value_hash"], "accept_missing": True},
+    )
+    assert confirmed.status_code == 200
+    app.dependency_overrides[get_case_reader] = lambda: FakeReader(mdt_start=MDT_START)
+
+    with clock.frozen("2026-10-21T07:30:00"):
+        mdt = client.post(url).json()
+
+    assert mdt["composition_id"] == "rakathon-2026-prochazkova@20261021T0600Z"
+    review = mdt["fields"]["9_performance_status"]["review"]
+    assert review["state"] == "accepted_missing"
+    assert review["by"]["id"] == PHYSICIAN.id
+    assert mdt["fields"]["8_allergies"]["review"]["state"] == "draft"

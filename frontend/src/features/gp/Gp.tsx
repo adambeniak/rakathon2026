@@ -7,7 +7,6 @@ import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { LoadingBlock } from '@/components/Skeleton'
 import { Button } from '@/components/ui/button'
 import { gp as t } from '@/i18n/cs/gp'
-import { problemTitle } from '@/lib/api/problem'
 import { formatDateTime } from '@/lib/date'
 import type { CaseSummary } from '@/lib/domain'
 import { useGpCases, useGpOpened, useMdtConclusion } from './api'
@@ -41,7 +40,7 @@ function Conclusion({ caseId }: { caseId: string }) {
         {opened.isSuccess && t.openedRecorded}
         {opened.isError && (
           <span role="alert">
-            {t.openedFailed(problemTitle(opened.error))}{' '}
+            {t.openedFailed}{' '}
             <button type="button" className="underline" onClick={() => opened.mutate(caseId)}>
               {t.openedRetry}
             </button>

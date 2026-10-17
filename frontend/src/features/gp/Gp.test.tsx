@@ -80,7 +80,7 @@ describe('GP portal, demo step 6', () => {
 
     expect(await screen.findByText(/Závěr MDT: postup/)).toBeInTheDocument()
     expect(
-      await screen.findByText(/se nepodařilo zaznamenat: Zpětná vazba není ve stavu k otevření/),
+      await screen.findByText(/Otevření závěru se nepodařilo zaznamenat\./),
     ).toBeInTheDocument()
     fail = false
     await userEvent.click(screen.getByRole('button', { name: 'Zkusit znovu' }))

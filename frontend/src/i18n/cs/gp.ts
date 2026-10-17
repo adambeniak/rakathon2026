@@ -16,7 +16,7 @@ export const gp = {
   conclusionHeading: 'Závěr MDT',
   signedBy: (name: string, at: string) => `Podepsal(a) ${name} dne ${at}`,
   openedRecorded: 'Otevření závěru bylo zaznamenáno do auditní stopy.',
-  openedFailed: (reason: string) => `Otevření závěru se nepodařilo zaznamenat: ${reason}`,
+  openedFailed: 'Otevření závěru se nepodařilo zaznamenat.',
   openedRetry: 'Zkusit znovu',
   openCase: 'Otevřít',
 } as const

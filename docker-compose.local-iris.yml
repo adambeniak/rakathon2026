@@ -1,4 +1,5 @@
-# Opt-in local IRIS for Health (demo fallback when Azure is down): `make up-local`.
+# Opt-in local IRIS for Health (demo fallback when Azure is down): `make up-local` does everything (IRIS, bootstrap,
+# seed, backend, health check; SCENARIO=story for the full case).
 # Same image digest as the team ACI so behaviour matches. Storage is intentionally NOT persistent (like ACI).
 # Apple Silicon: this digest is amd64 and runs emulated (slow); use the "-arm64" repository or the team ACI.
 services:
@@ -13,9 +14,17 @@ services:
     mem_limit: 2g
 
   backend:
-    # Inside docker `localhost` is the container itself: point the backend at the iris service.
+    # Inside docker `localhost` is the container itself: point the backend at the iris service. `environment:` wins
+    # over the base file's `env_file:`, so every IRIS setting is pinned here and the env file (team ACI) stays untouched.
+    # LOCAL_IRIS_PASSWORD is exported by scripts/up_local.sh from the local password file; run any other way it is empty
+    # and the backend is rejected (clear failure) instead of sending the ACI password to the local IRIS.
     environment:
       IRIS_HOST: iris
+      IRIS_SUPERSERVER_PORT: "1972"
+      IRIS_WEB_PORT: "52773"
+      IRIS_NAMESPACE: FHIRSERVER
+      IRIS_USER: _SYSTEM
+      IRIS_PASSWORD: ${LOCAL_IRIS_PASSWORD:-}
       FHIR_BASE_URL: http://iris:52773/fhir/r4
     depends_on:
       - iris

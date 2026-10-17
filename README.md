@@ -27,11 +27,15 @@ make seed                                     # idempotent demo case (13 documen
 make up                                       # backend (localhost:8000) + mailpit (localhost:8025) against the IRIS in .env
 curl -s localhost:8000/api/health             # {"status":"ok", …}
 ```
-Local alternative (same image): `mkdir -p .iris && printf '%s' 'pw' > .iris/password.txt`, put the same value into `.env`
-as `IRIS_PASSWORD`, then `make up-local`; for `make iris-bootstrap` / `make seed` point `IRIS_HOST`/`FHIR_BASE_URL` in `.env`
-at `localhost`. Local storage is not persistent (like ACI). `make up-local` prepares the password file for every FRESH
-container (it removes IRIS's leftover `password.done` sentinel; without that a new container keeps the default password and
-rejects yours) and warns if `IRIS_PASSWORD` in `.env` differs from `.iris/password.txt`.
+Local alternative (demo fallback, same image, ONE command): `mkdir -p .iris && printf '%s' 'pw' > .iris/password.txt`
+(any value, it does not have to match `IRIS_PASSWORD` in `.env`), then `make up-local`, or `make up-local SCENARIO=story` for
+the full case with its 13 documents (default `demo-start`: directory, users and patient, demo step 1 starts empty). It
+starts the local IRIS, waits until it is healthy, bootstraps and seeds it from the host with explicit connection settings,
+starts the backend with the LOCAL password (compose variable `LOCAL_IRIS_PASSWORD`, only used by
+`docker-compose.local-iris.yml`; `.env` stays untouched) and ends with `OK: backend healthy …` or `FAIL: …`. Local storage
+is not persistent (like ACI): `make down` removes the container and the data, `make up-local` rebuilds both. For every
+FRESH container the password file is prepared (IRIS's leftover `password.done` sentinel is removed; without that a new
+container keeps the default password and rejects yours).
 Apple Silicon: the pinned digest is amd64 and runs emulated; use the arm64 image variant or the team ACI.
 
 ## 3. Work

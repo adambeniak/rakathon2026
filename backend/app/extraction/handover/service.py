@@ -22,6 +22,7 @@ from app.domain.patient import Patient
 from app.extraction.handover.assemble import assemble_handover, included_facts, split_documents
 from app.extraction.handover.epicrisis import generate_epicrisis
 from app.extraction.handover.facts import HandoverRules
+from app.extraction.handover.headers import parse_headers
 from app.extraction.lock import filter_as_of
 from app.extraction.pipeline import CompletionClient, extract_facts
 
@@ -77,6 +78,7 @@ async def build_handover(
         rules=rules,
         generated_at=generated_at,
         unavailable=unavailable,
+        headers=parse_headers({k: v for k, v in normalized.items() if k in usable}),
     )
     log.info(
         "handover_assembled",

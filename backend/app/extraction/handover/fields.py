@@ -1,9 +1,10 @@
-"""One rule per handover field (Handover_obsah). Pure functions over the included facts.
+"""One rule per handover field (Handover_obsah). Pure functions over the included facts and report headers.
 
 Rules never fill a value the sources do not state: a missing value carries a `MissingItem` with a neutral reason
-and the role expected to supply it. All texts are copied from evidence-locked fact values (verbatim). The only
-derived values are deterministic code-list lookups on stated values (sex and checksum from the rodné číslo,
-insurer name from the insurer code, age at as_of).
+and the role expected to supply it. All texts are copied from evidence-locked fact values or from report header
+lines parsed deterministically (`headers.parse_header`), both verbatim with their quote. The only derived values
+are deterministic code-list lookups on stated values (sex and checksum from the rodné číslo, insurer name from the
+insurer code, age at as_of).
 """
 
 from __future__ import annotations
@@ -14,7 +15,8 @@ from datetime import date, timedelta
 from typing import Final, Literal
 
 from app.domain.common import Role
-from app.domain.evidence import Certainty, Fact, FactType
+from app.domain.document import SourceDocument
+from app.domain.evidence import Certainty, Evidence, Fact, FactType
 from app.domain.handover import (
     ComorbiditiesField,
     Comorbidity,
@@ -57,6 +59,7 @@ from app.extraction.handover.facts import (
     Context,
     cz_date,
     dedupe_by_text,
+    dedupe_evidence,
     fold_text,
     make_item,
     quantity,
@@ -65,7 +68,9 @@ from app.extraction.handover.facts import (
     tokens,
     union_evidence,
     value_of,
+    with_document_dates,
 )
+from app.extraction.handover.headers import DocumentHeader
 from app.extraction.values import CodedValue, DateValue, MedicationValue, PersonValue
 
 NOT_STATED: Final = "v dokumentaci neuvedeno"
@@ -319,7 +324,7 @@ def diagnosis_field(ctx: Context) -> DiagnosisField:
     icd_v, morph_v = (value_of(icd) if icd else None), (value_of(morph) if morph else None)
     assert icd_v is None or isinstance(icd_v, CodedValue)  # noqa: S101 - selected as coded
     assert morph_v is None or isinstance(morph_v, CodedValue)  # noqa: S101
-    verified = ctx.authored(morph) if morph and ctx.doc_type(morph) == LOINC_PATHOLOGY else None
+    verified, verified_ev = _histology_verified_on(ctx, morph)
     tnm_fact = next((f for f in ctx.facts if TNM.search(f.evidence[0].quote)), None)
     tnm_match = TNM.search(tnm_fact.evidence[0].quote) if tnm_fact else None
     used = [f for f in (icd, morph, tnm_fact) if f is not None]
@@ -337,6 +342,10 @@ def diagnosis_field(ctx: Context) -> DiagnosisField:
     if morph is not None and morph_v is not None:
         items.append(make_item(ctx, morph_v.text, [morph], label="Histologie", clinical_date=verified))
         items.append(make_item(ctx, morph_v.code or "", [morph], label="MKN-O morfologie"))
+    if verified is not None and verified_ev:
+        # The issue date of the histology report, not the biopsy or specimen date.
+        label = "Datum vydání histologického nálezu"
+        items.append(make_item(ctx, cz_date(verified), [], label=label, clinical_date=verified, extra=verified_ev))
     if tnm_fact is not None and value.tnm:
         items.append(make_item(ctx, value.tnm, [tnm_fact], label="TNM"))
     missing: list[MissingItem] = []
@@ -350,8 +359,21 @@ def diagnosis_field(ctx: Context) -> DiagnosisField:
     if icd is not None and icd.certainty == Certainty.SUSPECTED:
         note = f"Kód MKN-10 je v dokumentu {icd.doc_id} uveden jako suspektní."
     status = HandoverStatus.PARTIAL if missing else HandoverStatus.COMPLETE
-    field = DiagnosisField(status=status, value=value, items=items, evidence=union_evidence(used), note=note)
+    evidence = union_evidence(used, verified_ev)
+    field = DiagnosisField(status=status, value=value, items=items, evidence=evidence, note=note)
     return _with_missing(field, missing)
+
+
+def _histology_verified_on(ctx: Context, morph: Fact | None) -> tuple[date | None, list[Evidence]]:
+    """Date of the histological verification: the issue date a pathology report states ("Datum vydání: …", quoted),
+    else the authored date of a report typed as pathology in the metadata. A morphology restated in another
+    document gives no date."""
+    if morph is None or not ctx.is_pathology_report(morph.doc_id):
+        return None, []
+    header = ctx.headers.get(morph.doc_id)
+    if header is not None and header.issued is not None:
+        return header.issued.date, [header.issued.evidence]
+    return (ctx.authored(morph), []) if ctx.doc_type(morph) == LOINC_PATHOLOGY else (None, [])
 
 
 # ---------------------------------------------------------------- 5 MDT question
@@ -625,20 +647,58 @@ def symptoms_field(ctx: Context) -> SymptomsField:
 
 
 def examinations_field(ctx: Context) -> ExaminationsField:
+    """One row per report (referral letters excluded). Type and place come from the report's own header lines
+    (title, letterhead) with their quotes; without them the curated document title and the issuing workplace from
+    the document metadata are shown. A file name is never shown as the type: "v dokumentaci neuvedeno"."""
     docs = sorted(
-        (d for d in ctx.docs.values() if d.type_code != LOINC_REFERRAL_NOTE), key=lambda d: (d.authored_at, d.doc_id)
+        (d for d in ctx.docs.values() if d.type_code != LOINC_REFERRAL_NOTE),
+        key=lambda d: (d.authored_at, d.doc_id),
     )
     if not docs:
         return _with_missing(
             ExaminationsField(status=HandoverStatus.MISSING), [_missing("examinations", Role.COORDINATOR)]
         )
-    rows = [
-        Examination(date=d.authored_at, place=d.custodian or NOT_STATED, type=d.title, doc_id=d.doc_id) for d in docs
-    ]
-    items = [HandoverItem(label=r.type, value=r.place, clinical_date=r.date) for r in rows]
+    rows: list[Examination] = []
+    items: list[HandoverItem] = []
+    used: list[Evidence] = []
+    for d in docs:
+        header = ctx.headers.get(d.doc_id) or DocumentHeader(d.doc_id)
+        exam, place = header.examination, header.place
+        row = Examination(
+            date=d.authored_at,
+            place=place.text if place else (d.custodian or NOT_STATED),
+            type=exam.text if exam else _curated_title(d),
+            doc_id=d.doc_id,
+        )
+        evidence = [*(exam.evidence if exam else ()), *(place.evidence if place else ())]
+        rows.append(row)
+        items.append(
+            HandoverItem(
+                label=row.type,
+                value=row.place,
+                clinical_date=row.date,
+                evidence=with_document_dates(ctx.docs, evidence),
+            )
+        )
+        used += evidence
     return ExaminationsField(
-        status=HandoverStatus.COMPLETE, value=rows, items=items, note="Plné znění v odkazovaném dokumentu (doc_id)."
+        status=HandoverStatus.COMPLETE,
+        value=rows,
+        items=items,
+        evidence=dedupe_evidence(used),
+        note="Plné znění v odkazovaném dokumentu (doc_id).",
     )
+
+
+_FILE_NAME = re.compile(r"\.(?:docx?|pdf|txt|rtf|odt|html?)$", re.IGNORECASE)
+
+
+def _curated_title(doc: SourceDocument) -> str:
+    """The document title from the metadata unless it is only the uploaded file name (#130)."""
+    title = doc.title.strip()
+    if not title or _FILE_NAME.search(title) or title == doc.doc_id:
+        return NOT_STATED
+    return title
 
 
 # ---------------------------------------------------------------- 13 labs
@@ -709,19 +769,37 @@ def histology_field(ctx: Context) -> HistologyField:
         missing = [_missing("histology", Role.KOC_PHYSICIAN, "histologický nález v dokumentaci není")]
         return _with_missing(HistologyField(status=HandoverStatus.MISSING), missing)
     used: list[Fact] = []
+    header_ev: list[Evidence] = []
     items: list[HandoverItem] = []
     report_id = None
-    for f in facts:
-        if (m := REPORT_ID.search(text_of(f))) is not None:
-            report_id = m.group(0)
-            used.append(f)
-            items.append(make_item(ctx, report_id, [f], label="Číslo vyšetření"))
-            break
-    issued_fact = ctx.latest(
-        f for f in facts if isinstance(v := value_of(f), DateValue) and "vydán" in v.label.casefold()
-    )
     issued = None
-    if issued_fact is not None:
+    header = _histology_header(ctx, facts)
+    # The report's own header lines first ("Číslo vyšetření: …", "Datum vydání: …"): they do not depend on the
+    # document type in the metadata nor on the model having extracted the line as a fact.
+    if header is not None and header.report_id is not None:
+        report_id = header.report_id.text
+        header_ev += header.report_id.evidence
+        items.append(make_item(ctx, report_id, [], label="Číslo vyšetření", extra=header.report_id.evidence))
+    else:
+        for f in facts:
+            if (m := REPORT_ID.search(text_of(f))) is not None:
+                report_id = m.group(0)
+                used.append(f)
+                items.append(make_item(ctx, report_id, [f], label="Číslo vyšetření"))
+                break
+    if header is not None and header.issued is not None:
+        issued = header.issued.date
+        header_ev.append(header.issued.evidence)
+        items.append(
+            make_item(
+                ctx, cz_date(issued), [], label="Datum vydání", clinical_date=issued, extra=[header.issued.evidence]
+            )
+        )
+    elif (
+        issued_fact := ctx.latest(
+            f for f in facts if isinstance(v := value_of(f), DateValue) and "vydán" in v.label.casefold()
+        )
+    ) is not None:
         v = value_of(issued_fact)
         assert isinstance(v, DateValue)  # noqa: S101 - selected above
         issued = date.fromisoformat(v.date)
@@ -747,7 +825,20 @@ def histology_field(ctx: Context) -> HistologyField:
             used.append(f)
             items.append(make_item(ctx, grade, [f], label="Grading"))
     value = Histology(report_id=report_id, issued=issued, ihc=ihc, perineural_invasion=perineural, grade=grade)
-    return HistologyField(status=HandoverStatus.COMPLETE, value=value, items=items, evidence=union_evidence(used))
+    evidence = union_evidence(used, header_ev)
+    return HistologyField(status=HandoverStatus.COMPLETE, value=value, items=items, evidence=evidence)
+
+
+def _histology_header(ctx: Context, facts: Sequence[Fact]) -> DocumentHeader | None:
+    """Header of the latest pathology report that states a histological finding and carries a report number or
+    issue date. Another report restating the histology (and its own "Číslo vyšetření") is never used."""
+    doc_ids = {f.doc_id for f in facts if f.type == FactType.HISTOLOGY and ctx.is_pathology_report(f.doc_id)}
+    headers = [
+        h
+        for doc_id in doc_ids
+        if (h := ctx.headers.get(doc_id)) is not None and (h.report_id is not None or h.issued is not None)
+    ]
+    return max(headers, key=lambda h: (ctx.docs[h.doc_id].authored_at, h.doc_id), default=None)
 
 
 def _ihc_result(text: str) -> str | None:

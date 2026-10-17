@@ -118,3 +118,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: rehearse the `live` project (`E2E_BASE_URL=…`) on a fresh `make up-local` (#175); align the mock story with the runbook (#172), then move the readiness gate back to 21. 10.
   Risks: on WSL without sudo Chromium lacks libnspr4/libnss3/libasound2 (`sudo pnpm exec playwright install-deps chromium` once); the headless shell crashed there, hence `channel: 'chromium'`
   Issues: #172 (mock vs runbook step 5), #173 (findings all labelled Nesouhlasí), #174 (no path back to a case after send_feedback), #175 (live project + mock-only gaps), #176 (runbook label drift)
+- 2026-10-17 · claude (P2) · fix/extraction-exams-histology · #130/#128: new `extraction/handover/headers.py` parses each included report's header lines deterministically (no LLM): title -> field 12 type, letterhead -> place, "Číslo vyšetření" -> 14.report_id, "Datum vydání" -> 14.issued and 3.verified_histologically_on; every value verbatim with the whole header line quoted (exact offsets); field 12 items now carry evidence; an uploaded file name is never shown as the type
+  Verified: `make eval` (cache) handover 15/15, key values 28/28 -> 29/29 (new 14.issued), evidence 1.0 (476 -> 528 quotes), 0 hallucinations/leakage; backend check 1056 passed
+  Next: P2 owner decides on golden field 12 paraphrases (#155) and C2 from the header issue date (#159); a human checks the API path once on a local IRIS (upload 01–11, field 12 + MDT record §5)
+  Risks: header heuristic tuned on the 13 demo reports (postcode line separates letterhead from title); other layouts fall back to title/custodian/"v dokumentaci neuvedeno"; API path verified by unit tests only, not live
+  Issues: #130, #128 (closes), #155, #159

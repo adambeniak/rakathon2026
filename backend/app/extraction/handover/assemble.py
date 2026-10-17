@@ -1,8 +1,9 @@
 """`assemble_handover`: deterministic assembly of the 15-field handover for a case at an as-of timestamp.
 
 Pure function (no I/O). Inputs are the evidence-locked facts, the documents' metadata (authored, received, type,
-custodian) and optionally the registered patient and the consistency findings (F3-1). The epicrisis is produced
-by `epicrisis.generate_epicrisis` (one LLM call) and passed in; without it the deterministic fallback is used.
+custodian), optionally their deterministically parsed header lines (`headers.parse_header`), the registered
+patient and the consistency findings (F3-1). The epicrisis is produced by `epicrisis.generate_epicrisis` (one LLM
+call) and passed in; without it the deterministic fallback is used.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from app.domain.patient import Patient
 from app.extraction.handover import fields as f
 from app.extraction.handover.epicrisis import fallback_epicrisis
 from app.extraction.handover.facts import Context, HandoverRules
+from app.extraction.handover.headers import DocumentHeader
 from app.extraction.handover.review import value_hash
 from app.extraction.lock import AsOfExclusion, as_of_exclusion
 
@@ -73,6 +75,7 @@ def assemble_handover(
     rules: HandoverRules | None = None,
     generated_at: datetime | None = None,
     unavailable: Mapping[str, str] | None = None,
+    headers: Mapping[str, DocumentHeader] | None = None,
 ) -> Handover:
     """`unavailable`: doc_id -> Czech reason for known documents whose content could not be read or extracted;
     they are reported in `excluded_documents` instead of silently missing."""
@@ -82,7 +85,13 @@ def assemble_handover(
         if included.pop(doc_id, None) is not None:
             excluded.append(ExcludedDocument(doc_id=doc_id, reason=reason))
     # Second line of defence: facts from excluded (or unknown) documents never reach a field.
-    ctx = Context(as_of=as_of, facts=tuple(included_facts(facts, included)), docs=included, rules=rules)
+    ctx = Context(
+        as_of=as_of,
+        facts=tuple(included_facts(facts, included)),
+        docs=included,
+        rules=rules,
+        headers={k: h for k, h in (headers or {}).items() if k in included},
+    )
     medications = f.medications_field(ctx)
     built = HandoverFields(
         patient=f.patient_field(ctx),

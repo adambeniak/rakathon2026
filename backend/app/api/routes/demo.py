@@ -95,4 +95,5 @@ async def advance(
     # Result reports received by `to` complete their steps (#132) before the watchdog round looks for overdue ones.
     applied += await service.deliver_received_results(case_id, actor)
     escalated = await service.escalate_overdue(case_id, target, actor)
+    await service.remind_patient(case_id, target, actor)  # day-before SMS, like the watchdog round
     return DemoAdvanced(now=settings.now(), overridden=True, applied=applied, skipped=skipped, escalated=escalated)

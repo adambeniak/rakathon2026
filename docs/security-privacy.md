@@ -48,6 +48,10 @@ pilot must add. Owner: P1 (infra) + P4 (auth, audit); reviewed by the `security-
 - Identifiers (RČ) appear in FHIR search query strings between backend and IRIS, and inside the RelatedPerson and
   Coverage identifier values (#7).
 - Uploaded documents must be scoped per patient before uploads exist (#6).
+- SMS to the patient (demo mode only): appointment confirmation and day-before reminder go through a demo gateway into
+  Mailpit (`<digits>@sms.demo.stafeta.example`, the number is in the subject). The text carries the step title (health
+  data) but no diagnosis or advice; consent for SMS contact is not modelled (#205). Logs carry task ids only. Before a
+  pilot: a real operator over TLS, no number in any header, a consent / contact-preference check.
 
 ## Required before a pilot with real data
 1. TLS everywhere; IRIS and backend on private networking (VNet / private endpoints), no public superserver port.

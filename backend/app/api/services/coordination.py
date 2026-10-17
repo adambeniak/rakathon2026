@@ -42,6 +42,7 @@ from app.fhir.directory import DirectoryProvider
 from app.fhir.mappers.plan_definition import plan_definition_to_template
 from app.fhir.tasks import PractitionerRoleRef, StoredTask, TaskStore
 from app.fhir.workflow import authorize_case
+from app.notify.patient_sms import PatientSmsNotifier
 
 log = structlog.get_logger(__name__)
 
@@ -192,12 +193,19 @@ def claims_ownership(task: Task, event: str, actor: PartyRef, on_behalf: bool) -
 
 class CoordinationService:
     def __init__(
-        self, reader: CaseReader, store: TaskStore, now: Callable[[], datetime], directory: DirectoryProvider
+        self,
+        reader: CaseReader,
+        store: TaskStore,
+        now: Callable[[], datetime],
+        directory: DirectoryProvider,
+        *,
+        notifier: PatientSmsNotifier | None = None,
     ) -> None:
         self._reader = reader
         self._store = store
         self._now = now
         self._directory = directory
+        self._notifier = notifier  # SMS to the patient (demo mode); None: no SMS channel
 
     async def _header(self, case_id: str, actor: PartyRef) -> CaseHeader:
         """The case, if the actor takes part in it (referring GP, or staff of the managing KOC): else 403."""
@@ -311,6 +319,8 @@ class CoordinationService:
                     else None,
                 )
                 applied.append(AdvancedStep(task_id=task.id, events=events))
+                if self._notifier and "order_confirmed" in events:  # after the save; never fails the replay
+                    await self._notifier.appointment_confirmed(current.resource, task, step.confirmed_at)
             if problem:
                 skipped.append(SkippedStep(task_id=task.id, reason=problem))
             if task.status is TaskStatus.COMPLETED:
@@ -380,6 +390,17 @@ class CoordinationService:
                 continue
             escalated.append(stored.task.id)
         return escalated
+
+    async def remind_patient(self, case_id: str, now: datetime, actor: PartyRef) -> list[str]:
+        """The watchdog's day-before SMS reminders for this case only, at `now` (demo advance)."""
+        header = await self._header(case_id, actor)
+        if self._notifier is None or header.case.state is CaseState.UZAVRENO:
+            return []
+        try:  # the clock has already moved: a failure here is logged, the background watchdog tries again
+            return await self._notifier.remind_upcoming(await self._store.list_for_case(header.task_reference), now)
+        except Exception as exc:
+            log.exception("reminders_not_sent", case_id=case_id, error=type(exc).__name__)
+            return []
 
     async def deliver_received_results(self, case_id: str, actor: PartyRef) -> list[AdvancedStep]:
         """Complete the steps of this case whose result report is already in the case at the (demo) clock (#132)."""
@@ -465,6 +486,8 @@ class CoordinationService:
             if on_behalf
             else None,
         )
+        if self._notifier and "order_confirmed" in steps:  # after the save; never fails the transition
+            await self._notifier.appointment_confirmed(stored.resource, task, now)
         return self._view([task if t.id == task.id else t for t in siblings], task.id)
 
     async def _context(

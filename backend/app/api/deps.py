@@ -32,6 +32,8 @@ from app.fhir.workflow import RequestWorkflow, authorize_case
 from app.iris.db import IrisPool
 from app.notify.feedback_mail import portal_url
 from app.notify.mailer import Mailer, SmtpMailer
+from app.notify.patient_sms import PatientSmsNotifier
+from app.notify.sms import MailpitSmsGateway, SmsGateway
 from app.retrieval.ask import AskService
 from app.retrieval.indexing import DocumentIndexer
 from app.retrieval.search import HybridRetriever
@@ -73,6 +75,14 @@ def get_mailer(settings: SettingsDep) -> Mailer:
 
 
 MailerDep = Annotated[Mailer, Depends(get_mailer)]
+
+
+def get_sms_gateway(mailer: MailerDep) -> SmsGateway:
+    """Demo only: SMS are delivered into Mailpit (`MailpitSmsGateway`); there is no real operator."""
+    return MailpitSmsGateway(mailer)
+
+
+SmsGatewayDep = Annotated[SmsGateway, Depends(get_sms_gateway)]
 
 
 def get_case_workflow(
@@ -203,10 +213,24 @@ def get_task_store(repository: RepositoryDep) -> TaskStore:
 TaskStoreDep = Annotated[TaskStore, Depends(get_task_store)]
 
 
+def get_patient_notifier(
+    repository: RepositoryDep, gateway: SmsGatewayDep, directory: DirectoryProviderDep, settings: SettingsDep
+) -> PatientSmsNotifier | None:
+    """SMS to the patient exist only in demo mode (the only gateway is the Mailpit one)."""
+    return PatientSmsNotifier(repository, gateway, directory) if settings.stafeta_demo_mode else None
+
+
+PatientNotifierDep = Annotated[PatientSmsNotifier | None, Depends(get_patient_notifier)]
+
+
 def get_coordination(
-    reader: CaseReaderDep, store: TaskStoreDep, settings: SettingsDep, directory: DirectoryProviderDep
+    reader: CaseReaderDep,
+    store: TaskStoreDep,
+    settings: SettingsDep,
+    directory: DirectoryProviderDep,
+    notifier: PatientNotifierDep,
 ) -> CoordinationService:
-    return CoordinationService(reader, store, settings.now, directory)
+    return CoordinationService(reader, store, settings.now, directory, notifier=notifier)
 
 
 CoordinationDep = Annotated[CoordinationService, Depends(get_coordination)]

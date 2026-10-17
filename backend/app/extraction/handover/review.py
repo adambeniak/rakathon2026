@@ -26,7 +26,7 @@ _NAMES = list(HandoverFields.model_fields)
 def section_key(number: int) -> str:
     """1..15 -> the field key shared with data/golden, e.g. 9 -> '9_performance_status'."""
     if not 1 <= number <= len(_NAMES):
-        raise InvalidInputError(f"section must be 1..{len(_NAMES)}")
+        raise InvalidInputError(f"Číslo oddílu musí být 1 až {len(_NAMES)}")
     info = HandoverFields.model_fields[_NAMES[number - 1]]
     return info.alias or _NAMES[number - 1]
 
@@ -35,7 +35,7 @@ def _name(key: str) -> str:
     for name, info in HandoverFields.model_fields.items():
         if (info.alias or name) == key:
             return name
-    raise InvalidInputError(f"unknown section {key}")
+    raise InvalidInputError(f"Neznámý oddíl {key}")
 
 
 def field_of(handover: Handover, key: str) -> HandoverFieldBase:
@@ -57,9 +57,9 @@ def validate_edited_value(key: str, raw: JsonValue) -> JsonValue:
     except ValidationError as exc:
         # Locations only: never echo the submitted value (it may contain PHI).
         where = ", ".join(".".join(str(p) for p in e["loc"]) or "value" for e in exc.errors()[:3])
-        raise InvalidInputError(f"edited_value does not fit section {key} ({where})") from exc
+        raise InvalidInputError(f"Hodnota edited_value neodpovídá oddílu {key} ({where})") from exc
     if value is None:
-        raise InvalidInputError("edited_value must not be null")
+        raise InvalidInputError("Hodnota edited_value nesmí být null")
     dumped: JsonValue = adapter.dump_python(value, mode="json")
     return dumped
 

@@ -118,7 +118,7 @@ def authorize_case(loaded: LoadedCase, actor: PartyRef, directory: Directory) ->
         entry = directory.role(actor.id)
         if entry is not None and entry.role.organization_id == managing_koc_id(loaded, directory):
             return
-    raise ForbiddenError("the actor is not a participant of this case")
+    raise ForbiddenError("Uživatel není účastníkem tohoto případu")
 
 
 class CaseWorkflow:
@@ -152,9 +152,9 @@ class CaseWorkflow:
         waivers: Sequence[WaiverRequest] = (),
     ) -> TransitionOutcome:
         if event not in SUPPORTED_EVENTS:
-            raise InvalidInputError(f"event {event!r} is not available through this endpoint")
+            raise InvalidInputError(f"Událost {event!r} není přes tento endpoint dostupná")
         if waivers and event != "mark_ready_mdt":
-            raise InvalidInputError("waivers apply only to mark_ready_mdt")
+            raise InvalidInputError("Prominutí lze zadat jen s událostí mark_ready_mdt")
         loaded = await self._reader.load(case_id)
         authorize_case(loaded, actor, directory)
         open_requests = await self.open_request_count(loaded)
@@ -288,18 +288,16 @@ class RequestWorkflow(CaseWorkflow):
         now: datetime,
     ) -> RequestsOutcome:
         if actor.role is not Role.COORDINATOR:
-            raise TransitionError("forbidden_role", f"role {actor.role.value!r} may not request documents")
+            raise TransitionError("forbidden_role", f"Role {actor.role.value!r} nemůže vyžadovat podklady")
         if not items:
-            raise InvalidInputError("at least one request is required")
+            raise InvalidInputError("Je nutný alespoň jeden požadavek")
         loaded = await self._reader.load(case_id)
         authorize_case(loaded, actor, directory)
         if loaded.case.state not in REQUESTING_STATES:
-            raise TransitionError(
-                "invalid_transition", f"documents cannot be requested in state {loaded.case.state.value!r}"
-            )
+            raise TransitionError("invalid_transition", f"Ve stavu {loaded.case.state.value!r} nelze podklady vyžádat")
         owner = directory.role(actor.id)
         if owner is None:
-            raise InvalidInputError("the actor is not in the directory")
+            raise InvalidInputError("Uživatel není v adresáři")
         patient_ref, episode_ref = _ref(loaded.task, "for"), _ref(loaded.task, "focus")
         existing = await self._request_resources(loaded)
         open_before = sum(1 for r in existing if r.get("status") in OPEN_STATUSES)
@@ -310,7 +308,7 @@ class RequestWorkflow(CaseWorkflow):
         for offset, item in enumerate(items, start=1):
             recipient = directory.org(item.recipient_org_id)
             if recipient is None or recipient.org.kind in (OrganizationKind.INSURER, OrganizationKind.KOC):
-                raise InvalidInputError(f"unknown workplace {item.recipient_org_id!r}")
+                raise InvalidInputError(f"Neznámé pracoviště {item.recipient_org_id!r}")
             task, event = document_request.new_request(
                 case_id=case_id,
                 number=len(existing) + offset,
@@ -369,7 +367,7 @@ class RequestWorkflow(CaseWorkflow):
         now: datetime,
     ) -> ReceivedOutcome:
         if actor.role not in UPLOAD_ROLES:
-            raise ForbiddenError(f"role {actor.role.value!r} may not upload documents")
+            raise ForbiddenError(f"Role {actor.role.value!r} nemůže nahrávat dokumenty")
         loaded = await self._reader.load(case_id)
         authorize_case(loaded, actor, directory)
         patient_ref, episode_ref = _ref(loaded.task, "for"), _ref(loaded.task, "focus")
@@ -378,10 +376,10 @@ class RequestWorkflow(CaseWorkflow):
             {"identifier": f"{SID_SOURCE_DOCUMENT}|{upload.doc.doc_id}", "encounter": episode_ref},
         )
         if duplicate:
-            raise ConflictError(f"document {upload.doc.doc_id!r} is already part of the case")
+            raise ConflictError(f"Dokument {upload.doc.doc_id!r} už je součástí případu")
 
         if request_id is not None and actor.role is not Role.COORDINATOR:
-            raise ForbiddenError("only the coordinator links a report to a request")
+            raise ForbiddenError("Zprávu k požadavku může přiřadit jen koordinátorka")
         requests = await self._request_resources(loaded)
         open_requests = [r for r in requests if r.get("status") in OPEN_STATUSES]
         target = None
@@ -390,7 +388,7 @@ class RequestWorkflow(CaseWorkflow):
             if target is None:
                 raise NotFoundError("request", request_id)
             if target.get("status") not in OPEN_STATUSES:
-                raise ConflictError(f"request {request_id!r} is already fulfilled")
+                raise ConflictError(f"Požadavek {request_id!r} už je splněn")
 
         builder = BundleBuilder()
         recipient_name = None

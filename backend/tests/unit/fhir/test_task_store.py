@@ -229,7 +229,7 @@ async def test_a_document_without_a_receipt_timestamp_is_refused(store: TaskStor
     respx.get(f"{FHIR_BASE}/DocumentReference").mock(return_value=httpx.Response(200, json=bundle(document)))
     respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
 
-    with pytest.raises(InvalidInputError, match="no receipt timestamp"):
+    with pytest.raises(InvalidInputError, match="nemá čas přijetí"):
         await store.patient_document_received_at("Patient/3", "doc-1")
 
 

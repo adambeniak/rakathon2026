@@ -147,13 +147,13 @@ def readiness_gate(statuses: Mapping[str, str], required: Sequence[str], waivers
     """
     for w in waivers:
         if w.item not in required:
-            raise ValueError(f"waiver for unknown item {w.item!r}")
+            raise ValueError(f"Prominutí neznámé položky {w.item!r}")
         if w.by_role is not Role.KOC_PHYSICIAN:
-            raise ValueError("only a physician may waive a readiness item")
+            raise ValueError("Položku připravenosti může prominout jen lékař KOC")
         if not w.by.strip():
-            raise ValueError("waiver needs the clinician id")
+            raise ValueError("Prominutí vyžaduje identifikátor lékaře")
         if not w.reason.strip():
-            raise ValueError("waiver needs a reason")
+            raise ValueError("Prominutí vyžaduje důvod")
     blocking = [i for i in required if statuses.get(i, "missing") in BLOCKING]
     waived_by_item = {w.item: w for w in waivers}
     missing = tuple(i for i in blocking if i not in waived_by_item)

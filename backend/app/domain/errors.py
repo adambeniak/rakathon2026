@@ -7,9 +7,21 @@ class DomainError(Exception):
     """Base class. Messages must not contain PHI: they may end up in logs and API responses."""
 
 
+# Czech name of what was not found, by the `kind` the caller passes (an unknown kind is shown as given).
+KIND_NAMES = {
+    "case": "Případ",
+    "task": "Úkol",
+    "plan": "Sada vyšetření",
+    "request": "Požadavek na podklady",
+    "route": "Adresa",
+    "MDT conclusion": "Závěr MDT",
+    "referral letter content": "Text žádosti o převzetí",
+}
+
+
 class NotFoundError(DomainError):
     def __init__(self, kind: str, identifier: str) -> None:
-        super().__init__(f"{kind} '{identifier}' not found")
+        super().__init__(f"Nenalezeno: {KIND_NAMES.get(kind, kind)} '{identifier}'")
         self.kind = kind
         self.identifier = identifier
 

@@ -157,7 +157,7 @@ def test_physician_waiver_makes_ready_and_is_listed(required):
     ],
 )
 def test_invalid_waivers_raise(required, waiver):
-    with pytest.raises(ValueError, match=r"waive|reason|unknown"):
+    with pytest.raises(ValueError, match="romin"):
         readiness_gate(statuses(required, performance_status="missing"), required, [waiver])
 
 

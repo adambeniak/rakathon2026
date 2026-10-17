@@ -126,7 +126,7 @@ class TaskStore:
             return None
         received = found[0].get("date")
         if not received:
-            raise InvalidInputError(f"document {doc_id!r} has no receipt timestamp")
+            raise InvalidInputError(f"Dokument {doc_id!r} nemá čas přijetí")
         return datetime.fromisoformat(str(received))
 
     # --- writes ---
@@ -228,7 +228,7 @@ class TaskStore:
         ):
             # A conditional create matched (the PUT of the case Task answers 200 too): another launch won the race
             # (the pre-check ran before it committed).
-            raise ConflictError("this pathway has already been launched for the case")
+            raise ConflictError("Tato sada vyšetření už byla pro případ spuštěna")
         ids = [_entry_id(e) for e in response.get("entry", [])]
         if len(ids) != len(entries):
             raise FhirError("pathway transaction returned an unexpected number of entries")

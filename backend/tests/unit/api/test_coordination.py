@@ -455,7 +455,7 @@ def test_coordinator_records_perform_and_result_for_the_external_workplace(harne
 
     no_source = harness.move("ct", "perform")  # recording for a workplace needs a stated source
     assert no_source.status_code == 422
-    assert "source" in no_source.json()["detail"]
+    assert "zdrojem informace" in no_source.json()["detail"]
 
     performed = harness.move("ct", "perform", note=SOURCE_NOTE)
     assert performed.status_code == 200
@@ -494,7 +494,7 @@ def test_deliver_result_needs_an_existing_document(harness: Harness) -> None:
     assert "no-such-doc" in unknown.json()["detail"]
     future = harness.move("ct", "deliver_result", document_id=FUTURE_DOC)  # received after the (demo) clock
     assert future.status_code == 422
-    assert "after the current time" in future.json()["detail"]
+    assert "po aktuálním čase" in future.json()["detail"]
 
 
 def test_refused_transitions_say_why(harness: Harness) -> None:

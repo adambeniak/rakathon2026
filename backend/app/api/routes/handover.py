@@ -92,9 +92,11 @@ async def parse_as_of(value: str | None, settings: Settings, reader: CaseReader,
             return datetime.combine(date.fromisoformat(value), MDT_START_TIME, tzinfo=PRAGUE)
         parsed = datetime.fromisoformat(value)
     except ValueError as exc:
-        raise InvalidInputError("as_of must be YYYY-MM-DD or an ISO 8601 timestamp with offset") from exc
+        raise InvalidInputError(
+            "Parametr as_of musí mít tvar RRRR-MM-DD nebo časové razítko ISO 8601 s posunem od UTC"
+        ) from exc
     if parsed.tzinfo is None:
-        raise InvalidInputError("as_of timestamp must include a UTC offset")
+        raise InvalidInputError("Časové razítko as_of musí obsahovat posun od UTC")
     return parsed
 
 
@@ -184,15 +186,15 @@ async def confirm_section(
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
     assembled = field_of(handover, key)
     if body.expected_value_hash != assembled.value_hash:
-        raise ConflictError(f"section {key} changed since it was shown; reload the handover before confirming")
+        raise ConflictError(f"Oddíl {key} se od zobrazení změnil; před potvrzením načtěte handover znovu")
     current = field_of(with_review(handover, composition), key)
     missing = current.status == HandoverStatus.MISSING
     if body.accept_missing and body.edited_value is not None:
-        raise InvalidInputError("use either edited_value or accept_missing, not both")
+        raise InvalidInputError("Použijte buď edited_value, nebo accept_missing, ne obojí")
     if body.accept_missing and not missing:
-        raise ConflictError(f"section {key} is not missing; confirm or edit it instead")
+        raise ConflictError(f"Oddíl {key} nechybí; potvrďte jej nebo upravte")
     if missing and not body.accept_missing and body.edited_value is None:
-        raise ConflictError(f"section {key} is missing: send accept_missing or an edited_value")
+        raise ConflictError(f"Oddíl {key} chybí: pošlete accept_missing nebo edited_value")
     edited = validate_edited_value(key, body.edited_value) if body.edited_value is not None else None
     review = SectionReview(
         state=ReviewState.ACCEPTED_MISSING if body.accept_missing else ReviewState.CONFIRMED,
@@ -209,7 +211,7 @@ async def confirm_section(
 
 def _require_confirming_role(actor: PartyRef) -> None:
     if actor.role not in CONFIRMING_ROLES:
-        raise ForbiddenError("only a KOC physician may confirm a handover section")
+        raise ForbiddenError("Oddíl handoveru může potvrdit jen lékař KOC")
 
 
 @router.get(

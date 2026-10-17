@@ -87,7 +87,7 @@ async def create_referral(
             [{"loc": ("body", "payload", *e["loc"]), "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
         ) from exc
     if len(attachments or []) > MAX_ATTACHMENTS:
-        raise InvalidInputError(f"at most {MAX_ATTACHMENTS} attachments are accepted")
+        raise InvalidInputError(f"Lze přijmout nejvýše {MAX_ATTACHMENTS} příloh")
     upload = await read_upload(letter, max_bytes=settings.upload_max_bytes)
     extras = [await read_upload(a, max_bytes=settings.upload_max_bytes) for a in attachments or []]
     directory = await provider.get()

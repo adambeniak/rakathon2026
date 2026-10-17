@@ -41,6 +41,64 @@ PROBLEM_BASE = "https://stafeta.example/problems/"
 
 log = structlog.get_logger(__name__)
 
+# Czech `title` of a problem (RFC 7807: short, the same for every occurrence of the type). Neutral system wording only.
+# Resolved most specific first: transition `code`, then problem `type`, then HTTP status, then the English phrase.
+CODE_TITLES: Mapping[str, str] = {
+    "invalid_transition": "Akce není v tomto stavu povolena",
+    "forbidden_role": "Role nemá k akci oprávnění",
+    "guard_failed": "Podmínky akce nejsou splněny",
+    "case_postponed": "Případ je odložen",
+}
+PROBLEM_TITLES: Mapping[str, str] = {
+    "not-found": "Záznam nebyl nalezen",
+    "unauthenticated": "Uživatel není přihlášen",
+    "forbidden": "Přístup byl odepřen",
+    "invalid-input": "Neplatný požadavek",
+    "validation": "Požadavek nemá platný tvar",
+    "conflict": "Záznam nelze v tomto stavu změnit",
+    "payload-too-large": "Soubor je příliš velký",
+    "unsupported-media": "Nepodporovaný typ dokumentu",
+    "extraction-unavailable": "Dokument se nepodařilo analyzovat",
+    "search-unavailable": "Vyhledávání není dostupné",
+    "ai-unavailable": "Odpověď AI není dostupná",
+    "ai-invalid": "Odpověď AI nemá očekávaný tvar",
+    "mail-unavailable": "E-mail se nepodařilo odeslat",
+    "storage-unavailable": "Úložiště není dostupné",
+    "storage-auth": "Úložiště odmítlo přihlášení backendu",
+    "storage-rejected": "Úložiště odmítlo zápis",
+    "storage-error": "Chyba úložiště",
+    "audit-failed": "Záznam auditu se nepodařilo uložit",
+    "internal": "Neočekávaná chyba serveru",
+}
+STATUS_TITLES: Mapping[int, str] = {
+    400: "Neplatný požadavek",
+    401: "Uživatel není přihlášen",
+    403: "Přístup byl odepřen",
+    404: "Záznam nebyl nalezen",
+    405: "Metoda není povolena",
+    409: "Požadavek je v konfliktu se stavem záznamu",
+    413: "Soubor je příliš velký",
+    415: "Nepodporovaný typ dokumentu",
+    422: "Neplatný požadavek",
+    500: "Neočekávaná chyba serveru",
+    502: "Chyba navazující služby",
+    503: "Služba není dostupná",
+}
+# Detail of the framework's own errors (an unknown route, a wrong method): Starlette words them in English.
+STATUS_DETAILS: Mapping[int, str] = {
+    404: "Požadovaná adresa neexistuje.",
+    405: "Tato metoda není pro danou adresu povolena.",
+}
+
+
+def problem_title(status: int, problem: str | None = None, code: str | None = None) -> str:
+    return (
+        CODE_TITLES.get(code or "")
+        or PROBLEM_TITLES.get(problem or "")
+        or STATUS_TITLES.get(status)
+        or HTTPStatus(status).phrase
+    )
+
 
 def problem_response(
     status: int,
@@ -55,7 +113,7 @@ def problem_response(
 ) -> JSONResponse:
     body = ProblemDetails(
         type=f"{PROBLEM_BASE}{problem}" if problem else "about:blank",
-        title=HTTPStatus(status).phrase,
+        title=problem_title(status, problem, code),
         status=status,
         detail=detail,
         instance=instance,
@@ -159,7 +217,7 @@ def register_error_handlers(app: FastAPI) -> None:
         return problem_response(
             422,
             problem="validation",
-            detail="Request validation failed.",
+            detail="Požadavek nemá platný tvar; podrobnosti jsou v poli errors.",
             instance=request.url.path,
             request_id=_request_id(request),
             errors=issues,
@@ -167,7 +225,10 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        detail = exc.detail if isinstance(exc.detail, str) else None
+        # Starlette's default detail is the English status phrase; a custom detail passes through unchanged.
+        detail: str | None = exc.detail if isinstance(exc.detail, str) else None
+        if detail == HTTPStatus(exc.status_code).phrase:
+            detail = STATUS_DETAILS.get(exc.status_code)
         return problem_response(
             exc.status_code,
             detail=detail,

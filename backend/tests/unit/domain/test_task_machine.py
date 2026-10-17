@@ -171,7 +171,7 @@ def test_overdue_uses_demo_clock(monkeypatch):
 
 def test_naive_appointment_rejected():
     naive = datetime(2026, 10, 12, 9, 0)  # noqa: DTZ001
-    with pytest.raises(TransitionError, match="timezone") as e:
+    with pytest.raises(TransitionError, match="časové pásmo") as e:
         transition(task(), "order_confirmed", R.COORDINATOR, replace(CTX, scheduled_at=naive), NOW)
     assert e.value.code == "guard_failed"
 

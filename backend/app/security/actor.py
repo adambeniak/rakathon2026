@@ -29,12 +29,12 @@ async def current_actor(
     x_demo_role: Annotated[str | None, Header(alias=DEMO_ROLE_HEADER, max_length=40)] = None,
 ) -> PartyRef:
     if not settings.stafeta_demo_mode:
-        raise UnauthenticatedError("authentication is required")
+        raise UnauthenticatedError("Je vyžadováno přihlášení")
     role = _parse_role(x_demo_role)
     entries = (await directory.get()).roles
     seeded = sorted((r for r in entries if r.role.role is role), key=lambda r: r.role.id)
     if not seeded:
-        raise UnauthenticatedError("no seeded person for this role")
+        raise UnauthenticatedError("Pro tuto roli není v adresáři žádná osoba")
     return seeded[0].party()
 
 
@@ -44,7 +44,7 @@ def _parse_role(value: str | None) -> Role:
     try:
         role = Role(value.strip().lower())
     except ValueError:
-        raise UnauthenticatedError("unknown role") from None
+        raise UnauthenticatedError("Neznámá role") from None
     if role not in DEMO_ROLES:
-        raise UnauthenticatedError("this role cannot be chosen")
+        raise UnauthenticatedError("Tuto roli nelze zvolit")
     return role

@@ -7,7 +7,8 @@ import { cases as t } from '@/i18n/cs/cases'
 import { formatDate } from '@/lib/date'
 import type { Finding } from '@/lib/domain'
 import { useDemo } from '@/app/DemoContext'
-import { useCase, useFindings, useTasks } from '../api'
+import { useTasks } from '@/features/coordination/api'
+import { useCase, useFindings } from '../api'
 import { TriagePanel } from './TriagePanel'
 
 const ORDER: Finding['bucket'][] = ['missing', 'conflict', 'stale', 'document', 'info']

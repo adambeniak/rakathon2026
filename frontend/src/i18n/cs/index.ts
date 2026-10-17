@@ -1,4 +1,4 @@
-// Aggregates every feature file in this folder: { common, inbox, handover, ... }.
+// Aggregates every feature file in this folder: { common, inbox, handover, coordination, documents, ... }.
 const modules = import.meta.glob<Record<string, unknown>>('./*.ts', { eager: true })
 
 export const cs = Object.fromEntries(

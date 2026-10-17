@@ -11,9 +11,8 @@ import { Providers } from './app/providers'
 import { createRouter } from './app/router'
 
 async function bootstrap() {
-  // Keep mocks as the development default until the remaining workflows use the backend contract.
-  const mocks = import.meta.env.VITE_MOCKS === '1' || (import.meta.env.DEV && import.meta.env.VITE_MOCKS !== '0')
-  if (mocks) {
+  // MSW only for offline mode (`VITE_MOCKS=1`) and tests; the default talks to the backend through the Vite proxy.
+  if (import.meta.env.VITE_MOCKS === '1') {
     const { worker } = await import('./mocks/browser')
     await worker.start({ onUnhandledRequest: 'bypass', quiet: true })
   }

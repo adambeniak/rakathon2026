@@ -56,5 +56,5 @@ MDT record / tumour board 85208-7 (verify in LOINC before use; otherwise use a l
 
 ## UI copy rules
 Use Czech clinical vocabulary the users already use (epikríza, nacionále, MDT, KOC, koordinátor,
-revizní lékař). Statuses: **Chybí**, **Nesouhlasí**, **Zastaralé**, **Ověřeno lékařem**, **Návrh AI**.
+revizní lékař). Statuses: **Chybí**, **Nesouhlasí**, **Zastaralé**, **Potvrzeno lékařem** (also **Upraveno lékařem**, **Ponecháno jako chybějící**), **Návrh AI**. Never "Ověřeno" or "Zkontrolováno".
 Never write advice ("doporučujeme…") in AI-generated text; use "v dokumentaci uvedeno…".

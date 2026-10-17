@@ -13,7 +13,7 @@ Judge against:
 1. Can a coordinator tell in 3 seconds: case state, who holds the baton ("kdo je na tahu"), next
    deadline, what is missing or conflicting?
 2. Visual hierarchy: one primary action per screen; status colours consistent (Chybí = red,
-   Nesouhlasí = amber, Zastaralé = grey, Ověřeno lékařem = green, Návrh AI = violet) and never colour-only (icon + text).
+   Nesouhlasí = amber, Zastaralé = grey, Potvrzeno lékařem = green, Návrh AI = violet) and never colour-only (icon + text).
 3. Evidence: every AI value shows its source on hover/click without leaving the screen.
 4. Czech copy: correct terminology, diacritics, Czech date format, no English leftovers.
 5. Accessibility: contrast, focus order, keyboard use, labels, table semantics.

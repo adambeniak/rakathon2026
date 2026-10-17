@@ -12,6 +12,7 @@ from datetime import datetime
 
 import structlog
 
+from app.consistency import detect_findings
 from app.documents.normalize import NormalizedDoc, normalize_bytes
 from app.domain.document import SourceDocument
 from app.domain.evidence import Fact
@@ -71,7 +72,7 @@ async def build_handover(
         facts,
         by_id,
         patient=patient,
-        findings=findings,
+        findings=[*findings, *detect_findings(facts)],
         epicrisis=field4,
         rules=rules,
         generated_at=generated_at,

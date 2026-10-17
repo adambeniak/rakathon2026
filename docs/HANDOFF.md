@@ -160,3 +160,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #186 (document 409 on POST /cases/{id}/tasks in the contract, `make contract`); report requests were already refused outside triage/ceka_na_podklady
   Risks: not run against IRIS (Docker off); steps created on closed cases before this fix stay open until cancelled (the watchdog ignores them)
   Issues: closes #166; #186 new
+- 2026-10-17 · claude (P2/P4) · fix/batch-findings-baton-contract · #179: additive `finding_ids` per handover section (every finding with that section, any kind; `conflicts` unchanged), UI + mock read it. #180: additive `CaseSummary.baton {role, action}` from `Case.next_action` (zpetna_vazba_odeslana + coordinator → close_case), queue card names it via `common.caseActions`. #186: 409 documented on POST /cases/{id}/tasks. ADR `docs/adr/XXXX-section-finding-ids-and-case-baton.md`
+  Verified: ruff/format/mypy clean; targeted pytest (assembly, consistency, carry-over, closed-loop API, next_action) green; eval (cache) 53 passed; frontend lint/typecheck, targeted vitest 107/107
+  Next: live emits only C1/C2 findings (#195); #184 board label and #183 waived predecessor not started (stack on #185)
+  Risks: not run against IRIS; full `make check`/e2e not run (time limit); mock Alena after send_feedback now shows the coordinator closing
+  Issues: closes #179, #180, #186; new #195; open #184, #183

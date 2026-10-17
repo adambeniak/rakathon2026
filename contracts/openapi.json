@@ -707,6 +707,49 @@
         "title": "Body_referrals-prefill_referral",
         "type": "object"
       },
+      "CaseAction": {
+        "description": "Next step on the case as a whole, for the queue card (\"Na tahu: … – <action>\"). Labels live in the UI i18n.",
+        "enum": [
+          "accept_case",
+          "triage",
+          "complete_documents",
+          "review_handover",
+          "hold_mdt",
+          "send_feedback",
+          "confirm_receipt",
+          "close_case",
+          "await_external",
+          "none"
+        ],
+        "title": "CaseAction",
+        "type": "string"
+      },
+      "CaseBaton": {
+        "description": "Who must act next on the case as a whole and what that step is; computed by the backend from the case state,\nthe machine's baton role and the postponed flag (contracts/case-states.md).",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/CaseAction",
+            "description": "Next step: accept_case | triage | complete_documents | review_handover | hold_mdt | send_feedback | confirm_receipt (GP, feedback not yet confirmed as delivered) | close_case (coordinator, after delivery_confirmed) | await_external (postponed) | none (closed)."
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Role holding the baton; null when the case is closed."
+          }
+        },
+        "required": [
+          "role",
+          "action"
+        ],
+        "title": "CaseBaton",
+        "type": "object"
+      },
       "CaseCounts": {
         "description": "Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé).",
         "properties": {
@@ -750,6 +793,10 @@
       "CaseDetail": {
         "examples": [
           {
+            "baton": {
+              "action": "hold_mdt",
+              "role": "koc_physician"
+            },
             "baton_holder": {
               "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
               "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -788,6 +835,17 @@
           }
         ],
         "properties": {
+          "baton": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseBaton"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Baton role and next action of the case; the UI renders `action`, it never derives it."
+          },
           "baton_holder": {
             "anyOf": [
               {
@@ -978,6 +1036,10 @@
       "CaseSummary": {
         "examples": [
           {
+            "baton": {
+              "action": "hold_mdt",
+              "role": "koc_physician"
+            },
             "baton_holder": {
               "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
               "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -1005,6 +1067,17 @@
           }
         ],
         "properties": {
+          "baton": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseBaton"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Baton role and next action of the case; the UI renders `action`, it never derives it."
+          },
           "baton_holder": {
             "anyOf": [
               {
@@ -1240,6 +1313,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -1457,6 +1538,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -1821,6 +1910,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -2212,6 +2309,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -2700,6 +2805,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -3314,6 +3427,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -3581,6 +3702,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -3810,6 +3939,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -4005,6 +4142,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -4263,6 +4408,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -5063,6 +5216,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -5419,6 +5580,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -5515,6 +5684,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -5726,6 +5903,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -8168,6 +8353,7 @@
     },
     "/api/cases/{case_id}/tasks": {
       "post": {
+        "description": "Coordinator only (403 otherwise). A closed case (`uzavreno`) takes no new tasks: 409 `conflict`.",
         "operationId": "coordination-create_task",
         "parameters": [
           {
@@ -8242,6 +8428,16 @@
               }
             },
             "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
           },
           "422": {
             "content": {

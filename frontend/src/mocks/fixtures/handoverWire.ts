@@ -17,6 +17,8 @@ export const EDITED_LABEL = 'Upraveno lékařem'
 /** Plain-text sections: the API gives their `value` as a string, so the physician can edit them (`edited_value`). */
 const TEXT_SECTIONS = new Set(['5_mdt_question', '8_allergies'])
 const NOT_STATED = 'v dokumentaci neuvedeno'
+/** Finding kinds that contradict a value (backend `CONFLICT_KINDS` in extraction/handover/assemble.py). */
+const CONFLICT_KINDS = new Set(['date_conflict', 'metadata_mismatch', 'lost_information'])
 /** Who the API names as the supplier of a missing item (backend `_missing(item, owner)`). */
 const OWNER: Record<string, Role> = { ecog: 'koc_physician', patient_email: 'coordinator', tnm_clinical_stage: 'koc_physician' }
 
@@ -72,7 +74,9 @@ export function toWire(
           : s.rows.map((r, i) => ({ label: r.label, value: r.value, clinical_date: isoDate(b.rows[i]?.note), evidence: itemEvidence(r) })),
         missing: missingKeys,
         missing_items: missingKeys.map((item) => ({ item, reason: NOT_STATED, suggested_owner: OWNER[item] ?? 'coordinator' })),
-        conflicts: s.findingIds,
+        // Like the API: `finding_ids` = every finding about the section, `conflicts` = the contradicting ones.
+        conflicts: s.findingIds.filter((id) => CONFLICT_KINDS.has(FINDINGS.find((f) => f.id === id)?.kind ?? '')),
+        finding_ids: s.findingIds,
         note: remarks.length > 0 ? remarks.join(' · ') : null,
         review: s.confirmed
           ? { state: acceptedKeys.has(s.key) ? 'accepted_missing' : 'confirmed', by: { display: s.confirmedBy ?? '', id: 'mock', role: 'koc_physician' }, at: new Date().toISOString(), edited }

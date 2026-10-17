@@ -21,6 +21,27 @@ const BATON_ROLE: Record<CaseState, Role | null> = {
   uzavreno: null,
 }
 
+type CaseAction = components['schemas']['CaseAction']
+
+// Next action of the baton role (backend `Case.next_action`, app/domain/case.py).
+const ACTION: Record<CaseState, CaseAction> = {
+  odeslano: 'accept_case',
+  triage: 'triage',
+  ceka_na_podklady: 'complete_documents',
+  kompletni: 'review_handover',
+  pripraveno_mdt: 'hold_mdt',
+  zaver_mdt: 'send_feedback',
+  zpetna_vazba_odeslana: 'confirm_receipt',
+  uzavreno: 'none',
+}
+
+function batonOf(c: MockCase, role: Role | null): ApiCase['baton'] {
+  if (c.state === 'uzavreno') return { role: null, action: 'none' }
+  if (c.column === 'snoozed') return { role: 'external_workplace', action: 'await_external' }
+  if (c.state === 'zpetna_vazba_odeslana' && role === 'coordinator') return { role, action: 'close_case' }
+  return { role, action: ACTION[c.state] }
+}
+
 // Only documents already received on the simulated day exist yet.
 const arrived = (today: string) => DOCUMENTS.filter((d) => d.received.slice(0, 10) <= today)
 
@@ -33,7 +54,7 @@ const ageOn = (birth: string, today: string) => {
 }
 
 export function toApiCase(c: MockCase, today: string): ApiCase {
-  const role = BATON_ROLE[c.state]
+  const role = c.batonRole ?? BATON_ROLE[c.state]
   return {
     id: c.id,
     patient: {
@@ -50,6 +71,7 @@ export function toApiCase(c: MockCase, today: string): ApiCase {
     koc: c.koc,
     referring_gp: { name: c.gp },
     baton_holder: c.baton && role ? { display: c.baton.name, id: `mock-${role}`, role } : null,
+    baton: batonOf(c, role),
     next_deadline: c.baton?.due ? `${c.baton.due}T12:00:00+02:00` : null,
     opened_at: `${c.referredAt}T09:30:00+02:00`,
     document_count: c.id === ALENA_ID ? arrived(today).length : 0,

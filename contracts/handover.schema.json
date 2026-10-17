@@ -50,6 +50,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -266,6 +274,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -432,6 +448,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -570,6 +594,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {
@@ -754,6 +786,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {
@@ -1200,6 +1240,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -1422,6 +1470,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -1565,6 +1621,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {
@@ -1723,6 +1787,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {
@@ -1952,6 +2024,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -2179,6 +2259,14 @@
           "title": "Evidence",
           "type": "array"
         },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
+          "type": "array"
+        },
         "items": {
           "description": "Displayed values, each with its evidence.",
           "items": {
@@ -2278,6 +2366,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {
@@ -2380,6 +2476,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {
@@ -2524,6 +2628,14 @@
             "$ref": "#/$defs/Evidence"
           },
           "title": "Evidence",
+          "type": "array"
+        },
+        "finding_ids": {
+          "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Finding Ids",
           "type": "array"
         },
         "items": {

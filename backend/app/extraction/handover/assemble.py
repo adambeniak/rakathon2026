@@ -131,20 +131,26 @@ def with_value_hashes(built: HandoverFields) -> HandoverFields:
 
 
 def apply_findings(built: HandoverFields, findings: Sequence[Finding]) -> HandoverFields:
-    """Mark fields whose value a conflict finding contradicts (`Finding.field` = '7_medications' or '7_…')."""
+    """Link each finding to its section (`Finding.field` = '7_medications' or '7_…') and mark fields whose value a
+    conflict finding contradicts."""
     updates: dict[str, HandoverFieldBase] = {}
     for name, info in HandoverFields.model_fields.items():
         key = info.alias or name
         prefix = key.split("_", 1)[0] + "_"
-        ids = [x.id for x in findings if x.kind in CONFLICT_KINDS and x.field and x.field.startswith(prefix)]
+        own = [x for x in findings if x.field and x.field.startswith(prefix)]
+        ids = [x.id for x in own if x.kind in CONFLICT_KINDS]
         current: HandoverFieldBase = getattr(built, name)
         related = [x.id for x in findings if x.id not in ids and _shows_anchor(key, current, x)]
-        if not ids and not related:
+        if not own and not related:
             continue
         # The ids are always recorded; the status changes only where a value exists that the finding contradicts
         # (a stale or needs_clarification status says more than "conflict" and is kept). A related field only
         # shows the same quoted date (field 3 shows the C2 issue date): the id is recorded, only "complete" changes.
-        update: dict[str, object] = {"conflicts": sorted({*current.conflicts, *ids, *related})}
+        conflicts = sorted({*current.conflicts, *ids, *related})
+        # `finding_ids`: every finding about the section, whatever its kind (missing, stale, needs_clarification, …);
+        # `conflicts` stays the contradicting ones (they drive the status and the Nesouhlasí counter).
+        linked = sorted({*current.finding_ids, *conflicts, *(x.id for x in own)})
+        update: dict[str, object] = {"conflicts": conflicts, "finding_ids": linked}
         if (ids and current.status in _CONFLICT_ELIGIBLE) or (related and current.status == HandoverStatus.COMPLETE):
             # A related field keeps partial/stale/needs_clarification (they say more); "complete" would read as
             # conflict-free next to the conflicting date.

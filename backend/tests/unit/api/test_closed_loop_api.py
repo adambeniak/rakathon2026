@@ -354,8 +354,11 @@ def test_delivery_cannot_be_confirmed_by_a_user_and_the_gp_receipt_then_close_co
     assert forged.json()["code"] == "forbidden_role"
     assert opened.status_code == 200
     assert opened.json()["state"] == "zpetna_vazba_odeslana"
+    # Delivery is confirmed when the mail is handed over: the coordinator holds the baton to close (#180).
+    assert opened.json()["baton"] == {"role": "coordinator", "action": "close_case"}
     assert closed.status_code == 200
     assert closed.json()["state"] == "uzavreno"
+    assert closed.json()["baton"] == {"role": None, "action": "none"}
     assert _state(store) == "uzavreno"
     actions = [a["action"] for a in store.of_type("AuditEvent") if a["subtype"][0]["code"] == "gp_opened"]
     assert actions == ["R"]

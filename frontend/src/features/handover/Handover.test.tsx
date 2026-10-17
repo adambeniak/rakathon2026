@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { vi } from 'vitest'
@@ -134,5 +134,52 @@ describe('handover step 3', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Potvrdit sekci: Alergie' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Akce se nezdařila: Hodnota sekce se mezitím změnila')
     expect(screen.queryByText('Potvrdil(a) MUDr. Havelka')).toBeNull() // rolled back
+  })
+
+  describe('a section whose open question the physician answered with a value of their own', () => {
+    const by = { display: 'MUDr. Havelka', id: 'havelka', role: 'koc_physician' }
+    const withQuestion = (review: unknown) => {
+      const base = toWire(ALENA_ID, AS_OF_DEFAULT, buildSections({}, AS_OF_DEFAULT), {})
+      return {
+        ...base,
+        fields: {
+          ...base.fields,
+          '5_mdt_question': {
+            status: 'needs_clarification',
+            value: 'Posouzení resekability.',
+            items: [{ label: 'Upraveno lékařem', value: 'Posouzení resekability.', evidence: [] }],
+            evidence: [],
+            missing: ['explicit_mdt_question'],
+            missing_items: [{ item: 'explicit_mdt_question', reason: 'v žádosti chybí konkrétní otázka pro MDT', suggested_owner: 'gp' }],
+            review,
+            value_hash: 'b'.repeat(64),
+          },
+        },
+      }
+    }
+    const open = async (review: unknown) => {
+      server.use(http.get('/api/cases/:id/handover', () => HttpResponse.json(withQuestion(review))))
+      renderRoute(HANDOVER, physician)
+      return screen.findByRole('region', { name: /Otázka pro MDT/ })
+    }
+
+    it('shows the gap as "Doplněno lékařem" and drops the "K upřesnění" badge after the edit is confirmed', async () => {
+      const section = await open({ state: 'confirmed', by, edited: true })
+      expect(within(section).getByText('Doplněno lékařem')).toBeInTheDocument()
+      expect(within(section).getByText('Výslovná otázka pro MDT')).toHaveClass('line-through')
+      expect(within(section).queryByText('K upřesnění')).toBeNull()
+      expect(within(section).queryByText('Chybí', { selector: 'span' })).toBeNull()
+      expect(within(section).queryByText('explicit_mdt_question')).toBeNull() // never the raw key
+    })
+
+    it('keeps the badge and the open gap with its reason while the section is not confirmed with an edit', async () => {
+      for (const review of [null, { state: 'confirmed', by, edited: false }]) {
+        const section = await open(review)
+        expect(within(section).getByText('K upřesnění')).toBeInTheDocument()
+        expect(within(section).getByText(/v žádosti chybí konkrétní otázka pro MDT/)).toBeInTheDocument()
+        expect(within(section).queryByText('Doplněno lékařem')).toBeNull()
+        cleanup()
+      }
+    })
   })
 })

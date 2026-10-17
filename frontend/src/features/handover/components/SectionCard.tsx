@@ -11,6 +11,9 @@ import type { SectionReview } from '../api'
 const EDITED_LABEL = 'Upraveno lékařem'
 import type { RowEvidence, SectionView } from '../types'
 
+/** The physician confirmed a value of their own: the listed gaps are filled. The API keeps the original status (audit trail). */
+const filled = (s: SectionView): boolean => s.confirmed && s.edited === true
+
 /** Document ids cited by the section and by its values, each once, for the copied text. */
 function sourceIds(s: SectionView): string[] {
   return [...new Set([...s.evidence.map((e) => e.docId), ...s.rows.flatMap((r) => (r.evidence ?? []).map((e) => e.docId))])]
@@ -26,7 +29,9 @@ function toText(s: SectionView): string {
     s.confirmed ? (s.confirmedBy ? t.copyHeader(s.confirmedBy) : '') : t.draftPrefix,
     `${s.number}. ${s.title}`,
     ...s.rows.map((r) => (r.label ? `${r.label}: ${r.value}` : r.value)),
-    ...s.missingItems.map((m) => `${t.missingLabel}: ${m.label} – ${m.reason}${m.owner ? ` (${t.missingOwner(m.owner)})` : ''}`),
+    ...s.missingItems.map((m) =>
+      filled(s) ? `${m.label} – ${t.filledByPhysician}` : `${t.missingLabel}: ${m.label} – ${m.reason}${m.owner ? ` (${t.missingOwner(m.owner)})` : ''}`,
+    ),
     ...(sources.length > 0 ? [t.copySources(sources.join(', '))] : []),
   ]
     .filter((line) => line !== '')
@@ -95,7 +100,10 @@ export function SectionCard({
   // "Chybí" only when a field is actually listed as missing; a partial section otherwise shows just "Neúplné".
   const pills = s.acceptedMissing
     ? (['missing'] as const)
-    : pillForHandover(s.status, s.confirmed).filter((p) => p !== 'missing' || missingSection || s.missingItems.length > 0)
+    : pillForHandover(s.status, s.confirmed)
+        .filter((p) => p !== 'missing' || missingSection || s.missingItems.length > 0)
+        // The physician's own value answers the open question and fills the gaps; the badges of the draft no longer apply.
+        .filter((p) => !(filled(s) && (p === 'clarify' || p === 'missing')))
   const canAct = roleAllowed && !!s.valueHash && !reviewed
 
   async function copy() {
@@ -158,18 +166,28 @@ export function SectionCard({
             </dd>
           </div>
         ))}
-        {s.missingItems.map((m) => (
-          <div key={m.key} className="flex flex-wrap items-center gap-x-3">
-            <dt className="w-44 shrink-0 text-muted">{t.missingLabel}</dt>
-            <dd>
-              <StatusPill kind="missing" /> <span className="ml-1">{m.label}</span>
-              <span className="ml-2 text-sm text-muted">
-                {m.reason}
-                {m.owner && ` · ${t.missingOwner(m.owner)}`}
-              </span>
-            </dd>
-          </div>
-        ))}
+        {s.missingItems.map((m) =>
+          filled(s) ? (
+            <div key={m.key} className="flex flex-wrap items-center gap-x-3">
+              <dt className="w-44 shrink-0 text-muted">{t.missingLabel}</dt>
+              <dd className="text-muted">
+                <span className="line-through">{m.label}</span>
+                <span className="ml-2 rounded-full border border-hairline px-2 py-0.5 text-xs font-medium text-ink">{t.filledByPhysician}</span>
+              </dd>
+            </div>
+          ) : (
+            <div key={m.key} className="flex flex-wrap items-center gap-x-3">
+              <dt className="w-44 shrink-0 text-muted">{t.missingLabel}</dt>
+              <dd>
+                <StatusPill kind="missing" /> <span className="ml-1">{m.label}</span>
+                <span className="ml-2 text-sm text-muted">
+                  {m.reason}
+                  {m.owner && ` · ${t.missingOwner(m.owner)}`}
+                </span>
+              </dd>
+            </div>
+          ),
+        )}
       </dl>
       {s.note && <p className="mt-2 text-sm text-muted">{s.note}</p>}
 

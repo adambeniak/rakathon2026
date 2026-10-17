@@ -268,6 +268,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/demo/advance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move the demo clock and replay the story steps up to it (demo mode only)
+         * @description Brings CT, EUS-FNB, labs (and histology's order) of the case to where the story had them at `to`, through the task state machine, then moves the clock and runs one watchdog round. At 2026-10-16 only the histology is overdue. Idempotent. Coordinator only; the result documents must be uploaded for the patient.
+         */
+        post: operations["demo-advance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/demo/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Demo clock (demo mode only) */
+        get: operations["demo-get_clock"];
+        /**
+         * Move or reset the demo clock (demo mode only)
+         * @description Every deadline, escalation and the board use this clock. `now: null` resets it.
+         */
+        put: operations["demo-put_clock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/directory/kocs": {
         parameters: {
             query?: never;
@@ -379,6 +420,16 @@ export interface components {
             line: string;
             /** Postal Code */
             postal_code: string;
+        };
+        /** AdvancedStep */
+        AdvancedStep: {
+            /**
+             * Events
+             * @description Task-machine events applied, in order (e.g. order_confirmed, accept, …).
+             */
+            events: string[];
+            /** Task Id */
+            task_id: string;
         };
         /**
          * AlertKind
@@ -1081,6 +1132,73 @@ export interface components {
             place?: string | null;
             /** Title */
             title: string;
+        };
+        /**
+         * DemoAdvanced
+         * @example {
+         *       "applied": [
+         *         {
+         *           "events": [
+         *             "order_confirmed",
+         *             "accept",
+         *             "start",
+         *             "performed"
+         *           ],
+         *           "task_id": "c1.ct"
+         *         }
+         *       ],
+         *       "escalated": [
+         *         "c1.histology"
+         *       ],
+         *       "now": "2026-10-16T09:00:00+02:00",
+         *       "overridden": true,
+         *       "skipped": []
+         *     }
+         */
+        DemoAdvanced: {
+            /**
+             * Applied
+             * @description Story steps replayed by this call; empty when it was repeated.
+             */
+            applied: components["schemas"]["AdvancedStep"][];
+            /**
+             * Escalated
+             * @description Tasks the watchdog escalated at the new time (once each).
+             */
+            escalated: string[];
+            /**
+             * Now
+             * Format: date-time
+             * @description The backend's current time (Europe/Prague) that all deadlines use.
+             */
+            now: string;
+            /**
+             * Overridden
+             * @description True when the clock was moved with PUT; false = start value or wall clock.
+             */
+            overridden: boolean;
+            /** Skipped */
+            skipped: components["schemas"]["SkippedStep"][];
+        };
+        /**
+         * DemoClock
+         * @example {
+         *       "now": "2026-10-16T09:00:00+02:00",
+         *       "overridden": true
+         *     }
+         */
+        DemoClock: {
+            /**
+             * Now
+             * Format: date-time
+             * @description The backend's current time (Europe/Prague) that all deadlines use.
+             */
+            now: string;
+            /**
+             * Overridden
+             * @description True when the clock was moved with PUT; false = start value or wall clock.
+             */
+            overridden: boolean;
         };
         /** Diagnosis */
         Diagnosis: {
@@ -2334,6 +2452,20 @@ export interface components {
             value_hash?: string | null;
         };
         /**
+         * SetDemoClock
+         * @example {
+         *       "now": "2026-10-16T09:00:00+02:00"
+         *     }
+         * @example {}
+         */
+        SetDemoClock: {
+            /**
+             * Now
+             * @description The time to pin the backend clock to (a timestamp without offset is Europe/Prague); null resets it to the start value (`STAFETA_DEMO_NOW`) or the wall clock.
+             */
+            now: string | null;
+        };
+        /**
          * Severity
          * @enum {string}
          */
@@ -2343,6 +2475,16 @@ export interface components {
          * @enum {string}
          */
         Sex: "female" | "male" | "other" | "unknown";
+        /** SkippedStep */
+        SkippedStep: {
+            /**
+             * Reason
+             * @description Czech, e.g. the result document is not uploaded for the patient yet.
+             */
+            reason: string;
+            /** Task Id */
+            task_id: string;
+        };
         /** Symptoms */
         Symptoms: {
             /** Items */
@@ -4027,6 +4169,216 @@ export interface operations {
             };
             /** @description Not allowed in the current state (application/problem+json) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "demo-advance": {
+        parameters: {
+            query: {
+                /** @description The demo case. */
+                case_id: string;
+                /** @description YYYY-MM-DD (09:00 Prague) or an ISO 8601 timestamp; years 2020–2035. */
+                to: string;
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoAdvanced"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not allowed in the current state (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "demo-get_clock": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoClock"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "demo-put_clock": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetDemoClock"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoClock"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

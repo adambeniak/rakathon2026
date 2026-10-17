@@ -5,7 +5,16 @@ import { daysUntil, formatDate, formatRemaining } from '@/lib/date'
 import { useDemo } from '@/app/DemoContext'
 import { cn } from '@/lib/cn'
 
-export function BatonHolder({ baton, size = 'sm' }: { baton: BatonHolderInfo | null; size?: 'sm' | 'lg' }) {
+interface BatonHolderProps {
+  baton: BatonHolderInfo | null
+  size?: 'sm' | 'lg'
+  /** Overdue flag from the API; when given, the UI does not derive it from the dates. */
+  overdue?: boolean
+  /** The API clock (e.g. `Board.computed_at`) the countdown is measured from; defaults to the demo date. */
+  now?: string
+}
+
+export function BatonHolder({ baton, size = 'sm', overdue: apiOverdue, now }: BatonHolderProps) {
   const { today } = useDemo()
   if (!baton) {
     return (
@@ -17,8 +26,8 @@ export function BatonHolder({ baton, size = 'sm' }: { baton: BatonHolderInfo | n
       </p>
     )
   }
-  const days = baton.due ? daysUntil(baton.due, today) : null
-  const overdue = days !== null && days < 0
+  const days = baton.due ? daysUntil(baton.due, now ?? today) : null
+  const overdue = apiOverdue ?? (days !== null && days < 0)
   return (
     <div className={cn(size === 'lg' ? 'text-base' : 'text-sm')}>
       <p className="flex items-center gap-1.5">

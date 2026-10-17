@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from app.domain.board import due_order
+from app.domain.case import CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.document import SourceDocument
 from app.domain.errors import ConflictError, InvalidInputError, NotFoundError
@@ -29,6 +30,7 @@ from app.fhir.mappers.service_request import service_request_to_fhir
 from app.fhir.mappers.task import task_from_fhir, task_to_fhir
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import (
+    CS_CASE_STATE,
     CS_TASK_CODE,
     EXT_MDT_START,
     SID_CASE_STEP,
@@ -101,6 +103,8 @@ class TaskStore:
         )
         open_tasks: list[StoredTask] = []
         for case_task in cases:
+            if _is_closed_case(case_task):
+                continue  # nothing is escalated on a closed case, not even a step left open there before #166
             stored = await self.list_for_case(f"Task/{case_task['id']}", audit=False)
             open_tasks += [s for s in stored if s.task.status in OPEN_STATUSES]
         return open_tasks
@@ -325,6 +329,11 @@ class TaskStore:
         order = await self._repo.read("ServiceRequest", reference.split("/", 1)[1])
         await self._repo.audit_read([reference], subtype="read")
         return {**order, "status": status}
+
+
+def _is_closed_case(case_task: Resource) -> bool:
+    codings = (case_task.get("businessStatus") or {}).get("coding", [])
+    return any(c.get("system") == CS_CASE_STATE and c.get("code") == CaseState.UZAVRENO.value for c in codings)
 
 
 def _is_step(resource: Resource) -> bool:

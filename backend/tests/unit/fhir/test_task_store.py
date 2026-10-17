@@ -21,7 +21,14 @@ from app.fhir.errors import FhirConflictError
 from app.fhir.mappers.document import document_to_fhir
 from app.fhir.mappers.task import task_to_fhir
 from app.fhir.repository import FhirRepository
-from app.fhir.systems import CS_TASK_CODE, EXT_MDT_START, EXT_ON_BEHALF_OF, SID_CASE_STEP, SID_REQUEST_TASK
+from app.fhir.systems import (
+    CS_CASE_STATE,
+    CS_TASK_CODE,
+    EXT_MDT_START,
+    EXT_ON_BEHALF_OF,
+    SID_CASE_STEP,
+    SID_REQUEST_TASK,
+)
 from app.fhir.tasks import PractitionerRoleRef, TaskStore
 from app.security.actor import SYSTEM_ACTOR
 from tests.conftest import FHIR_BASE
@@ -425,6 +432,20 @@ async def test_list_open_everywhere_skips_finished_steps(store: TaskStore, steps
     respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
     open_tasks = await store.list_open_everywhere()
     assert [s.task.id for s in open_tasks] == ["c1.eus-fnb"]
+
+
+@respx.mock
+async def test_list_open_everywhere_ignores_a_closed_case(store: TaskStore, steps: list[Task]) -> None:
+    """A step left open on a closed case (created there before #166) is never escalated by the watchdog."""
+    closed = {
+        "resourceType": "Task",
+        "id": "5",
+        "businessStatus": {"coding": [{"system": CS_CASE_STATE, "code": "uzavreno"}]},
+    }
+    searches = respx.get(f"{FHIR_BASE}/Task").mock(return_value=httpx.Response(200, json=bundle(closed)))
+
+    assert await store.list_open_everywhere() == []
+    assert searches.call_count == 1  # the steps of the closed case are not even read
 
 
 @respx.mock

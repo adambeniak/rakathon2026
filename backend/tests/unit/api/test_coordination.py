@@ -12,9 +12,10 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import get_coordination, get_directory_provider, get_fhir_client, get_iris_pool
 from app.api.schemas.coordination import TransitionRequest
-from app.api.services.coordination import CoordinationService
+from app.api.services.coordination import MSG_CASE_CLOSED, CoordinationService
 from app.api.watchdog import run_once
 from app.domain import clock
+from app.domain.case import CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.document import SourceDocument
 from app.domain.errors import ForbiddenError, NotFoundError
@@ -682,6 +683,75 @@ async def test_only_participants_of_the_case_read_or_move_it(harness: Harness) -
         await service.alerts(CASE_ID, OUTSIDER)
     with pytest.raises(ForbiddenError):
         await service.transition("c1.ct", TransitionRequest(event="confirm", date=date(2026, 10, 8)), OUTSIDER)
+    assert harness.store.saves == []
+
+
+# --- a closed case takes no new work (#166) ---
+
+
+def _close(harness: Harness) -> None:
+    loaded = harness.reader.loaded
+    harness.reader.loaded = LoadedCase(
+        task=loaded.task, episode=loaded.episode, case=loaded.case.model_copy(update={"state": CaseState.UZAVRENO})
+    )
+
+
+def _is_closed_conflict(response: Any) -> bool:
+    body = response.json()
+    return (
+        response.status_code == 409
+        and response.headers["content-type"].startswith("application/problem+json")
+        and body["type"].endswith("/conflict")
+        and body["detail"] == MSG_CASE_CLOSED
+    )
+
+
+def test_a_closed_case_refuses_a_new_ad_hoc_task_and_role_denial_stays_403(harness: Harness) -> None:
+    harness.launch()
+    _close(harness)
+    url = f"/api/cases/{CASE_ID}/tasks"
+    body = {"title": "Zavolat pacientce", "owner_role": "coordinator"}
+    before = dict(harness.store.resources)
+
+    assert _is_closed_conflict(harness.client.post(url, json=body, headers=COORDINATOR))
+    assert harness.client.post(url, json=body, headers=PHYSICIAN).status_code == 403
+    assert harness.store.resources == before  # nothing new to show on the board, alert or escalate
+
+
+def test_a_closed_case_refuses_a_pathway_launch(harness: Harness) -> None:
+    _close(harness)
+
+    assert _is_closed_conflict(harness.launch())
+    assert harness.launch(headers=PHYSICIAN).status_code == 403
+    assert harness.store.launches == []
+
+
+def test_a_step_left_open_on_a_closed_case_cannot_move_but_can_be_cancelled(harness: Harness) -> None:
+    harness.launch()  # stands for a step created on the case before #166
+    _close(harness)
+
+    assert _is_closed_conflict(harness.move("ct", "confirm", date="2026-10-08", place="KOC 1"))
+    assert harness.move("ct", "confirm", headers=GP, date="2026-10-08", place="KOC 1").status_code == 403
+    assert harness.store.saves == []
+    cancelled = harness.move("ct", "cancel", note="Případ uzavřen")
+    assert cancelled.status_code == 200
+    assert cancelled.json()["status"] == "cancelled"
+
+
+async def test_the_demo_advance_neither_escalates_nor_completes_steps_of_a_closed_case(harness: Harness) -> None:
+    harness.launch()
+    _close(harness)
+    service = CoordinationService(
+        harness.reader,  # type: ignore[arg-type]
+        harness.store,  # type: ignore[arg-type]
+        lambda: at("2026-10-30T09:00:00"),
+        FakeProvider(),  # type: ignore[arg-type]
+    )
+    coordinator = demo_directory().role_holder("koc2-nemocnice-lipova", Role.COORDINATOR)
+    assert coordinator is not None
+
+    assert await service.escalate_overdue(CASE_ID, at("2026-10-30T09:00:00"), coordinator) == []
+    assert await service.deliver_received_results(CASE_ID, coordinator) == []
     assert harness.store.saves == []
 
 

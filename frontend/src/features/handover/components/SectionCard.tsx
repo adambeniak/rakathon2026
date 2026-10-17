@@ -1,7 +1,7 @@
 import { Copy, Pencil } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { EvidenceChip } from '@/components/EvidenceChip'
-import { StatusPill, pillForHandover } from '@/components/StatusPill'
+import { StatusPill, pillForFinding, pillForHandover } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
 import { handover as t } from '@/i18n/cs/handover'
 import type { DocumentInfo } from '@/lib/domain'
@@ -223,8 +223,8 @@ export function SectionCard({
       {s.findings.length > 0 && (
         <ul aria-label={t.findings} className="mt-3 space-y-1 text-sm">
           {s.findings.map((f) => (
-            <li key={f.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded bg-conflict-bg/60 px-2 py-1">
-              <StatusPill kind="conflict" />
+            <li key={f.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-hairline px-2 py-1">
+              <StatusPill kind={pillForFinding(f.kind)} />
               <span>{f.message}</span>
               {f.evidence.map((e, k) => (
                 <EvidenceChip key={k} row docId={e.docId} quote={e.quote} doc={docs.find((d) => d.id === e.docId)} />

@@ -1,5 +1,6 @@
 import { BadgeCheck, CircleAlert, CircleCheck, CircleDashed, Clock, HelpCircle, Sparkles, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { common } from '@/i18n/cs/common'
+import type { components } from '@/lib/api/schema'
 import type { HandoverStatus } from '@/lib/domain'
 import { cn } from '@/lib/cn'
 
@@ -45,4 +46,31 @@ export function pillForHandover(status: HandoverStatus, confirmed: boolean): Pil
               : []
   if (confirmed) return ['verified', ...flags]
   return status === 'missing' ? flags : ['ai', ...flags]
+}
+
+type FindingKind = components['schemas']['FindingKind']
+
+/**
+ * The pill of a consistency finding, from the kind the API gives it. Only kinds that contradict a stated value are
+ * "Nesouhlasí" (the backend's `CONFLICT_KINDS` plus `role_mismatch`); a value or report the sources do not state is
+ * "Chybí". Exhaustive, so a new kind in the contract fails the type check instead of borrowing another label.
+ */
+const FINDING_PILL: Record<FindingKind, PillKind> = {
+  date_conflict: 'conflict',
+  metadata_mismatch: 'conflict',
+  lost_information: 'conflict',
+  role_mismatch: 'conflict',
+  missing: 'missing',
+  missing_document: 'missing',
+  not_documented: 'missing',
+  stale: 'stale',
+  needs_clarification: 'clarify',
+  // Not tied to a handover field today; shown neutrally should the API ever link them to one.
+  sla_breach: 'clarify',
+  insurer: 'clarify',
+  temporal_cutoff: 'excluded',
+}
+
+export function pillForFinding(kind: FindingKind): PillKind {
+  return FINDING_PILL[kind]
 }

@@ -105,6 +105,22 @@ describe('handover step 3', () => {
     expect(within(finding).getAllByRole('button', { name: /^Zdroj:/ }).length).toBeGreaterThan(0)
   })
 
+  it.each([
+    ['Kontakty', 'missing', 'Kontaktní e-mail není v dokumentaci uveden.', 'Chybí'],
+    ['Diagnóza', 'missing', 'Klinické stadium není v dokumentaci uvedeno.', 'Chybí'],
+    ['Výška a hmotnost', 'stale', 'Poslední uvedená hmotnost', 'Zastaralé'],
+    ['Otázka pro MDT', 'needs_clarification', 'Formulace otázky v žádosti je obecná.', 'K upřesnění'],
+    ['Léková anamnéza', 'date_conflict', 'Nesoulad mezi datem výkonu', 'Nesouhlasí'],
+  ])('a finding in %s (API kind %s) carries the pill of its kind, not "Nesouhlasí" for everything (#173)', async (section, _kind, message, pill) => {
+    renderRoute(HANDOVER, physician)
+    const region = await screen.findByRole('region', { name: new RegExp(`^\\d+ ?${section}`) })
+    const items = within(within(region).getByRole('list', { name: 'Související zjištění' })).getAllByRole('listitem')
+    const finding = items.find((li) => li.textContent?.includes(message))
+    expect(finding).toBeDefined()
+    expect(within(finding!).getByText(pill)).toBeInTheDocument()
+    if (pill !== 'Nesouhlasí') expect(within(finding!).queryByText('Nesouhlasí')).toBeNull()
+  })
+
   it('nothing is shown as confirmed before the server has answered', async () => {
     let release: () => void = () => {}
     const gate = new Promise<void>((resolve) => (release = resolve))

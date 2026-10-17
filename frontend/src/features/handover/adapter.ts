@@ -73,7 +73,7 @@ function adaptField(key: SectionKey, f: Field, findings: ReadonlyMap<string, Fin
 
 /** Wire shape (`as_of`, `fields`, `excluded_documents[].doc_id`) → the view the handover screen renders. */
 export function adaptHandover(h: Handover): HandoverView {
-  const findings = new Map((h.findings ?? []).map((f) => [f.id, { id: f.id, message: f.message, evidence: (f.evidence ?? []).map((e) => ({ docId: e.doc_id, quote: e.quote })) }]))
+  const findings = new Map((h.findings ?? []).map((f) => [f.id, { id: f.id, kind: f.kind, message: f.message, evidence: (f.evidence ?? []).map((e) => ({ docId: e.doc_id, quote: e.quote })) }]))
   return {
     asOf: h.as_of,
     // Without a single usable document nothing was assembled: the screen shows its empty state, not 15 blank sections.

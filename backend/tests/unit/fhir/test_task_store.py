@@ -11,12 +11,14 @@ import pytest
 import respx
 
 from app.domain.common import PartyRef, Role
+from app.domain.document import SourceDocument
 from app.domain.errors import ConflictError, InvalidInputError, NotFoundError
 from app.domain.pathway import instantiate
 from app.domain.task import Task, TaskStatus
 from app.fhir.cases import CaseHeader
 from app.fhir.client import FhirClient
 from app.fhir.errors import FhirConflictError
+from app.fhir.mappers.document import document_to_fhir
 from app.fhir.mappers.task import task_to_fhir
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_TASK_CODE, EXT_MDT_START, EXT_ON_BEHALF_OF, SID_CASE_STEP, SID_REQUEST_TASK
@@ -245,6 +247,43 @@ async def test_receipt_timestamp_of_a_patient_document(store: TaskStore) -> None
     assert route.calls.last.request.url.params["patient"] == "Patient/3"
     route.mock(return_value=httpx.Response(200, json=bundle()))
     assert await store.patient_document_received_at("Patient/3", "doc-1") is None
+
+
+@respx.mock
+async def test_result_documents_of_a_patient_by_loinc_type(store: TaskStore) -> None:
+    histology = document_to_fhir(
+        SourceDocument(
+            doc_id="11_Histologie_KOC2_2026-10-19",
+            title="Histologie",
+            type_code="11526-1",
+            authored_at=date(2026, 10, 19),
+            received_at=datetime(2026, 10, 19, 14, 0, tzinfo=UTC),
+        ),
+        b"report",
+        patient_reference="Patient/3",
+        episode_reference=None,
+        custodian_reference=None,
+        author_reference=None,
+    )
+    generated = {"resourceType": "DocumentReference", "id": "9", "type": histology["type"]}  # not a source document
+    lab = {
+        **histology,
+        "id": "10",
+        "identifier": [{**histology["identifier"][0], "value": "10_Lab"}],
+        "type": {"coding": [{"system": "http://loinc.org", "code": "11502-2"}]},
+    }
+    route = respx.get(f"{FHIR_BASE}/DocumentReference").mock(
+        return_value=httpx.Response(200, json=bundle({**histology, "id": "8"}, generated, lab))
+    )
+    audit = respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
+
+    [found] = await store.patient_result_documents("Patient/3", "11526-1")
+
+    assert (found.doc_id, found.authored_at) == ("11_Histologie_KOC2_2026-10-19", date(2026, 10, 19))
+    assert route.calls.last.request.url.params["patient"] == "Patient/3"
+    assert audit.call_count == 1
+    await store.patient_result_documents("Patient/3", "11526-1", audit=False)  # the watchdog
+    assert audit.call_count == 1
 
 
 @respx.mock

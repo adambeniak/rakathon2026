@@ -115,6 +115,9 @@ export function TaskCard({ task, titles, now, caseId, canAct, busy, onTransition
     <li className={cn('space-y-1.5 rounded border bg-card p-3 text-sm', task.overdue ? 'border-missing/60' : 'border-hairline')}>
       <p className="font-medium">{task.title}</p>
       <p className="text-muted">
+        {t.task.owner}: {task.owner?.display ?? t.task.ownerUnassigned}
+      </p>
+      <p className="text-muted">
         {t.task.place}: {task.place ?? t.task.placeUnknown}
       </p>
       {task.due && (

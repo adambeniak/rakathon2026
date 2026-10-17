@@ -29,11 +29,13 @@ from app.api.services.demo_story import STORY, StoryStep
 from app.domain import board as board_logic
 from app.domain import clock
 from app.domain.common import PartyRef, Role
+from app.domain.document import SourceDocument
 from app.domain.errors import ConflictError, ForbiddenError, InvalidInputError
 from app.domain.events import EventKind, TransitionError
 from app.domain.pathway import instantiate
 from app.domain.task import Task, TaskBusinessStatus, TaskStatus
 from app.domain.task_machine import ON_BEHALF_EVENTS, TaskContext, escalate_if_overdue, transition
+from app.domain.task_results import deliver_result, matching_result, result_type
 from app.fhir.cases import CaseHeader, CaseReader
 from app.fhir.directory import DirectoryProvider
 from app.fhir.mappers.plan_definition import plan_definition_to_template
@@ -159,6 +161,24 @@ def transition_steps(event: str, task: Task) -> list[str]:
     return [event]  # fail | cancel
 
 
+OWNER_EVENTS = frozenset({"confirm", "perform", "deliver_result"})
+
+
+def with_indicating_owner(tasks: Sequence[Task], physician: PractitionerRoleRef) -> list[Task]:
+    """Steps of KOC physicians start with the indicating physician as their named owner (#137); a physician who later
+    acts on the step takes it over. Steps of other roles (external workplace, coordinator) stay without a named owner
+    (the UI says "nepřiřazeno"): the coordinator records them on behalf and is not their owner."""
+    owner = PartyRef(id=physician.business_id, display=physician.display, role=Role.KOC_PHYSICIAN)
+    return [t.model_copy(update={"owner": owner}) if t.owner_role is Role.KOC_PHYSICIAN else t for t in tasks]
+
+
+def claims_ownership(task: Task, event: str, actor: PartyRef, on_behalf: bool) -> bool:
+    """Whether `actor` becomes the named owner: they moved the step forward in the step's own role (not on behalf, so
+    the owner role and the board lane never change)."""
+    role = task.owner.role if task.owner else task.owner_role
+    return event in OWNER_EVENTS and not on_behalf and actor.role is role and task.owner != actor
+
+
 class CoordinationService:
     def __init__(
         self, reader: CaseReader, store: TaskStore, now: Callable[[], datetime], directory: DirectoryProvider
@@ -215,6 +235,7 @@ class CoordinationService:
         except ValueError as exc:
             log.warning("pathway_template_unusable", reason=str(exc))  # the technical reason stays in the log
             raise InvalidInputError("Šablonu sady vyšetření nelze použít") from exc
+        tasks = with_indicating_owner(tasks, physician)
         await self._store.launch_pathway(
             header,
             plan,
@@ -346,6 +367,13 @@ class CoordinationService:
             escalated.append(stored.task.id)
         return escalated
 
+    async def deliver_received_results(self, case_id: str, actor: PartyRef) -> list[AdvancedStep]:
+        """Complete the steps of this case whose result report is already in the case at the (demo) clock (#132)."""
+        header = await self._header(case_id, actor)
+        stored = await self._store.list_for_case(header.task_reference)
+        delivered = await deliver_received_results(self._store, stored, self._now())
+        return [AdvancedStep(task_id=task_id, events=events) for task_id, events in delivered]
+
     # --- single tasks ---
 
     async def create_task(self, case_id: str, request: CreateTaskRequest, actor: PartyRef) -> TaskOut:
@@ -402,6 +430,8 @@ class CoordinationService:
         if on_behalf and "performed" in steps and not (request.note and request.note.strip()):
             raise InvalidInputError("Při zápisu za pracoviště je nutná poznámka se zdrojem informace")
         updates: dict[str, object] = {}
+        if claims_ownership(stored.task, request.event, actor, on_behalf):
+            updates["owner"] = actor  # who acted on their own step holds it from now on (#137)
         if request.note and request.note.strip():
             updates["note"] = request.note.strip()  # the reason / source stays on the task, not in the audit text
         if on_behalf:
@@ -446,6 +476,48 @@ class CoordinationService:
         ordered = sorted(tasks, key=board_logic.due_order)
         board = board_logic.build_board(ordered[0].case_id, ordered, self._now())
         return next(task_out(bt) for lane in board.lanes for bt in lane.tasks if bt.task.id == task_id)
+
+
+async def deliver_received_results(
+    store: TaskStore, stored: Sequence[StoredTask], now: datetime, *, audit: bool = True
+) -> list[tuple[str, list[str]]]:
+    """Walk every step of one case whose result report has been received to `vysledek_dorucen` (rules:
+    `app.domain.task_results`). `stored` are all steps of the case, in due order (predecessors first). A step the
+    machine refuses (e.g. its predecessors are open) or that cannot be saved is left as it is and tried again on the
+    next call (upload, demo advance, watchdog round).
+    Returns (task id, machine events) per completed step.
+    """
+    completed = {s.task.id for s in stored if s.task.status is TaskStatus.COMPLETED}
+    documents: dict[tuple[str, str], list[SourceDocument]] = {}
+    delivered: list[tuple[str, list[str]]] = []
+    for current in stored:
+        wanted = result_type(current.task)
+        if wanted is None:
+            continue
+        key = (str(current.resource["for"]["reference"]), wanted)
+        if key not in documents:
+            documents[key] = await store.patient_result_documents(key[0], wanted, audit=audit)
+        document = matching_result(current.task, documents[key], now)
+        if document is None:
+            continue
+        try:
+            task, events = deliver_result(current.task, document.doc_id, sorted(completed), now)
+        except TransitionError as exc:
+            log.info("result_not_delivered", task_id=current.task.id, doc_id=document.doc_id, reason=exc.code)
+            continue
+        try:
+            await store.save(
+                current,
+                task,
+                description=f"{_describe(current.task, task, events, None, False)}; "
+                f"result document {document.doc_id} received, recorded by the system",
+            )
+        except Exception:  # like the escalation: logged, the next call (upload, advance, watchdog) tries again
+            log.exception("result_step_not_saved", task_id=current.task.id)
+            continue
+        completed.add(task.id)
+        delivered.append((task.id, events))
+    return delivered
 
 
 def _due_in_story(task: Task, event: str) -> bool:

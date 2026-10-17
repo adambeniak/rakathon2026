@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import (
     get_case_reader,
+    get_coordination,
     get_directory_provider,
     get_fhir_client,
     get_request_workflow,
@@ -80,6 +81,20 @@ class FakeWorkflow:
         return ReceivedOutcome(_case(CaseState.KOMPLETNI), document, 0, "podklady_kompletni")
 
 
+class FakeCoordination:
+    """Completing the pathway step of an uploaded result report (#132); the rules are tested in test_result_delivery."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
+        self.fail = False
+
+    async def deliver_received_results(self, case_id: str, actor: PartyRef) -> list[Any]:
+        self.calls.append((case_id, actor.role.value))
+        if self.fail:
+            raise RuntimeError("store down")
+        return []
+
+
 class FakeTriage:
     async def proposals(self, case_id: str, directory: Directory, actor: Any) -> ProposalsView:
         exam = ListedExam.model_validate(
@@ -99,8 +114,14 @@ def workflow() -> FakeWorkflow:
 
 
 @pytest.fixture
-def client(settings: Settings, workflow: FakeWorkflow) -> Iterator[TestClient]:
+def coordination() -> FakeCoordination:
+    return FakeCoordination()
+
+
+@pytest.fixture
+def client(settings: Settings, workflow: FakeWorkflow, coordination: FakeCoordination) -> Iterator[TestClient]:
     app = create_app(settings)
+    app.dependency_overrides[get_coordination] = lambda: coordination
     app.dependency_overrides[get_directory_provider] = lambda: FakeProvider()
     app.dependency_overrides[get_request_workflow] = lambda: workflow
     app.dependency_overrides[get_triage_reader] = lambda: FakeTriage()
@@ -159,6 +180,29 @@ def test_uploading_the_last_report_reports_the_case_event(client: TestClient, wo
     assert workflow.calls == [("receive", f"{demo_case.CASE_ID}-req-1")]
 
 
+def test_an_upload_completes_the_pathway_step_of_its_report(client: TestClient, coordination: FakeCoordination) -> None:
+    path = DOCS_DIR / "03_RTG_plic_2026-09-03.docx"
+    files = {"file": (path.name, path.read_bytes(), "application/octet-stream")}
+
+    response = client.post(f"{CASE_URL}/documents", files=files, headers={"X-Demo-Role": "coordinator"})
+
+    assert response.status_code == 201
+    assert coordination.calls == [(demo_case.CASE_ID, "coordinator")]
+
+
+def test_a_failure_to_complete_the_step_does_not_fail_the_stored_upload(
+    client: TestClient, coordination: FakeCoordination
+) -> None:
+    coordination.fail = True
+    path = DOCS_DIR / "03_RTG_plic_2026-09-03.docx"
+    files = {"file": (path.name, path.read_bytes(), "application/octet-stream")}
+
+    response = client.post(f"{CASE_URL}/documents", files=files, headers={"X-Demo-Role": "coordinator"})
+
+    assert response.status_code == 201  # the report is stored; the watchdog completes the step on its next round
+    assert response.json()["document"]["doc_id"] == "03_RTG_plic_2026-09-03"
+
+
 def test_file_name_without_a_date_needs_authored_at(client: TestClient) -> None:
     path = DOCS_DIR / "03_RTG_plic_2026-09-03.docx"
     files = {"file": ("rtg.docx", path.read_bytes(), "application/octet-stream")}
@@ -187,6 +231,7 @@ def test_invalid_date_in_the_file_name_is_a_422_not_a_500(client: TestClient) ->
 def test_the_configured_upload_limit_is_used_not_a_constant(settings: Settings, workflow: FakeWorkflow) -> None:
     small = settings.model_copy(update={"upload_max_bytes": 2048})
     app = create_app(small)
+    app.dependency_overrides[get_coordination] = lambda: FakeCoordination()
     app.dependency_overrides[get_directory_provider] = lambda: FakeProvider()
     app.dependency_overrides[get_request_workflow] = lambda: workflow
     app.dependency_overrides[get_case_reader] = lambda: FakeReader()

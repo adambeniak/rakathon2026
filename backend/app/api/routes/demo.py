@@ -92,5 +92,7 @@ async def advance(
     audit["outcomeDesc"] = f"demo advanced to {target.isoformat()} for case {case_id}: {len(applied)} step(s) replayed"
     await repository.create(audit)
     clock.set_override(target)
+    # Result reports received by `to` complete their steps (#132) before the watchdog round looks for overdue ones.
+    applied += await service.deliver_received_results(case_id, actor)
     escalated = await service.escalate_overdue(case_id, target, actor)
     return DemoAdvanced(now=settings.now(), overridden=True, applied=applied, skipped=skipped, escalated=escalated)

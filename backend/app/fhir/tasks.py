@@ -14,6 +14,7 @@ from datetime import date, datetime
 
 from app.domain.board import due_order
 from app.domain.common import PartyRef, Role
+from app.domain.document import SourceDocument
 from app.domain.errors import ConflictError, InvalidInputError, NotFoundError
 from app.domain.task import Task, TaskStatus
 from app.domain.task_machine import OPEN_STATUSES
@@ -22,6 +23,7 @@ from app.fhir.client import Resource, reference_from_location
 from app.fhir.errors import FhirConflictError, FhirError, FhirNotFoundError
 from app.fhir.mappers.care_plan import care_plan_identifier, care_plan_to_fhir
 from app.fhir.mappers.directory import party_reference
+from app.fhir.mappers.document import document_from_fhir
 from app.fhir.mappers.provenance import pathway_launch_provenance
 from app.fhir.mappers.service_request import service_request_to_fhir
 from app.fhir.mappers.task import task_from_fhir, task_to_fhir
@@ -128,6 +130,24 @@ class TaskStore:
         if not received:
             raise InvalidInputError(f"Dokument {doc_id!r} nemá čas přijetí")
         return datetime.fromisoformat(str(received))
+
+    async def patient_result_documents(
+        self, patient_reference: str, type_code: str, *, audit: bool = True
+    ) -> list[SourceDocument]:
+        """Received documents of this patient with LOINC type `type_code` (metadata only is used: type and dates).
+
+        `audit=False` only for the watchdog, for the same reason as `list_open_everywhere`; the step it completes is
+        written (and audited) as usual.
+        """
+        # Filtered by type here, not with `type=`: the patient search is the one proven on IRIS; demo-scale volume.
+        found = await self._repo.search("DocumentReference", {"patient": patient_reference, "_count": "100"})
+        sources = [r for r in found if any(i.get("system") == SID_SOURCE_DOCUMENT for i in r.get("identifier", []))]
+        matching = [
+            (r, d) for r, d in zip(sources, map(document_from_fhir, sources), strict=True) if d.type_code == type_code
+        ]
+        if matching and audit:
+            await self._repo.audit_read([f"DocumentReference/{r['id']}" for r, _ in matching], subtype="search-type")
+        return [d for _, d in matching]
 
     # --- writes ---
 

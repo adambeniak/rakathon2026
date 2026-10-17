@@ -104,7 +104,8 @@ def _result_guard(t: Task, ctx: TaskContext) -> str | None:
 
 
 _OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORDINATOR})
-_OWNER_ONLY: frozenset[Role | _Owner] = frozenset({OWNER})
+# SYSTEM may record start / performed / result only when a received result report proves them
+# (`app.domain.task_results`, #132); the API refuses a SYSTEM actor, so no user reaches these through it.
 _OWNER_SYSTEM: frozenset[Role | _Owner] = frozenset({OWNER, Role.SYSTEM})
 _COORD_ONLY: frozenset[Role | _Owner] = frozenset({Role.COORDINATOR})
 
@@ -136,14 +137,14 @@ _RULES: tuple[_Rule, ...] = (
     _Rule(
         "start",
         TaskStatus.ACCEPTED,
-        _OWNER_ONLY,
+        _OWNER_SYSTEM,
         _start_guard,
         lambda t, _c: t.model_copy(update={"status": TaskStatus.IN_PROGRESS}),
     ),
     _Rule(
         "performed",
         TaskStatus.IN_PROGRESS,
-        _OWNER_ONLY,
+        _OWNER_SYSTEM,
         _performed_guard,
         lambda t, _c: t.model_copy(update={"business_status": B.PROVEDENO}),
     ),

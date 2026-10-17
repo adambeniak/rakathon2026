@@ -36,7 +36,7 @@ STORY_DOCS = {step.result_doc_id: step.result_at for step in STORY}
 class ScopedStore(FakeStore):
     """`list_for_case` answers for one case (the real store filters by `partOf`); `list_open_everywhere` does not."""
 
-    async def list_for_case(self, case_task_reference: str) -> list[Any]:
+    async def list_for_case(self, case_task_reference: str, *, audit: bool = True) -> list[Any]:
         return [s for s in await super().list_for_case(case_task_reference) if s.task.case_id == CASE_ID]
 
     async def list_open_everywhere(self) -> list[Any]:

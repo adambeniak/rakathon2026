@@ -185,7 +185,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 - **Must be visible:** tasks CT (KOC 1), EUS-FNB, odběry + TM, histologie, algeziolog, psycholog, MDT with owner, place,
   due date and dependencies (demo assumptions, labelled as such); phases **K objednání → Objednáno → Provedeno →
   Výsledek doručen**; after the advance only the histology task is **Po termínu** (1 pracovní den) with **Slíbeno do**
-  15. 10. and **Eskalováno 16. 10. 2026**.
+  15. 10. and **Eskalováno 16. 10. 2026**. Each card shows **Vlastník**: the indicating physician on the Lékař KOC
+  steps, **nepřiřazeno** on the external workplaces (the coordinator records for them, she does not own them).
 - **Say:** „Sada vytvoří úkoly a každý má vlastníka, místo a termín. Termíny jsou demo předpoklad. Histologie byla
   slíbena do tří pracovních dnů od 12. 10. (demo předpoklad), tedy do 15. 10. K 16. 10. je po termínu a úkol se
   koordinátorce označí jako eskalovaný.“
@@ -207,6 +208,10 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      a reason in **Důvod prominutí: Stav výkonnosti (PS/ECOG)** and press **Prominout a označit jako připravený**. Result: **Případ je označen jako
      připravený k MDT.** and state **Připraveno k rozhodnutí/MDT**.
   5. **Stáhnout zápis (DOCX)** (file in the MDT_zapis layout; marked as a draft while not every section is confirmed).
+- **Histology task:** report 11 is in the case since step 3, so once the clock is 21. 10. the histology step turns
+  **Výsledek doručen** (no longer **Po termínu**, no alert) at the next watchdog round (≤ 1 minute after the switch,
+  #132). If it must show at once: `curl -s -X POST "$BACKEND/api/demo/advance?case_id=$CASE&to=2026-10-21T09:00:00%2B02:00" -H 'X-Demo-Role: coordinator'`
+  and reload.
 - **Must be visible:** reports 12 and 13 only under **Po MDT – nezahrnuto** and as **Po MDT** in tab **Dokumenty**; the
   two date conflicts still listed; the waiver asks for a reason (recorded as who, when, why); the DOCX downloads under
   `MDT_zapis_<case id>_2026-10-21_NAVRH.docx` (the app names the file; `_NAVRH` drops once every section is confirmed).

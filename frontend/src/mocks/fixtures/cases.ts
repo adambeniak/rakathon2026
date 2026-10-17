@@ -44,6 +44,8 @@ export interface MockStore {
   conclusion: { text: string; by: string; signedAt: string } | null
   /** The coordinator closed the case (`close`). */
   closed: boolean
+  /** The physician marked the case ready for the MDT (`mark_ready_mdt`). */
+  markedReady: boolean
   confirmed: Record<string, string>
   extraCases: MockCase[]
   /** ids of document requests the coordinator has sent. */
@@ -62,6 +64,7 @@ export function newStore(): MockStore {
     mdtGeneratedAt: null,
     conclusion: null,
     closed: false,
+    markedReady: false,
     confirmed: {},
     extraCases: [],
     requested: [],
@@ -90,7 +93,7 @@ function alena(today: string, s: MockStore): MockCase | null {
     state = 'zaver_mdt'
     subStatus = 'Závěr MDT zapsán – čeká na odeslání PL'
     baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Odeslat závěr PL', due: '2026-10-22' }
-  } else if (today === '2026-10-21') {
+  } else if (today === '2026-10-21' || (s.markedReady && today >= '2026-10-19')) {
     state = 'pripraveno_mdt'
     subStatus = 'MDT dnes 8:00 – handover k as-of 21. 10. 2026'
     baton = { name: 'MDT KOC 2', action: 'Projednat případ', due: '2026-10-21' }

@@ -61,10 +61,40 @@ export function useConclusion(caseId: string, enabled: boolean) {
 }
 
 /** The case events of the MDT screen, all through `POST /api/cases/{id}/transitions`. */
-export type LoopEvent = { event: 'record_mdt_conclusion'; conclusion: string } | { event: 'send_feedback' } | { event: 'close' }
+export type LoopEvent =
+  | { event: 'mark_ready_mdt'; waivers?: Waiver[] }
+  | { event: 'record_mdt_conclusion'; conclusion: string }
+  | { event: 'send_feedback' }
+  | { event: 'close' }
 
-/** Request body of the transition: the signer is the acting user, never a field of the form. */
-export const loopBody = (v: LoopEvent) => (v.event === 'record_mdt_conclusion' ? { event: v.event, conclusion: v.conclusion.trim() } : { event: v.event })
+/** A blocking readiness item the physician waives, with the reason. */
+export interface Waiver {
+  item: string
+  reason: string
+}
+
+/**
+ * Request body of the transition. The signer of a conclusion or a waiver is the acting user, never a field of the
+ * form, and readiness itself is never sent: the server computes it from the persisted handover.
+ */
+export function loopBody(v: LoopEvent) {
+  if (v.event === 'record_mdt_conclusion') return { event: v.event, conclusion: v.conclusion.trim() }
+  if (v.event === 'mark_ready_mdt' && v.waivers?.length)
+    return { event: v.event, waivers: v.waivers.map((w) => ({ item: w.item, reason: w.reason.trim() })) }
+  return { event: v.event }
+}
+
+const GATE_FAILED = /^readiness gate not passed, missing: (.+)$/
+
+/**
+ * The blocking items of a refused `mark_ready_mdt`: the state machine's `guard_failed` names them in the problem's
+ * `detail`. `null` for any other refusal (wrong role or state, handover not assembled yet, …).
+ */
+export function blockingItems(error: unknown): string[] | null {
+  if (!(error instanceof ApiProblem) || error.status !== 409) return null
+  const match = GATE_FAILED.exec(error.detail ?? '')
+  return match?.[1] ? match[1].split(',').map((i) => i.trim()).filter(Boolean) : null
+}
 
 export function useLoopEvent(caseId: string) {
   return useApiMutation({

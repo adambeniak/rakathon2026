@@ -85,3 +85,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #97 mark-ready (without #108, from the 409 `guard_failed` detail); positive write path NOT run live (backend is on the shared ACI, no reset): run it once on a resettable IRIS (`make up-local`) or accept the state change
   Risks: no GP-read signal in the API, so the close warning is neutral (#113); the 409 `detail` is English guard text
   Issues: #113 (gp_opened_at on the case)
+- 2026-10-17 · claude (P4) · fix/mark-ready · #97: "Označit jako připravený k MDT" on the MDT screen (Lékař KOC, state kompletni) -> `mark_ready_mdt`; on the 409 `guard_failed` the blocking items come from the response `detail`, per-item waiver reasons, retry with `waivers`; readiness is never sent; no readiness GET (#108 closed as not needed)
+  Next: live run on a local IRIS (a human sets the local IRIS password files that `make up-local` asks for, then `make up-local SCENARIO=story`; reopen the story case to `kompletni`, then mark-ready -> conclusion -> send -> gp_opened -> close; `make down && make up`)
+  Risks: the button is for koc_physician (the state machine allows only that role), not the coordinator; the blocking items are parsed from the English guard `detail` (no `code` on ApiProblem); the handover must be persisted for the gate, else the API says so
+  Issues: none new

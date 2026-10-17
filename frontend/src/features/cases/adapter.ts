@@ -23,7 +23,11 @@ export function adaptCase(c: ApiCase): CaseSummary {
     state: c.state,
     column: COLUMN[c.bucket],
     baton: c.baton_holder
-      ? { name: c.baton_holder.display, action: c.baton ? common.caseActions[c.baton.action] : common.unknown, due: c.next_deadline ?? null }
+      ? {
+          name: c.baton_holder.display,
+          action: c.baton ? common.caseActions[c.baton.action] : common.unknown,
+          due: c.next_deadline ?? null,
+        }
       : null,
     counts: {
       missing: c.counts?.missing ?? c.missing_count ?? null,
@@ -48,7 +52,11 @@ export function adaptDocument(d: ApiDocument): DocumentInfo {
   }
 }
 
-const adaptInterval = (i: ApiDetail['intervals']['t1']) => ({ days: i.days ?? null, status: i.status })
+type ApiInterval = ApiDetail['intervals']['t1']
+
+// A response without `intervals` (older backend, minimal fixtures) renders as "nezaznamenáno", never as a crash.
+const adaptInterval = (i: ApiInterval | undefined) =>
+  i ? { days: i.days ?? null, status: i.status } : { days: null, status: 'not_recorded' as const }
 
 export const adaptDetail = (c: ApiDetail): CaseDetail & { documents: DocumentInfo[] } => ({
   ...adaptCase(c),
@@ -59,5 +67,9 @@ export const adaptDetail = (c: ApiDetail): CaseDetail & { documents: DocumentInf
     by: w.waived_by ?? null,
     at: w.waived_at,
   })),
-  intervals: { t1: adaptInterval(c.intervals.t1), t2: adaptInterval(c.intervals.t2), t3: adaptInterval(c.intervals.t3) },
+  intervals: {
+    t1: adaptInterval(c.intervals?.t1),
+    t2: adaptInterval(c.intervals?.t2),
+    t3: adaptInterval(c.intervals?.t3),
+  },
 })

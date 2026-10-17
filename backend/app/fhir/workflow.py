@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
+from app.documents.doc_type import infer_type_code
 from app.documents.ingest import UploadedDocument
 from app.domain import case_machine, document_request
 from app.domain.case import Case, CaseState
@@ -391,6 +392,7 @@ class RequestWorkflow(CaseWorkflow):
                 raise ConflictError(f"Požadavek {request_id!r} už je splněn")
 
         builder = BundleBuilder()
+        type_code = infer_type_code(upload.doc.doc_id)
         recipient_name = None
         recipient_ref: str | None = None
         events: list[DomainEvent] = []
@@ -403,6 +405,7 @@ class RequestWorkflow(CaseWorkflow):
                 SourceDocument(
                     doc_id=upload.doc.doc_id,
                     title=upload.file_name,
+                    type_code=type_code,
                     authored_at=authored_at,
                     received_at=now,
                     custodian=recipient_name,
@@ -459,6 +462,7 @@ class RequestWorkflow(CaseWorkflow):
         document = SourceDocument(
             doc_id=upload.doc.doc_id,
             title=upload.file_name,
+            type_code=type_code,
             authored_at=authored_at,
             received_at=now,
             custodian=recipient_name,

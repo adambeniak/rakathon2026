@@ -298,6 +298,25 @@ async def test_report_without_a_request_is_stored_and_the_state_is_unchanged() -
     assert set(by_type(repo)) == {"DocumentReference", "Task"}  # + the case Task PUT: serialises writers
 
 
+async def test_uploaded_report_is_stored_with_its_document_type() -> None:
+    """#129: rules such as "a drug in a procedure note is not medication history" read the LOINC type of the source."""
+    repo = FakeRepo()
+
+    outcome = await workflow(CaseState.CEKA_NA_PODKLADY, repo).receive_document(
+        "c",
+        upload("09_Biopsie_vykon_KOC2_2026-10-12.docx"),
+        authored_at=date(2026, 10, 12),
+        request_id=None,
+        actor=COORDINATOR.party(),  # type: ignore[union-attr]
+        directory=DIRECTORY,
+        now=NOW,
+    )
+
+    stored = by_type(repo)["DocumentReference"][0]
+    assert stored["type"]["coding"][0]["code"] == "28570-0"
+    assert outcome.document.type_code == "28570-0"
+
+
 async def test_patient_role_may_not_upload() -> None:
     with pytest.raises(ForbiddenError):
         await workflow(CaseState.TRIAGE, FakeRepo()).receive_document(

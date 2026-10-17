@@ -60,4 +60,4 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
 - 2026-10-17 · claude (P4) · fix/ui-step4-coordination · #34: coordination UI on the contract (`POST /pathways` with indicated_by + mdt_start, `GET /board` lanes = Role enum, `POST /tasks/{id}/transitions` confirm with place + date / perform / deliver_result with document), demo date switcher reads/sets `/api/demo/clock` in real mode, MSW handlers on contract paths; schema.d.ts regenerated
   Next: run it against the real backend (launch → board → clock 16. 10. escalation) and take screenshots (no browser here); `make test-iris-local` after merge
   Risks: indicating physician comes from a constant list (directory has none, #67); 2 old task tests moved from wiring.test.tsx to features/coordination
-  Issues: #67 (directory physicians), fail/cancel UI (see issue list)
+  Issues: #67 (directory physicians), #78 (fail/cancel UI)

@@ -5,6 +5,8 @@ points to the coordinating Task. `performerType` is the *effective* owner role (
 step's role); the concrete owner is a display/identifier-only Reference (no PractitionerRole lookup in the PoC).
 The workplace is plain text in the `place` extension (no Location resources). `depends-on` carries business ids,
 so a transaction needs no urn:uuid rewriting between steps.
+The delivered result (`output`, type `result-document`) is the source document by business id; for the MDT step it is
+the signed MDT conclusion `Composition` by its business id (`sid/mdt-conclusion`, #149).
 """
 
 from __future__ import annotations
@@ -12,10 +14,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from app.domain.board import MDT_TASK_CODE
 from app.domain.common import PartyRef, Role
 from app.domain.task import Task, TaskBusinessStatus, TaskStatus
 from app.fhir.client import Resource
 from app.fhir.mappers.directory import role_from_codeable_concepts
+from app.fhir.mappers.mdt_conclusion import SID_MDT_CONCLUSION
 from app.fhir.systems import (
     CS_TASK_BUSINESS_STATUS,
     CS_TASK_CODE,
@@ -100,7 +104,7 @@ def task_to_fhir(
         resource["output"] = [
             {
                 "type": {"coding": [{"system": CS_TASK_CODE, "code": TASK_CODE_RESULT_DOCUMENT}]},
-                "valueReference": {"identifier": {"system": SID_SOURCE_DOCUMENT, "value": task.result_doc_id}},
+                "valueReference": _result_reference(task, task.result_doc_id),
             }
         ]
     extensions: list[dict[str, Any]] = []
@@ -191,10 +195,17 @@ def _recorded_by(reference: dict[str, Any] | None) -> PartyRef | None:
     )
 
 
+def _result_reference(task: Task, result_id: str) -> Resource:
+    """The MDT step's result is the signed conclusion (a Composition); every other step's is a source document."""
+    if task.code == MDT_TASK_CODE and not task.ad_hoc:
+        return {"type": "Composition", "identifier": {"system": SID_MDT_CONCLUSION, "value": result_id}}
+    return {"identifier": {"system": SID_SOURCE_DOCUMENT, "value": result_id}}
+
+
 def _result_doc_id(resource: Resource) -> str | None:
     for output in resource.get("output", []):
         value = (output.get("valueReference") or {}).get("identifier") or {}
-        if value.get("system") == SID_SOURCE_DOCUMENT:
+        if value.get("system") in (SID_SOURCE_DOCUMENT, SID_MDT_CONCLUSION):
             return str(value["value"])
     return None
 

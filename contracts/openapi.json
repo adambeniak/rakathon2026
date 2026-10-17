@@ -7720,6 +7720,145 @@
         ]
       }
     },
+    "/api/cases/{case_id}/mdt-record": {
+      "get": {
+        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem', 'Návrh AI – čeká na potvrzení' or 'Chybí'; a banner marks the document as a draft while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.",
+        "operationId": "handover-get_mdt_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only DOCX for now.",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "const": "docx",
+              "default": "docx",
+              "description": "Only DOCX for now.",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "DOCX document"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Actor not identified (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Role not allowed (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Not found (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Request validation failed (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Unexpected server error (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "FHIR storage rejected the operation (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "IRIS or the AI service unavailable (application/problem+json)"
+          }
+        },
+        "summary": "MDT record in the MDT_zapis layout (DOCX), as of the MDT start",
+        "tags": [
+          "handover"
+        ]
+      }
+    },
     "/api/cases/{case_id}/pathways": {
       "post": {
         "operationId": "coordination-launch_pathway",

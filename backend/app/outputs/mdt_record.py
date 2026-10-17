@@ -1,0 +1,291 @@
+"""MDT record (zápis z jednání MDT) as DOCX in the layout of `data/raw/MDT_zapis.docx`.
+
+Content comes ONLY from the handover as of the MDT start (confirmed or draft sections, findings, the list of excluded
+documents) and from directory facts about the referring doctor. Nothing is added: what the sources do not state is
+"Chybí"; sections 6 (Závěr MDT) and 7 (Doporučení MDT) are left for the physicians to write at the meeting; the system
+never drafts a conclusion or a recommendation. Every section carries a label of its review status:
+
+- "Potvrzeno lékařem"             the KOC physician confirmed the section (Provenance in FHIR)
+- "Návrh AI – čeká na potvrzení"  assembled from the documents, not yet confirmed
+- "Chybí"                         the documents do not state it
+
+The template `templates/mdt_zapis.docx` is built from the sample form by `python -m app.outputs.build_template`.
+"""
+
+from __future__ import annotations
+
+import io
+from dataclasses import dataclass
+from datetime import date, datetime
+from pathlib import Path
+from typing import Any, Final
+
+from docxtpl import DocxTemplate, RichText  # type: ignore[import-untyped]
+
+from app.domain.handover import (
+    Handover,
+    HandoverFieldBase,
+    HandoverItem,
+    HandoverStatus,
+    ReviewState,
+)
+from app.settings import PRAGUE
+
+TEMPLATE: Final = Path(__file__).parent / "templates" / "mdt_zapis.docx"
+DOCX_MEDIA_TYPE: Final = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+LABEL_CONFIRMED: Final = "Potvrzeno lékařem"
+LABEL_CONFIRMED_EDITED: Final = "Potvrzeno lékařem (upraveno lékařem)"
+LABEL_ACCEPTED_MISSING: Final = "Chybí – lékař potvrdil, že zůstává chybějící"
+LABEL_DRAFT: Final = "Návrh AI – čeká na potvrzení"
+LABEL_MISSING: Final = "Chybí"
+MISSING_TEXT: Final = "Chybí"
+FOR_PHYSICIANS: Final = "Vyplní lékař na jednání MDT. Systém závěr ani doporučení nevytváří."
+NO_MEMBERS: Final = "Chybí – prezence členů MDT není v systému zaznamenána."
+RED: Final = "C00000"
+GREY: Final = "595959"
+
+_NOTES: Final = {
+    HandoverStatus.STALE: "neaktuální údaj",
+    HandoverStatus.NEEDS_CLARIFICATION: "k upřesnění",
+}
+# The handover sections that have no place in the MDT_zapis form; listed in the appendix.
+_APPENDIX_FIELDS: Final = (
+    ("epicrisis", "Epikríza"),
+    ("mdt_question", "Požadavek / otázka na MDT"),
+    ("medications", "Léková anamnéza (FA)"),
+    ("allergies", "Alergie (AA)"),
+    ("performance_status", "PS / Karnofsky"),
+    ("symptoms", "Symptomy a jejich počátek"),
+    ("other", "Jiná důležitá sdělení"),
+)
+
+
+@dataclass(frozen=True)
+class ReferringDoctor:
+    """The referring GP as the directory knows them (not part of the handover)."""
+
+    name: str | None
+    phone: str | None = None
+    email: str | None = None
+
+
+def field_label(field: HandoverFieldBase) -> str:
+    review = field.review
+    if review is not None and review.state is ReviewState.CONFIRMED:
+        return LABEL_CONFIRMED_EDITED if review.edited else LABEL_CONFIRMED
+    if review is not None and review.state is ReviewState.ACCEPTED_MISSING:
+        return LABEL_ACCEPTED_MISSING
+    if field.status is HandoverStatus.MISSING:
+        return LABEL_MISSING
+    return LABEL_DRAFT
+
+
+def section_label(fields: list[HandoverFieldBase]) -> RichText:
+    """Bold review label(s) of the source fields (distinct, in order) plus a grey note on conflicts / staleness."""
+    labels = list(dict.fromkeys(field_label(f) for f in fields))
+    notes: list[str] = []
+    for field in fields:
+        if field.conflicts:
+            notes.append(f"nesoulad: {', '.join(field.conflicts)}")
+        if field.status in _NOTES:
+            notes.append(_NOTES[field.status])
+    text = RichText()
+    text.add(" · ".join(labels), bold=True)
+    if notes:
+        text.add("  (" + "; ".join(dict.fromkeys(notes)) + ")", italic=True, color=GREY)
+    return text
+
+
+def build_context(handover: Handover, referring: ReferringDoctor | None) -> dict[str, Any]:
+    f = handover.fields
+    patient, contacts, weight = f.patient.value, f.contacts.value, f.weight_height
+    as_of = handover.as_of.astimezone(PRAGUE)
+
+    insurer = MISSING_TEXT
+    if patient is not None and patient.insurer_code:
+        insurer = f"{patient.insurer_code} – {patient.insurer_name}" if patient.insurer_name else patient.insurer_code
+    patient_lines = [
+        "",
+        f"{patient.given} {patient.family}" if patient else MISSING_TEXT,
+        insurer,
+        _contact(contacts.patient_phone if contacts else None, contacts.patient_email if contacts else None),
+        (patient.address if patient and patient.address else MISSING_TEXT),
+        "; ".join(_item_text(i) for i in weight.items) or MISSING_TEXT,
+    ]
+    referring_lines = [
+        "",
+        (referring.name if referring and referring.name else MISSING_TEXT),
+        _contact(referring.phone if referring else None, referring.email if referring else None),
+    ]
+    diagnosis = f.diagnosis.value
+    all_confirmed = all(
+        fld.review is not None and fld.review.state in (ReviewState.CONFIRMED, ReviewState.ACCEPTED_MISSING)
+        for fld in _all_fields(handover)
+    )
+    banner = RichText()
+    if all_confirmed:
+        banner.add("Všechny oddíly předávky potvrdil lékař.", bold=True)
+    else:
+        banner.add(
+            "NÁVRH – zápis obsahuje oddíly, které lékař dosud nepotvrdil (viz označení oddílů).", bold=True, color=RED
+        )
+    generated = (handover.generated_at or handover.as_of).astimezone(PRAGUE)
+    return {
+        "banner": banner,
+        "meta": (
+            f"Stav podkladů k {_cz_date(as_of.date())} {as_of:%H:%M}. "
+            f"Zahrnuto dokumentů: {len(handover.included_documents)}, nezahrnuto: {len(handover.excluded_documents)}."
+        ),
+        "s1": section_label([f.patient, f.contacts, weight]),
+        "s2": _plain(NO_MEMBERS),
+        "s3": section_label([f.diagnosis]),
+        "s4": section_label([f.comorbidities]),
+        "s5": section_label([f.examinations, f.labs, f.histology]),
+        "s6": _plain(FOR_PHYSICIANS),
+        "s7": _plain(FOR_PHYSICIANS),
+        "mdt_date": f"{_cz_date(as_of.date())} {as_of:%H:%M}",
+        "patient_lines": "\n".join(patient_lines),
+        "referring_lines": "\n".join(referring_lines),
+        "diagnosis_name": diagnosis.text if diagnosis else MISSING_TEXT,
+        "diagnosis_code": diagnosis.icd10 if diagnosis and diagnosis.icd10 else MISSING_TEXT,
+        "comorbidities_text": _comorbidities(handover),
+        "results": _results(handover),
+        "findings": [_finding_line(x) for x in handover.findings] or ["Žádné záznamy."],
+        "excluded": [_excluded_line(x.doc_id, x.reason) for x in handover.excluded_documents] or ["Žádné."],
+        "appendix": [_appendix_section(handover, key, title) for key, title in _APPENDIX_FIELDS],
+        "footer": (
+            f"Zápis vygeneroval systém Štafeta (prototyp, fiktivní data) dne {_cz_date(generated.date())} "
+            f"{generated:%H:%M}. Systém nevytváří závěr ani doporučení MDT."
+        ),
+    }
+
+
+def render_mdt_record(handover: Handover, referring: ReferringDoctor | None = None) -> bytes:
+    template = DocxTemplate(str(TEMPLATE))
+    template.render(build_context(handover, referring), autoescape=True)
+    buffer = io.BytesIO()
+    template.save(buffer)
+    return buffer.getvalue()
+
+
+# --- section builders ------------------------------------------------------------------------------------------------
+
+
+def _all_fields(handover: Handover) -> list[HandoverFieldBase]:
+    return [getattr(handover.fields, name) for name in type(handover.fields).model_fields]
+
+
+def _comorbidities(handover: Handover) -> str:
+    field = handover.fields.comorbidities
+    lines = []
+    for item in field.value or []:
+        code = f" ({item.icd10})" if item.icd10 else ""
+        detail = f" – {item.detail}" if item.detail else ""
+        lines.append(f"{item.text}{code}{detail}")
+    if lines:
+        return "\n".join(lines)
+    return f"{MISSING_TEXT} – v dokumentaci neuvedeno" if field.status is HandoverStatus.MISSING else "Neuvedeno"
+
+
+def _results(handover: Handover) -> list[dict[str, str]]:
+    """Examinations, lab results and the histology as table rows (date, examination, result), oldest first.
+
+    The values of one laboratory report share one row (with its report when the report is also listed as an
+    examination), so a report with dozens of values stays readable; nothing is dropped or rounded.
+    """
+    f = handover.fields
+    labs_by_report: dict[str, list[Any]] = {}
+    for lab in f.labs.value or []:
+        labs_by_report.setdefault(lab.doc_id, []).append(lab)
+    rows: list[tuple[date | None, str, str]] = []
+    for exam in f.examinations.value or []:
+        values = labs_by_report.pop(exam.doc_id, [])
+        result = _lab_values(values, exam.doc_id) if values else f"Viz zpráva [{exam.doc_id}]"
+        rows.append((exam.date, f"{exam.type} – {exam.place}", result))
+    for doc_id, values in labs_by_report.items():  # laboratory values whose report is not listed as an examination
+        rows.append((min(v.date for v in values), "Laboratorní výsledky", _lab_values(values, doc_id)))
+    histology = f.histology.value
+    if histology is not None:
+        parts = []
+        if histology.grade:
+            parts.append(f"grade {histology.grade}")
+        if histology.perineural_invasion is not None:
+            parts.append("perineurální invaze: " + ("ano" if histology.perineural_invasion else "ne"))
+        if histology.ihc:
+            parts.append("IHC: " + ", ".join(f"{k} {v}" for k, v in histology.ihc.items()))
+        docs = sorted({e.doc_id for e in f.histology.evidence})
+        source = f" [{', '.join(docs)}]" if docs else ""
+        title = "Histologie" + (f" ({histology.report_id})" if histology.report_id else "")
+        rows.append((histology.issued, title, "; ".join(parts) + source if parts else f"Viz zpráva{source}"))
+    rows.sort(key=lambda r: (r[0] is None, r[0] or date.min))
+    return [{"date": _cz_date(d) if d else "", "exam": exam, "result": result} for d, exam, result in rows]
+
+
+def _lab_values(values: list[Any], doc_id: str) -> str:
+    parts = []
+    for lab in values:
+        unit = f" {lab.unit}" if lab.unit else ""
+        flag = f" ({lab.flag})" if lab.flag else ""
+        parts.append(f"{lab.test} {_number(lab.value)}{unit}{flag}")
+    return "; ".join(parts) + f" [{doc_id}]"
+
+
+def _finding_line(finding: Any) -> str:
+    docs = f" (dokumenty: {', '.join(finding.docs)})" if finding.docs else ""
+    return f"{finding.id} · {finding.message}{docs}"
+
+
+def _excluded_line(doc_id: str, reason: str) -> str:
+    after_mdt = reason.startswith(("vytvořeno", "doručeno po"))
+    shown = reason.replace("as_of", "začátku MDT")  # the handover's technical cut-off is the MDT start
+    return f"{doc_id} – {'po MDT' if after_mdt else 'nezahrnuto'} ({shown})"
+
+
+def _appendix_section(handover: Handover, key: str, title: str) -> dict[str, Any]:
+    field: HandoverFieldBase = getattr(handover.fields, key)
+    lines: list[str] = []
+    if key == "epicrisis":
+        value = handover.fields.epicrisis.value
+        lines.append(value.text if value else MISSING_TEXT)
+    else:
+        lines.extend(_item_text(i) for i in field.items)
+    lines.extend(f"Chybí: {m.item} – {m.reason}" for m in field.missing_items)
+    if field.note:
+        lines.append(f"Poznámka: {field.note}")
+    heading = RichText()
+    heading.add(f"{title} – ", bold=True)
+    heading.add(field_label(field), bold=True)
+    return {"title": heading, "lines": lines or [MISSING_TEXT]}
+
+
+# --- small helpers ---------------------------------------------------------------------------------------------------
+
+
+def _plain(text: str) -> RichText:
+    rich = RichText()
+    rich.add(text, italic=True, color=GREY)
+    return rich
+
+
+def _contact(phone: str | None, email: str | None) -> str:
+    return f"Telefon: {phone or 'chybí'} · e-mail: {email or 'chybí'}"
+
+
+def _item_text(item: HandoverItem) -> str:
+    value = _number(item.value) if isinstance(item.value, float) else str(item.value)
+    label = f"{item.label}: " if item.label else ""
+    unit = f" {item.unit}" if item.unit else ""
+    when = f" ({_cz_date(item.clinical_date)})" if item.clinical_date else ""
+    docs = sorted({e.doc_id for e in item.evidence})
+    source = f" [{', '.join(docs)}]" if docs else ""
+    return f"{label}{value}{unit}{when}{source}"
+
+
+def _number(value: float) -> str:
+    """Full precision with a Czech decimal comma (never rounded)."""
+    return str(int(value)) if float(value).is_integer() else repr(float(value)).replace(".", ",")
+
+
+def _cz_date(day: date | datetime) -> str:
+    return f"{day.day}. {day.month}. {day.year}"

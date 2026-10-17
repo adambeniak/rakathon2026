@@ -1,9 +1,11 @@
 # Demo script: click-by-click runbook, 6 steps
 
-Status: **not yet dry-run on a live stack.** Everything below is derived from the code on `main` (UI strings in
-`frontend/src/i18n/cs/`, routes, backend guards), not from a recorded run. The first full rehearsal on a fresh
-`demo-start` is open (board #24, "Needs a human"). Where the code and the story disagree, the runbook says so and gives
-the workaround. Labels in **bold** are the exact on-screen texts.
+Status: **dress-rehearsed on a live local stack** (`make up-local`, demo-start, 2026-10-17, `main` @ 212950b): all six
+steps passed over the API with `X-Demo-Role` (the curl path below), and the live Playwright project
+(`E2E_BASE_URL=http://localhost:5173 make e2e`) passed steps 1–2 and the step 3 uploads; its later steps were not
+completed in that session (machine under heavy load, see #175 follow-up). A human presenter run is still open (board
+#24). Where the code and the story disagree, the runbook says so and gives the workaround. Labels in **bold** are the
+exact on-screen texts.
 
 Presenter lines are Czech (spoken); everything else is English. All data is fictitious (Alena Procházková, MDT
 21. 10. 2026 08:00). Due dates in the app are demo assumptions, not clinical guidance.
@@ -86,7 +88,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 | Audit, Časová osa and Komunikace tabs read the contract endpoints `/audit`, `/timeline`, `/messages` (KOC team only); not yet run against IRIS (AuditEvent `entity` OR-search unverified) | A search IRIS rejects shows the error state of the tab | Rehearse them on `make up-local` first; if a tab errors, use the proofs named in each step |
 | The reviewer is not notified (#74); the first GP visit (T1 start, #188) and the oncology consult (T3 end, #189) are not recorded | No automatic reviewer message; the reviewer screen shows T1 **nezaznamenáno** and T3 **běží** | Optional in step 6: role **Revizní lékař** shows initials, birth year, state, T2 and the delivery status |
 | HL7 v2 ingestion is not implemented (no production under `iris/`, #126) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
-| `make e2e` drives the six steps against the MSW mocks only, with mock deviations (readiness at 20. 10., no 3b, no Mailpit; #172, #175) | The video in `frontend/test-results/demo-flow-demo-flow-mock/video.webm` is the mock story, not the live stack | Use it as the last fallback; `E2E_SLOWMO=400 make e2e` records a watchable pace |
+| `make e2e` drives the six steps against the MSW mocks (readiness at 20. 10., no 3b, no Mailpit; #172). The `live` project (`E2E_BASE_URL=http://localhost:5173`, fresh `make up-local` + `pnpm dev`) follows this runbook (3b, advance, 21. 10., Mailpit) and needs a fresh stack per run | The mock video `frontend/test-results/demo-flow-demo-flow-mock/video.webm` is the mock story | Use it as the last fallback; `E2E_SLOWMO=400 make e2e` records a watchable pace |
+| On a loaded machine one FHIR write took 155 s (`POST /document-requests`, IRIS CPU warning) and the 10-file upload ~30 s (files go up one by one) | A button stays on **Odesílám…** / **Nahrávám…** | Close other heavy processes before going on stage; upload the reports off stage (step 3 already says so) |
 
 ## 1 · Referral without a form
 
@@ -120,7 +123,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      from document 07). All requestable proposals (with a known **Adresát**) come preselected, so the panel has no **Vybrat vše** button (untick what
      should not go); press **Vyžádat vybrané**.
 - **Must be visible:** the reports the letter lists as proposals with **Adresát** and the quote (five: `01`, `02`,
-  `03`, `05`, `06`; expected from the letter, confirm in the rehearsal); after sending **Vyžádáno: 5.**; state
+  `03`, `05`, `06`; confirmed in the live rehearsal); after sending **Vyžádáno: 5.**; state
   **Čeká na podklady** (shown in the header badge).
 - **Say:** „Koordinátorka případ převezme. Aplikace v žádosti najde odkazy na výsledky, které nejsou přiložené,
   a nabídne je k vyžádání. Nic se nepošle bez jejího potvrzení.“
@@ -169,7 +172,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   **Role:** Koordinátorka
 - **Click:**
   1. Open the case, tab **Úkoly**, **Spustit sadu: Karcinom pankreatu – diagnostika**.
-  2. Form: **Indikující lékař KOC** (default doc. MUDr. Pavel Hrubý, Ph.D.), **Začátek sady** 2. 10. 2026
+  2. Form: **Indikující lékař KOC** (default doc. MUDr. Pavel Hrubý, Ph.D.; over curl `indicated_by` is required:
+     `hruby-pavel@koc2-nemocnice-lipova`), **Začátek sady** 2. 10. 2026
      (defaults to the simulated date), **Plánovaný začátek MDT** 21. 10. 2026 08:00 (default) → **Spustit sadu**.
   3. The board **Kdo je na tahu** shows the lanes (PL, Koordinátor, Lékař KOC, Externí pracoviště, Pacient) with
      the tasks, each with **Místo**, **Termín** and **Čeká na: …**.

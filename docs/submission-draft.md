@@ -113,12 +113,14 @@ Pravidla jsou závazná pro každý kód i text v repozitáři (`AGENTS.md`).
 - **Audit a soukromí.** Zápisy i čtení klinického obsahu vytvářejí `AuditEvent`; v logu nejsou osobní údaje; e-mail pro
   PL neobsahuje klinický text. Jen smyšlená data. Podrobně [security-privacy.md](security-privacy.md).
 
-Měření extrakce na smyšlené sadě 13 zpráv (z `docs/extraction.md`, běh z mezipaměti, k datu poslední úpravy
-dokumentu): citace ověřitelné v 100 % (476 citací), 0 halucinací podle kontrolních pravidel, 0 faktů z dokumentů po
-MDT, nalezeno 53 z 54 klíčových hodnot (98,2 %), stav 15 ze 15 polí handoveru podle očekávaného souboru. Jde o **jeden
-případ bez nezávislé testovací sady**; pravidla byla laděna na týchž dokumentech, takže to není měření zobecnění.
-Neprezentovat „0 halucinací“ jako bezpečnostní záruku (viz poznámka v `docs/extraction.md`). TODO(Adam): znovu spustit
-`make eval` na aktuálním `main` a čísla před odevzdáním přepsat; epikríza se zatím nahrává jen jako záložní verze (#45).
+Měření extrakce na smyšlené sadě 13 zpráv (z `docs/extraction.md`, běh z mezipaměti): citace ověřitelné v 100 %
+(476 citací), žádný fakt z dokumentů po MDT v podkladu, nalezeno 53 z 54 klíčových hodnot (98,2 %; v prvním živém běhu
+před opravami zámku 51 z 54), stav polí handoveru shodný s očekávaným souborem u 15 z 15 polí. Jde o **jeden případ bez
+nezávislé testovací sady**; pravidla byla laděna na týchž dokumentech, takže to není měření zobecnění.
+
+TODO(Adam): znovu spustit `make eval` na aktuálním `main` a čísla před odevzdáním přepsat. Metriku „0 halucinací“
+neuvádět jako bezpečnostní záruku (správnost jistoty se kontroluje pravidly a auditem, ne metrikou; viz
+`docs/extraction.md`). Epikríza se zatím nahrává jen jako záložní verze (#45).
 
 ## 7. Známá omezení
 
@@ -138,13 +140,14 @@ Dále, bez úplného výčtu (viz [known-issues.md](known-issues.md), issues #4,
 
 - **Přihlášení je simulované** (hlavička `X-Demo-Role` jen v demo režimu), žádné skutečné OIDC/SMART; vlastnictví úkolu se
   kontroluje podle role, ne podle osoby.
-- **HL7 v2 → FHIR není implementováno** (v `iris/` je jen definice plánu sady). TODO(Adam): rozhodnout, zda se HL7 v2
+- **HL7 v2 → FHIR není implementováno** (#126; v `iris/` je jen definice plánu sady). TODO(Adam): rozhodnout, zda se HL7 v2
   v odevzdání uvádí jako plán.
 - **Revizní lékař není při odeslání zpětné vazby automaticky informován** (#74); přehled pro pojišťovnu je omezený.
 - Brána připravenosti čte uložený snímek handoveru, který může zastarat (#98), a je volnější než pravidlo „člověk
   ve smyčce“ (#102).
 - Frontend: záložky Audit, Časová osa a Komunikace běží na provizorních koncových bodech (#47); nahrání zprávy v UI
-  nepřiřadí zprávu k otevřenému požadavku, takže případ nepřejde do stavu **Kompletní** (viz [demo-script.md](demo-script.md)).
+  nepřiřadí zprávu k otevřenému požadavku, takže případ nepřejde do stavu **Kompletní** (#120, obejití v
+  [demo-script.md](demo-script.md)); potvrzení sekcí handoveru se nepřenášejí mezi časovými body `as_of` (#122).
 - Transakce IRIS pro žádost a koordinaci byly ověřeny hlavně mocky a offline validací; živý běh `pytest -m iris` na
   lokálním IRIS je v known-issues K11 a #99.
 - Demo hodiny a role jsou přepínatelné kýmkoli v demo režimu (#55).

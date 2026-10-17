@@ -21,7 +21,7 @@ Presenter lines are Czech (spoken); everything else is English. All data is fict
 
 Never say or show **"Ověřeno"** or "Ověřeno lékařem". The string still exists in `frontend/src/i18n/cs/common.ts`
 (`status.verified`); the handover overrides it with **Potvrzeno lékařem**, so it should not appear (check once in the
-rehearsal). Presenter wording stays neutral: "v dokumentaci uvedeno…", "nesoulad mezi…", "chybí…". The AI never
+rehearsal; #123). Presenter wording stays neutral: "v dokumentaci uvedeno…", "nesoulad mezi…", "chybí…". The AI never
 recommends treatment, doses or a diagnosis; never improvise clinical statements.
 
 ## Setup (once, before going on stage)
@@ -46,7 +46,9 @@ Before step 1:
 2. Have the 13 reports ready in `data/raw/Pacient/`. **Upload every file under its original name**: the file name is
    the LLM cache key; a renamed file is a cache miss and the demo then needs APIM.
 3. Open Mailpit and clear it.
-4. Keep a terminal ready with the shell snippets from the steps below (`$BACKEND` = `http://localhost:8000`).
+4. Keep a **bash** terminal open in the repo root (the snippets use relative paths such as `data/raw/Pacient/…`; the
+   machine's default shell may be fish, where `VAR=value` assignments do not work). Run once:
+   `export BACKEND=http://localhost:8000` (and, after step 2, `export CASE=<case id>`).
 
 ### Clock cheat sheet
 
@@ -61,12 +63,13 @@ day. Any other moment needs `PUT /api/demo/clock`; **reload the page afterwards*
 | 4 | 2. 10. 2026, then 16. 10. 2026 | switcher, then `POST /api/demo/advance` |
 | 5, 6 | 21. 10. 2026 09:00 (≥ 08:00, MDT start) | switcher |
 
-Why 20. 10. for step 3: the as-of rule excludes a document authored **on or after** the as-of day. Report 11 is
+Why 20. 10. for step 3 (#121): the as-of rule excludes a document authored **on or after** the as-of day. Report 11 is
 authored 19. 10., so at 19. 10. it would be left out and the histology conflict would not show. Why uploads before step 4:
 the handover for the MDT is cut at `mdt_start` (21. 10. 08:00, set at the launch in step 4); a document received after
 that moment would be excluded.
 
 ```bash
+# bash, repo root
 curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content-Type: application/json' \
   -d '{"now": "2026-10-20T14:00:00+02:00"}'
 ```
@@ -78,13 +81,13 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 
 | Gap | Effect | Workaround in this runbook |
 | --- | --- | --- |
-| The upload form never sends `request_id` (`frontend/src/features/documents/api.ts`); the backend closes a report request only with it | Uploading 01–06 in the UI leaves the 6 requests open, the case stays **Čeká na podklady** and never becomes **Kompletní**; the button **Označit jako připravený k MDT** only exists in **Kompletní** | Step 3: upload 01–06 with curl and `request_id` |
+| The upload form never sends `request_id` (`frontend/src/features/documents/api.ts`); the backend closes a report request only with it (#120) | Uploading 01–06 in the UI leaves the 6 requests open, the case stays **Čeká na podklady** and never becomes **Kompletní**; the button **Označit jako připravený k MDT** only exists in **Kompletní** | Step 3: upload 01–06 with curl and `request_id` |
 | `GET /handover` does not persist; only a section confirmation does; the readiness gate needs a handover persisted for `mdt_start` | **Označit jako připravený k MDT** is refused until a section has been confirmed after the launch | Step 5: confirm one section first |
-| Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 14:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
+| Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 14:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots (#122) | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
 | Audit, Časová osa and Komunikace tabs use provisional endpoints that are not in the contract (#47) | They can fail against the real backend | Do not show them; use the proofs named in each step |
 | Reviewer screen uses the provisional `/api/reviewer/cases` (#104, #105); the reviewer is not notified (#74) | **Přehled pro pojišťovnu** can fail; no automatic reviewer message exists | Skip the reviewer live; see step 6 |
-| HL7 v2 ingestion is not implemented (no production under `iris/`) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
-| `make e2e` / `frontend/e2e` do not exist yet | No recorded run to fall back to | Fallbacks below |
+| HL7 v2 ingestion is not implemented (no production under `iris/`, #126) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
+| `make e2e` / `frontend/e2e` do not exist yet (#125) | No recorded run to fall back to | Fallbacks below |
 
 ## 1 · Referral without a form
 
@@ -122,7 +125,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   a nabídne je k vyžádání. Nic se nepošle bez jejího potvrzení.“
 - **Fallback:** the proposals come from the LLM cache; if the panel is empty or errors, say „tuto část ukážu ze
   záznamu“ and use the global fallbacks below.
-- Copy the case id from the URL now: `CASE=rakathon-2026-prochazkova-xxxxxx`.
+- Copy the case id from the URL now: `export CASE=rakathon-2026-prochazkova-xxxxxx` (bash).
 
 ## 3 · Handover extraction
 
@@ -131,6 +134,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 - **Prepare (off stage, or quickly before the click part):**
   1. List the six requests and attach each report (the UI cannot, see the gap table):
      ```bash
+     # bash, repo root
      curl -s $BACKEND/api/cases/$CASE/document-requests -H 'X-Demo-Role: coordinator'    # id + label of each request
      # for each report 01–06, pick the request whose label matches the report and send it with its id:
      curl -s -X POST $BACKEND/api/cases/$CASE/documents -H 'X-Demo-Role: coordinator' \
@@ -172,10 +176,13 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      (defaults to the simulated date), **Plánovaný začátek MDT** 21. 10. 2026 08:00 (default) → **Spustit sadu**.
   3. The board **Kdo je na tahu** shows the lanes (PL, Koordinátor, Lékař KOC, Externí pracoviště, Pacient) with
      the tasks, each with **Místo**, **Termín** and **Čeká na: …**.
-  4. On CT (KOC 1) press **Potvrdit objednání**, enter **Pracoviště** and **Datum vyšetření** → **Potvrdit**
-     (a sent request is not an ordered examination).
+  4. Show a manual order confirmation on a step the replay does not touch: on **Algeziolog** press **Potvrdit
+     objednání**, enter **Pracoviště** and **Datum vyšetření** → **Potvrdit** (a sent request is not an ordered
+     examination). Do not do this on CT, EUS-FNB, odběry or histologie: the next substep replays them through the task
+     machine and a hand-entered date could conflict with the story.
   5. Move the story to the escalation day. Reports 08, 09 and 10 must be uploaded already (step 3):
      ```bash
+     # bash
      curl -s -X POST "$BACKEND/api/demo/advance?case_id=$CASE&to=2026-10-16" -H 'X-Demo-Role: coordinator'
      ```
      Reload the page (switcher now shows 16. 10. 2026).

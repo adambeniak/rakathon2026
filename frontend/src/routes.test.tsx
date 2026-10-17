@@ -1,12 +1,24 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'vitest-axe'
+import { adaptHandover } from '@/features/handover/adapter'
 import { api } from '@/lib/api/http'
 import { buildSections } from '@/mocks/fixtures/handover'
 import { renderRoute } from '@/test/render'
 
 const ALENA_ID = 'rakathon-2026-prochazkova'
 const ALENA = `/cases/${ALENA_ID}`
+
+/** Setup for the MDT tests: the physician confirms the sections one by one (there is no bulk confirmation). */
+async function confirmEverySection(): Promise<void> {
+  const view = adaptHandover(await api.get<Parameters<typeof adaptHandover>[0]>(`/api/cases/${ALENA_ID}/handover`))
+  for (const s of view.sections) {
+    await api.post(`/api/cases/${ALENA_ID}/handover/sections/${s.number}/confirm`, {
+      expected_value_hash: s.valueHash,
+      accept_missing: s.status === 'missing',
+    })
+  }
+}
 
 describe('route smoke + axe', () => {
   it.each(['gp', 'coordinator', 'physician', 'reviewer'] as const)(
@@ -41,15 +53,16 @@ describe('route smoke + axe', () => {
     expect(await axe(container)).toHaveNoViolations()
   })
 
-  it('handover: 15 sections, missing ECOG cannot be confirmed, confirming flips the pill', async () => {
+  it('handover: 15 sections, missing ECOG can only be accepted as missing, confirming flips the pill', async () => {
     const { container } = renderRoute(`${ALENA}/handover`, { role: 'physician', today: '2026-10-21' })
     expect(await screen.findByRole('heading', { name: /Pacient$/ })).toBeInTheDocument()
-    expect(screen.getAllByRole('button', { name: /^Potvrdit sekci:/ })).toHaveLength(15)
-    expect(screen.getByRole('button', { name: 'Potvrdit sekci: Stav výkonnosti' })).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: /^Potvrdit sekci:/ })).toHaveLength(14)
+    expect(screen.queryByRole('button', { name: 'Potvrdit sekci: Stav výkonnosti' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ponechat údaj v sekci Stav výkonnosti jako chybějící' })).toBeEnabled()
     expect(screen.getAllByText('Po MDT')).toHaveLength(2)
     await userEvent.click(screen.getByRole('button', { name: 'Potvrdit sekci: Alergie' }))
     const section = screen.getByRole('region', { name: /Alergie/ })
-    await waitFor(() => expect(within(section).getByText('Ověřeno lékařem')).toBeInTheDocument())
+    await waitFor(() => expect(within(section).getByText('Potvrzeno lékařem')).toBeInTheDocument())
     expect(await axe(container)).toHaveNoViolations()
   })
 
@@ -86,7 +99,7 @@ describe('route smoke + axe', () => {
 
   it('demo step 6 on 21. 10.: sending the conclusion makes the GP acknowledgement appear', async () => {
     renderRoute('/', { role: 'physician', today: '2026-10-21' })
-    await api.post(`/api/cases/${ALENA_ID}/handover/confirm-all`)
+    await confirmEverySection()
     await api.post(`/api/cases/${ALENA_ID}/mdt/generate?as_of=${encodeURIComponent('2026-10-21T08:00:00+02:00')}`)
     await api.post(`/api/cases/${ALENA_ID}/send-feedback`)
     cleanup()
@@ -122,7 +135,7 @@ describe('review fixes', () => {
     renderRoute(`${ALENA}/handover`, { role: 'coordinator', today: '2026-10-21' })
     expect(await screen.findByRole('heading', { name: /Pacient$/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Potvrdit sekci: Alergie' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Potvrdit všechny dostupné sekce' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /Potvrdit všechny/ })).toBeNull() // confirmation is per section only
     await expect(api.post(`/api/cases/${ALENA_ID}/handover/sections/8_allergies/confirm`)).rejects.toMatchObject({ status: 403 })
   })
 
@@ -158,7 +171,7 @@ describe('review fixes', () => {
 
   it('generated state is tied to the selected cutoff', async () => {
     renderRoute(`${ALENA}/mdt`, { role: 'physician', today: '2026-10-21' })
-    await api.post(`/api/cases/${ALENA_ID}/handover/confirm-all`)
+    await confirmEverySection()
     await api.post(`/api/cases/${ALENA_ID}/mdt/generate?as_of=${encodeURIComponent('2026-10-21T08:00:00+02:00')}`)
     cleanup()
     renderRoute(`${ALENA}/mdt`, { role: 'physician', today: '2026-10-21', keepStore: true })

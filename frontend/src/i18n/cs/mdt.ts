@@ -75,7 +75,6 @@ export const mdt = {
   },
   excludedTitle: 'Po MDT – nezahrnuto',
   excludedHint: 'Zprávy vyhotovené nebo přijaté po začátku MDT. Seznam určuje server.',
-  refused: 'Událost nelze v tomto stavu případu nebo touto rolí provést.',
   notAvailable: 'MDT podklady nejsou k dispozici',
   notAvailableHint: 'Pro tento případ zatím není sestaven handover.',
 } as const

@@ -4,7 +4,7 @@ import { setDemo } from '@/lib/demo'
 import { server } from '@/mocks/server'
 import { client, unwrap } from './client'
 import { ApiError, api } from './http'
-import { ApiProblem } from './problem'
+import { ApiProblem, problemFromBody } from './problem'
 import { toApiRole } from './role'
 
 function capture(path: string) {
@@ -90,6 +90,38 @@ describe('problem+json', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toBeInstanceOf(ApiProblem)
     expect(error).toMatchObject({ status: 409, title: 'Hodnota sekce se mezitím změnila' })
+  })
+
+  it('keeps code and blocking_items for programs; a malformed field is dropped, the rest kept', async () => {
+    server.use(
+      http.get('/api/cases', () =>
+        HttpResponse.json(
+          {
+            title: 'Podmínky akce nejsou splněny',
+            status: 409,
+            detail: 'Připravenost k MDT není splněna, chybí: performance_status',
+            code: 'guard_failed',
+            blocking_items: ['performance_status'],
+          },
+          { status: 409, headers: { 'Content-Type': 'application/problem+json' } },
+        ),
+      ),
+    )
+    await expect(client.GET('/api/cases')).rejects.toMatchObject({
+      status: 409,
+      code: 'guard_failed',
+      blockingItems: ['performance_status'],
+    })
+    const malformed = problemFromBody(409, {
+      title: 'Podmínky akce nejsou splněny',
+      code: 'guard_failed',
+      blocking_items: 'performance_status',
+    })
+    expect(malformed).toMatchObject({
+      title: 'Podmínky akce nejsou splněny',
+      code: 'guard_failed',
+      blockingItems: undefined,
+    })
   })
 
   it('falls back to a neutral title when the body is not problem+json', async () => {

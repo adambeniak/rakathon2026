@@ -88,7 +88,7 @@ test('demo flow', async ({ page }) => {
       .last()
     await expect(triage.getByText('Návrh k vyžádání – zkontrolujte a odešlete.')).toBeVisible()
     await expect(triage.getByRole('checkbox')).toHaveCount(5)
-    // All proposals come preselected, so the panel shows no "Vybrat vše" button (the runbook still mentions it).
+    // All proposals come preselected, so the panel shows no "Vybrat vše" button (runbook drift, #176).
     for (const box of await triage.getByRole('checkbox').all()) await expect(box).toBeChecked()
     await triage.getByRole('button', { name: 'Vyžádat vybrané' }).click()
     await expect(page.getByText('Vyžádáno: 5.')).toBeVisible()
@@ -196,7 +196,7 @@ test('demo flow', async ({ page }) => {
     await expect(algo).toContainText('KOC 2 – Nemocnice Lipová, algeziologie')
 
     // Escalation day. The runbook uses `POST /api/demo/advance` (not mocked); in mock mode the date switcher is enough,
-    // because the mock derives the task phases from the simulated date.
+    // because the mock derives the task phases from the simulated date (#175).
     await atDate(page, '16. 10. 2026')
     const histology = board.getByRole('listitem').filter({ hasText: /^Histologie/ })
     await expect(histology).toContainText('Slíbeno do 15. 10. 2026')
@@ -207,14 +207,14 @@ test('demo flow', async ({ page }) => {
   })
 
   // The runbook marks the case ready at 21. 10. The mock already reports `pripraveno_mdt` on that day and accepts
-  // `mark_ready_mdt` only in `kompletni` (19.–20. 10.), so in mock mode the readiness gate runs at 20. 10.
+  // `mark_ready_mdt` only in `kompletni` (19.–20. 10.), so in mock mode the readiness gate runs at 20. 10. (#172).
   await test.step('5 · MDT handover: readiness gate with a waived missing item (mock: 20. 10.)', async () => {
     await atDate(page, '20. 10. 2026')
     await asRole(page, 'Lékař KOC 2')
     await openCase(page)
     await tab(page, 'Handover').click()
     // Mock: confirmations are not stored per as_of, so the step-3 confirmation is still there (the backend keeps a
-    // snapshot per as_of, see #122).
+    // snapshot per as_of, see #122 and #172).
     await expect(page.getByRole('group', { name: 'Souhrn handoveru' })).toContainText(
       'Potvrzeno lékařem: 1 z 15',
     )
@@ -287,7 +287,7 @@ test('demo flow', async ({ page }) => {
     await expect(page.getByText('Otevření závěru bylo zaznamenáno do auditní stopy.')).toBeVisible()
 
     // The coordinator queue archives a case once the feedback is sent, so no click path leads back to it. Like a
-    // presenter would, go back in the browser history to the MDT page (in-app; a reload would reset the mock state).
+    // presenter would, go back in the browser history to the MDT page (in-app; a reload would reset the mock state; #174).
     await asRole(page, 'Koordinátorka KOC 2')
     await expect(page.getByRole('heading', { name: 'Fronta případů' })).toBeVisible()
     for (let i = 0; i < 5 && !page.url().endsWith(`/cases/${CASE_ID}/mdt`); i++) await page.goBack()
@@ -309,6 +309,6 @@ test('demo flow', async ({ page }) => {
       'T3 · MDT → onkologické konzilium',
     ])
       await expect(clocks).toContainText(t)
-    // Mock: the intervals stay null ("zatím neběží"); the API decides, the UI only renders them.
+    // Mock: the intervals stay null ("zatím neběží"); the API decides, the UI only renders them (#175).
   })
 })

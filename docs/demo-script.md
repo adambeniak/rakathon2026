@@ -85,7 +85,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 | Audit, Časová osa and Komunikace tabs use provisional endpoints that are not in the contract (#47) | They can fail against the real backend | Do not show them; use the proofs named in each step |
 | Reviewer screen uses the provisional `/api/reviewer/cases` (#104, #105); the reviewer is not notified (#74) | **Přehled pro pojišťovnu** can fail; no automatic reviewer message exists | Skip the reviewer live; see step 6 |
 | HL7 v2 ingestion is not implemented (no production under `iris/`, #126) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
-| `make e2e` / `frontend/e2e` do not exist yet (#125) | No recorded run to fall back to | Fallbacks below |
+| `make e2e` drives the six steps against the MSW mocks only, with mock deviations (readiness at 20. 10., no 3b, no Mailpit; #172, #175) | The video in `frontend/test-results/demo-flow-demo-flow-mock/video.webm` is the mock story, not the live stack | Use it as the last fallback; `E2E_SLOWMO=400 make e2e` records a watchable pace |
 
 ## 1 · Referral without a form
 

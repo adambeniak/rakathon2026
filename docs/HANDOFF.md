@@ -145,3 +145,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: decide whether the live handover links missing/stale/clarification findings to sections like the mock (#179); queue card action text when the coordinator holds the baton to close (#180)
   Risks: the mock queue now lists Horáková (feedback sent) and Alena after send_feedback, so card counts in Aktivní grow by one or two; no contract or backend change
   Issues: #173, #174 closed by this PR; #179, #180 new
+- 2026-10-17 · claude (P3) · fix/fe-mdt-blocking-items-waivers · #154: `ApiProblem` keeps `code` + `blocking_items` (zod per field); `blockingItems()` reads them for a 409 `guard_failed` only (regex over the Czech detail removed, empty list → no form); `problemText` shows the API's Czech title (stale `GENERIC_CONFLICT`/`mdt.refused` removed); Loop test role denial is 403 `forbidden_role`. #161: MDT screen lists `readiness_waivers` ("Prominuto lékařem: …, důvod: …"); close step shows `gp_opened_at` (null → "Otevření praktickým lékařem nezaznamenáno" + "PL zatím nepotvrdil přečtení" warning; set → opened time, confirm "Potvrdit uzavření"); MSW records waivers and the first gp_opened
+  Verified: pnpm lint, pnpm typecheck, vitest 187/187 (--maxWorkers=2), make e2e 1/1 passed (mock); clinical-safety-reviewer PASS after one hint rewording
+  Next: none for these issues; the GP portal could show its own opening time (not asked)
+  Risks: e2e step 6 now expects the opened-time line and "Potvrdit uzavření" (the GP opens before the coordinator closes); live mode untested (Docker off)
+  Issues: closes #154, #161

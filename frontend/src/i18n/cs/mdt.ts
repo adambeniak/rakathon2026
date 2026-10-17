@@ -58,7 +58,7 @@ export const mdt = {
   },
   waivers: {
     title: 'Prominuté položky připravenosti',
-    hint: 'Položky, které lékař KOC při označení připravenosti k MDT vědomě prominul. Seznam vrací server.',
+    hint: 'Položky, které lékař KOC při označení připravenosti k MDT prominul, s uvedeným důvodem. Seznam vrací server.',
     entry: (by: string, when: string, reason: string) => `Prominuto lékařem: ${by}, ${when}, důvod: ${reason}`,
     unnamed: 'jméno neuvedeno',
   },

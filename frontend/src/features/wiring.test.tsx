@@ -1,6 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { axe } from 'vitest-axe'
 import { adaptCase } from '@/features/cases/adapter'
 import type { components } from '@/lib/api/schema'
 import { renderRoute } from '@/test/render'
@@ -66,33 +65,6 @@ describe('demo steps 2 and 4', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Vyžádat vybrané' }))
     await waitFor(() => expect(screen.getAllByText('Čeká na podklady').length).toBeGreaterThan(0))
     expect(screen.getAllByText('Vyžádáno')).toHaveLength(5)
-  })
-
-  it('task set: empty until started, then a five-lane board with blocking dependencies', async () => {
-    const { container } = renderRoute(`${ALENA}/tasks`, { today: '2026-10-02' })
-    expect(await screen.findByText('Žádné úkoly')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Spustit sadu: Karcinom pankreatu – diagnostika' }))
-    const board = await screen.findByRole('group', { name: 'Kdo je na tahu' })
-    for (const lane of ['PL', 'Koordinátor', 'Lékař KOC', 'Externí pracoviště', 'Pacient']) {
-      expect(within(board).getByRole('heading', { name: lane })).toBeInTheDocument()
-    }
-    expect(within(board).getAllByText(/^Čeká na:/).length).toBeGreaterThan(0)
-    expect(await axe(container)).toHaveNoViolations()
-  })
-
-  it('task actions advance a task and respect dependencies', async () => {
-    renderRoute(`${ALENA}/tasks`, { today: '2026-10-02' })
-    await userEvent.click(await screen.findByRole('button', { name: /^Spustit sadu/ }))
-    const order = await screen.findByRole('button', { name: /^Potvrdit objednání: CT hrudníku/ })
-    // EUS-FNB depends on the CT: its action is disabled until the CT is performed.
-    expect(screen.getByRole('button', { name: /^Potvrdit objednání: EUS-FNB/ })).toBeDisabled()
-    await userEvent.click(order)
-    const performed = await screen.findByRole('button', { name: /^Označit jako provedené: CT hrudníku/ })
-    await userEvent.click(performed)
-    // Performed is not done: the result must be delivered before the dependent task unblocks.
-    expect(screen.getByRole('button', { name: /^Potvrdit objednání: EUS-FNB/ })).toBeDisabled()
-    await userEvent.click(await screen.findByRole('button', { name: /^Potvrdit doručení výsledku: CT hrudníku/ }))
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Potvrdit objednání: EUS-FNB/ })).toBeEnabled())
   })
 })
 

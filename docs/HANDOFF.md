@@ -113,4 +113,4 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
 - 2026-10-17 · claude (P4) · fix/pathway-task-results · #132: a received result report completes its pathway step (step code → LOINC table in `domain/task_results.py`; accepted/in_progress only, received ≤ clock, authored ≥ confirmed date) from the upload, `/demo/advance` and every watchdog round; SYSTEM may now record start/performed. #137: KOC-physician steps start with the indicating physician as owner, a practitioner acting in the step's role takes over, on-behalf never sets it; cards show "Vlastník: … / nepřiřazeno"
   Next: dress-rehearse step 4 → 5 on a local IRIS (histology flips ≤ 60 s after the 21. 10. switch, or `advance` to 21. 10.); ADR file needs a number at merge
   Risks: step completion is a second write after the stored upload (logged + retried by the watchdog, not one transaction); a misnamed upload could complete a step (authored-date guard limits it); tasks launched before this change keep owner=null
-  Issues: #132, #137 (close)
+  Issues: #132, #137 (close), #169 (owner backfill)

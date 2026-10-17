@@ -299,7 +299,7 @@ export interface paths {
         put?: never;
         /**
          * Apply a case event (state machine)
-         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with `GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case (no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records it as handed over for delivery (`delivery_confirmed`, receipt = SMTP Message-ID; the GP opening the feedback is recorded separately by `gp_opened`); a mail failure answers 503 `mail-unavailable` and changes nothing. Every event writes an AuditEvent.
+         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed; a `guard_failed` of `mark_ready_mdt` also lists the blocking readiness item keys in `blocking_items` (read them there, never parse `detail`). The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with `GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case (no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records it as handed over for delivery (`delivery_confirmed`, receipt = SMTP Message-ID; the GP opening the feedback is recorded separately by `gp_opened`); a mail failure answers 503 `mail-unavailable` and changes nothing. Every event writes an AuditEvent.
          */
         post: operations["cases-transition_case"];
         delete?: never;
@@ -2350,17 +2350,38 @@ export interface components {
         };
         /**
          * ProblemDetails
-         * @description RFC 7807 problem details (`application/problem+json`). The UI maps `type` to a Czech message.
+         * @description RFC 7807 problem details (`application/problem+json`). `title` and `detail` are Czech texts for people;
+         *     programs branch on `type`, `status`, `code` and `blocking_items`, never on the wording.
          * @example {
-         *       "detail": "case 'rakathon-2026-xyz' not found",
+         *       "detail": "Nenalezeno: Případ 'rakathon-2026-xyz'",
          *       "instance": "/api/cases/rakathon-2026-xyz",
          *       "request_id": "4f1c2a9e0b7d4c55",
          *       "status": 404,
-         *       "title": "Not Found",
+         *       "title": "Záznam nebyl nalezen",
          *       "type": "https://stafeta.example/problems/not-found"
+         *     }
+         * @example {
+         *       "blocking_items": [
+         *         "performance_status"
+         *       ],
+         *       "code": "guard_failed",
+         *       "detail": "Připravenost k MDT není splněna, chybí: performance_status",
+         *       "instance": "/api/cases/rakathon-2026-prochazkova/transitions",
+         *       "request_id": "9a2b7c1d3e4f5a60",
+         *       "status": 409,
+         *       "title": "Podmínky akce nejsou splněny",
+         *       "type": "https://stafeta.example/problems/conflict"
          *     }
          */
         ProblemDetails: {
+            /**
+             * Blocking Items
+             * @description Only with `code` = guard_failed of `mark_ready_mdt`: keys of the blocking readiness items that are not waived (e.g. `performance_status`), the same keys as the waiver `item`. English identifiers; the UI maps them to Czech labels. Absent for every other problem. Read this field, never parse `detail`.
+             * @example [
+             *       "performance_status"
+             *     ]
+             */
+            blocking_items?: string[] | null;
             /**
              * Code
              * @description Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.
@@ -2370,7 +2391,7 @@ export interface components {
             detail?: string | null;
             /**
              * Errors
-             * @description Present for 422 validation problems.
+             * @description Present for 422 validation problems; `msg` is Czech, `type` is the stable machine key.
              */
             errors?: components["schemas"]["ValidationIssue"][] | null;
             /** Instance */
@@ -3087,7 +3108,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3096,7 +3117,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3105,7 +3126,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3138,7 +3159,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaseDetail"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3147,7 +3168,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3156,7 +3177,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3165,7 +3186,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3174,7 +3195,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3207,7 +3228,7 @@ export interface operations {
                     "application/json": components["schemas"]["AlertOut"][];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3216,7 +3237,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3225,7 +3246,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3234,7 +3255,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3243,7 +3264,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3252,7 +3273,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3261,7 +3282,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3298,7 +3319,7 @@ export interface operations {
                     "application/json": components["schemas"]["AskResponse"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3307,7 +3328,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3316,7 +3337,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3325,7 +3346,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3334,7 +3355,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3343,7 +3364,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3376,7 +3397,7 @@ export interface operations {
                     "application/json": components["schemas"]["Board"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3385,7 +3406,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3394,7 +3415,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3403,7 +3424,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3412,7 +3433,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3421,7 +3442,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3430,7 +3451,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3463,7 +3484,7 @@ export interface operations {
                     "application/json": components["schemas"]["DocumentRequestOut"][];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3472,7 +3493,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3490,7 +3511,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3499,7 +3520,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3536,7 +3557,7 @@ export interface operations {
                     "application/json": components["schemas"]["DocumentRequestsCreated"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3545,7 +3566,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3554,7 +3575,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3563,7 +3584,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3572,7 +3593,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3581,7 +3602,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3614,7 +3635,7 @@ export interface operations {
                     "application/json": components["schemas"]["ProposalsOut"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3623,7 +3644,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3641,7 +3662,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3650,7 +3671,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3687,7 +3708,7 @@ export interface operations {
                     "application/json": components["schemas"]["DocumentReceived"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3696,7 +3717,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -3705,7 +3726,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3714,7 +3735,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -3723,7 +3744,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Upload too large (application/problem+json) */
+            /** @description Soubor je příliš velký (upload too large) (application/problem+json) */
             413: {
                 headers: {
                     [name: string]: unknown;
@@ -3732,7 +3753,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unsupported document type (application/problem+json) */
+            /** @description Nepodporovaný typ dokumentu (unsupported document type) (application/problem+json) */
             415: {
                 headers: {
                     [name: string]: unknown;
@@ -3741,7 +3762,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3750,7 +3771,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3759,7 +3780,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3795,7 +3816,7 @@ export interface operations {
                     "application/json": components["schemas"]["Handover"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3804,7 +3825,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3813,7 +3834,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3822,7 +3843,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3831,7 +3852,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3867,7 +3888,7 @@ export interface operations {
                     "application/json": components["schemas"]["Handover"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3876,7 +3897,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3885,7 +3906,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3894,7 +3915,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3903,7 +3924,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -3942,7 +3963,7 @@ export interface operations {
                     "text/plain": string;
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3951,7 +3972,7 @@ export interface operations {
                     "text/plain": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3960,7 +3981,7 @@ export interface operations {
                     "text/plain": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -3969,7 +3990,7 @@ export interface operations {
                     "text/plain": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -3978,7 +3999,7 @@ export interface operations {
                     "text/plain": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4020,7 +4041,7 @@ export interface operations {
                     "application/json": components["schemas"]["Handover"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4029,7 +4050,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4038,7 +4059,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4047,7 +4068,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4056,7 +4077,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -4065,7 +4086,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4074,7 +4095,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4107,7 +4128,7 @@ export interface operations {
                     "application/json": components["schemas"]["MdtConclusionOut"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4116,7 +4137,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4125,7 +4146,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4143,7 +4164,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4152,7 +4173,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4188,7 +4209,7 @@ export interface operations {
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": string;
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4197,7 +4218,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4206,7 +4227,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4215,7 +4236,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4224,7 +4245,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -4233,7 +4254,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4242,7 +4263,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4279,7 +4300,7 @@ export interface operations {
                     "application/json": components["schemas"]["PathwayLaunched"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4288,7 +4309,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4297,7 +4318,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4306,7 +4327,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4315,7 +4336,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -4324,7 +4345,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4333,7 +4354,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4370,7 +4391,7 @@ export interface operations {
                     "application/json": components["schemas"]["TaskOut"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4379,7 +4400,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4388,7 +4409,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4397,7 +4418,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -4406,7 +4427,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4415,7 +4436,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4452,7 +4473,7 @@ export interface operations {
                     "application/json": components["schemas"]["CaseSummary"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4461,7 +4482,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4470,7 +4491,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4479,7 +4500,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4488,7 +4509,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4497,7 +4518,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4506,7 +4527,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4542,7 +4563,7 @@ export interface operations {
                     "application/json": components["schemas"]["DemoAdvanced"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4551,7 +4572,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4560,7 +4581,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4569,7 +4590,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4578,7 +4599,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4587,7 +4608,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4596,7 +4617,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4627,7 +4648,7 @@ export interface operations {
                     "application/json": components["schemas"]["DemoClock"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4636,7 +4657,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4680,7 +4701,7 @@ export interface operations {
                     "application/json": components["schemas"]["DemoClock"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4689,7 +4710,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -4698,7 +4719,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4707,7 +4728,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4716,7 +4737,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4747,7 +4768,7 @@ export interface operations {
                     "application/json": components["schemas"]["KocEntry"][];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4765,7 +4786,7 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4774,7 +4795,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4838,7 +4859,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferralCreated"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4847,7 +4868,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4856,7 +4877,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -4865,7 +4886,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Upload too large (application/problem+json) */
+            /** @description Soubor je příliš velký (upload too large) (application/problem+json) */
             413: {
                 headers: {
                     [name: string]: unknown;
@@ -4874,7 +4895,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unsupported document type (application/problem+json) */
+            /** @description Nepodporovaný typ dokumentu (unsupported document type) (application/problem+json) */
             415: {
                 headers: {
                     [name: string]: unknown;
@@ -4883,7 +4904,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4892,7 +4913,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4901,7 +4922,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -4936,7 +4957,7 @@ export interface operations {
                     "application/json": components["schemas"]["ReferralPrefill"];
                 };
             };
-            /** @description Actor not identified (application/problem+json) */
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -4945,7 +4966,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Upload too large (application/problem+json) */
+            /** @description Soubor je příliš velký (upload too large) (application/problem+json) */
             413: {
                 headers: {
                     [name: string]: unknown;
@@ -4954,7 +4975,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unsupported document type (application/problem+json) */
+            /** @description Nepodporovaný typ dokumentu (unsupported document type) (application/problem+json) */
             415: {
                 headers: {
                     [name: string]: unknown;
@@ -4963,7 +4984,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -4972,7 +4993,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -4981,7 +5002,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -5018,7 +5039,7 @@ export interface operations {
                     "application/json": components["schemas"]["TaskOut"];
                 };
             };
-            /** @description Role not allowed (application/problem+json) */
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5027,7 +5048,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not found (application/problem+json) */
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5036,7 +5057,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Not allowed in the current state (application/problem+json) */
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -5045,7 +5066,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Request validation failed (application/problem+json) */
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -5054,7 +5075,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description Unexpected server error (application/problem+json) */
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -5063,7 +5084,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description FHIR storage rejected the operation (application/problem+json) */
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
             502: {
                 headers: {
                     [name: string]: unknown;
@@ -5072,7 +5093,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
-            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
             503: {
                 headers: {
                     [name: string]: unknown;

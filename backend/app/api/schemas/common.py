@@ -6,17 +6,20 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Response descriptions in the contract start with the Czech problem `title` the API sends for the status
+# (`app.api.errors.STATUS_TITLES`; a drift test keeps them in sync), followed by an English note for developers.
 _PROBLEM_DESCRIPTIONS = {
-    401: "Actor not identified",
-    403: "Role not allowed",
-    404: "Not found",
-    409: "Not allowed in the current state",
-    413: "Upload too large",
-    415: "Unsupported document type",
-    422: "Request validation failed",
-    500: "Unexpected server error",
-    502: "FHIR storage rejected the operation",
-    503: "IRIS or the AI service unavailable",
+    401: "Uživatel není přihlášen (actor not identified)",
+    403: "Přístup byl odepřen (role not allowed)",
+    404: "Záznam nebyl nalezen (not found)",
+    409: "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused "
+    "transition)",
+    413: "Soubor je příliš velký (upload too large)",
+    415: "Nepodporovaný typ dokumentu (unsupported document type)",
+    422: "Neplatný požadavek (request validation failed; issues in `errors`)",
+    500: "Neočekávaná chyba serveru (unexpected server error)",
+    502: "Chyba navazující služby (FHIR storage rejected the operation)",
+    503: "Služba není dostupná (IRIS or the AI service unavailable)",
 }
 
 
@@ -27,19 +30,30 @@ class ValidationIssue(BaseModel):
 
 
 class ProblemDetails(BaseModel):
-    """RFC 7807 problem details (`application/problem+json`). The UI maps `type` to a Czech message."""
+    """RFC 7807 problem details (`application/problem+json`). `title` and `detail` are Czech texts for people;
+    programs branch on `type`, `status`, `code` and `blocking_items`, never on the wording."""
 
     model_config = ConfigDict(
         json_schema_extra={
             "examples": [
                 {
                     "type": "https://stafeta.example/problems/not-found",
-                    "title": "Not Found",
+                    "title": "Záznam nebyl nalezen",
                     "status": 404,
-                    "detail": "case 'rakathon-2026-xyz' not found",
+                    "detail": "Nenalezeno: Případ 'rakathon-2026-xyz'",
                     "instance": "/api/cases/rakathon-2026-xyz",
                     "request_id": "4f1c2a9e0b7d4c55",
-                }
+                },
+                {
+                    "type": "https://stafeta.example/problems/conflict",
+                    "title": "Podmínky akce nejsou splněny",
+                    "status": 409,
+                    "detail": "Připravenost k MDT není splněna, chybí: performance_status",
+                    "instance": "/api/cases/rakathon-2026-prochazkova/transitions",
+                    "request_id": "9a2b7c1d3e4f5a60",
+                    "code": "guard_failed",
+                    "blocking_items": ["performance_status"],
+                },
             ]
         }
     )
@@ -50,10 +64,19 @@ class ProblemDetails(BaseModel):
     detail: str | None = None
     instance: str | None = None
     request_id: str | None = None
-    errors: list[ValidationIssue] | None = Field(None, description="Present for 422 validation problems.")
+    errors: list[ValidationIssue] | None = Field(
+        None, description="Present for 422 validation problems; `msg` is Czech, `type` is the stable machine key."
+    )
     code: str | None = Field(
         None,
         description="Forbidden transition: invalid_transition | forbidden_role | guard_failed | case_postponed.",
+    )
+    blocking_items: list[str] | None = Field(
+        None,
+        description="Only with `code` = guard_failed of `mark_ready_mdt`: keys of the blocking readiness items that "
+        "are not waived (e.g. `performance_status`), the same keys as the waiver `item`. English identifiers; the UI "
+        "maps them to Czech labels. Absent for every other problem. Read this field, never parse `detail`.",
+        examples=[["performance_status"]],
     )
 
 

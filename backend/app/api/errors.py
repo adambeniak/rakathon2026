@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from http import HTTPStatus
 from typing import Any
 
@@ -86,8 +86,58 @@ STATUS_TITLES: Mapping[int, str] = {
 }
 # Detail of the framework's own errors (an unknown route, a wrong method): Starlette words them in English.
 STATUS_DETAILS: Mapping[int, str] = {
+    400: "Požadavek nelze zpracovat.",
+    401: "Pro tuto akci je nutné přihlášení.",
+    403: "K této akci nemáte oprávnění.",
     404: "Požadovaná adresa neexistuje.",
     405: "Tato metoda není pro danou adresu povolena.",
+    413: "Požadavek je příliš velký.",
+    415: "Typ obsahu požadavku není podporován.",
+    500: "Na serveru došlo k neočekávané chybě.",
+    503: "Služba je dočasně nedostupná.",
+}
+
+# Czech `errors[].msg` of a 422, keyed by the Pydantic error `type` (which stays the stable machine key).
+# Placeholders come from the error's `ctx` (schema constants such as min_length); the submitted input is never used.
+# A type not listed here keeps Pydantic's English message.
+_DATE = "Hodnota musí být datum ve formátu RRRR-MM-DD."
+_DATETIME = "Hodnota musí být datum a čas ve formátu ISO 8601 (např. 2026-10-21T08:00:00+02:00)."
+_CHOICE = "Hodnota musí být jedna z možností: {expected}."
+VALIDATION_MESSAGES: Mapping[str, str] = {
+    "missing": "Povinná hodnota chybí.",
+    "extra_forbidden": "Tato položka není v požadavku povolena.",
+    "string_type": "Hodnota musí být text.",
+    "string_too_short": "Text je příliš krátký (minimální počet znaků: {min_length}).",
+    "string_too_long": "Text je příliš dlouhý (maximální počet znaků: {max_length}).",
+    "string_pattern_mismatch": "Hodnota nemá povolený formát.",
+    "too_short": "Příliš málo položek (minimum: {min_length}).",
+    "too_long": "Příliš mnoho položek (maximum: {max_length}).",
+    "int_type": "Hodnota musí být celé číslo.",
+    "int_parsing": "Hodnota musí být celé číslo.",
+    "int_from_float": "Hodnota musí být celé číslo.",
+    "float_type": "Hodnota musí být číslo.",
+    "float_parsing": "Hodnota musí být číslo.",
+    "bool_type": "Hodnota musí být true nebo false.",
+    "bool_parsing": "Hodnota musí být true nebo false.",
+    "greater_than": "Hodnota musí být větší než {gt}.",
+    "greater_than_equal": "Hodnota musí být alespoň {ge}.",
+    "less_than": "Hodnota musí být menší než {lt}.",
+    "less_than_equal": "Hodnota musí být nejvýše {le}.",
+    "enum": _CHOICE,
+    "literal_error": _CHOICE,
+    "date_type": _DATE,
+    "date_parsing": _DATE,
+    "date_from_datetime_parsing": _DATE,
+    "date_from_datetime_inexact": _DATE,
+    "datetime_type": _DATETIME,
+    "datetime_parsing": _DATETIME,
+    "datetime_from_date_parsing": _DATETIME,
+    "timezone_aware": "Datum a čas musí obsahovat časové pásmo (např. +02:00).",
+    "list_type": "Hodnota musí být seznam.",
+    "dict_type": "Hodnota musí být objekt.",
+    "model_type": "Hodnota musí být objekt.",
+    "model_attributes_type": "Hodnota musí být objekt.",
+    "json_invalid": "Tělo požadavku není platný JSON.",
 }
 
 
@@ -109,6 +159,7 @@ def problem_response(
     request_id: str | None = None,
     errors: list[ValidationIssue] | None = None,
     code: str | None = None,
+    blocking_items: Sequence[str] | None = None,
     headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     body = ProblemDetails(
@@ -120,6 +171,7 @@ def problem_response(
         request_id=request_id,
         errors=errors,
         code=code,
+        blocking_items=list(blocking_items) if blocking_items is not None else None,
     )
     return JSONResponse(
         body.model_dump(exclude_none=True), status_code=status, media_type=PROBLEM_JSON, headers=headers
@@ -177,8 +229,6 @@ def _fhir_status(exc: FhirError) -> tuple[int, str, str]:
         return 409, "conflict", "Záznam byl mezitím změněn, načtěte jej znovu."
     if isinstance(exc, FhirAuthError):
         return 502, "storage-auth", "Backend se nemůže přihlásit k úložišti FHIR."
-    if isinstance(exc, FhirConflictError):
-        return 409, "conflict", "Záznam byl mezitím změněn jiným uživatelem; načtěte jej znovu."
     if isinstance(exc, FhirNotFoundError):
         return 404, "not-found", "Záznam v úložišti FHIR neexistuje."
     if isinstance(exc, FhirValidationError):
@@ -186,17 +236,41 @@ def _fhir_status(exc: FhirError) -> tuple[int, str, str]:
     return 502, "storage-error", "Chyba úložiště FHIR."
 
 
+def validation_message(error: Mapping[str, Any]) -> str:
+    """Czech `msg` of one Pydantic error; Pydantic's own text when the type is unknown or a placeholder is missing."""
+    kind = str(error.get("type", ""))
+    original = str(error.get("msg", ""))
+    ctx = error.get("ctx") or {}
+    if kind in {"value_error", "assertion_error"}:
+        # Our validators word the reason themselves (in Czech); Pydantic only prefixes it with "Value error, ".
+        reason = ctx.get("error")
+        return str(reason) if reason is not None and str(reason) else original
+    template = VALIDATION_MESSAGES.get(kind)
+    if template is None:
+        return original
+    values = {key: str(value) for key, value in ctx.items()}
+    if "expected" in values:
+        values["expected"] = values["expected"].replace(" or ", " nebo ")
+    try:
+        return template.format_map(values)
+    except (KeyError, IndexError, ValueError):
+        return original
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
         status, problem = _domain_status(exc)
+        transition = exc if isinstance(exc, TransitionError) else None
         return problem_response(
             status,
             problem=problem,
-            detail=exc.detail if isinstance(exc, TransitionError) else str(exc),
+            detail=transition.detail if transition else str(exc),
             instance=request.url.path,
             request_id=_request_id(request),
-            code=exc.code if isinstance(exc, TransitionError) else None,
+            code=transition.code if transition else None,
+            # Structured guard result (`mark_ready_mdt`): the UI reads the keys, never the Czech `detail` sentence.
+            blocking_items=transition.blocking_items if transition else None,
         )
 
     @app.exception_handler(FhirError)
@@ -211,7 +285,7 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         # Never echo the submitted input back (it may contain PHI): location, message and type only.
         issues = [
-            ValidationIssue(loc=list(err.get("loc", ())), msg=str(err.get("msg", "")), type=str(err.get("type", "")))
+            ValidationIssue(loc=list(err.get("loc", ())), msg=validation_message(err), type=str(err.get("type", "")))
             for err in exc.errors()
         ]
         return problem_response(
@@ -225,7 +299,8 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_exception(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        # Starlette's default detail is the English status phrase; a custom detail passes through unchanged.
+        # Starlette's default detail is the English status phrase (mapped to Czech, or omitted); a custom detail passes
+        # through unchanged.
         detail: str | None = exc.detail if isinstance(exc.detail, str) else None
         if detail == HTTPStatus(exc.status_code).phrase:
             detail = STATUS_DETAILS.get(exc.status_code)

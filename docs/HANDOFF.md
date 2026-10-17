@@ -65,3 +65,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: human enables STAFETA_DEMO_MODE=1 and runs the live check of steps 1–2 (#86), then screenshots + ux-reviewer (#87); mark the PR ready only after X-Demo-Role → 200
   Risks: steps 1–2 never ran against the real backend (running stack answers 401, demo mode is off in its configuration); `payload` JSON mirrors backend ReferralSubmission by hand (contract types it as string); findings/timeline/messages/audit still on lib/api/http.ts (no contract endpoint)
   Issues: #86 (live check), #87 (screenshots, ux-reviewer)
+- 2026-10-17 · claude (P1) · be/mark-ready-mdt-gate · #68: `mark_ready_mdt` + `reopen` on /transitions; readiness computed server-side (CarePlan → PlanDefinition required items, statuses from the persisted handover at `mdt_start`, item→section table in `fhir/readiness.py`), body takes only `waivers[{item, reason}]`, signer = acting koc_physician, Provenance `waive-readiness` + AuditEvent in the same transaction; fails closed; ADR XXXX-mdt-readiness-gate
+  Next: P3 `pnpm gen:api` after merge, then the mark-ready/waiver UI (#97); human runs the flow on local IRIS (#99)
+  Risks: gate reads a persisted handover snapshot (stale after new documents, #98); not run on IRIS; `make check` frontend step needs `pnpm install` in a fresh worktree
+  Issues: #97, #98, #99

@@ -158,11 +158,12 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   confirmed section **Potvrzeno lékařem** and **Potvrzeno lékařem: 1 z 15**; **Potvrdil(a) <name>** under it. Under
   the sections **Související zjištění** quotes the two date conflicts. The coordinator sees **Potvrdit sekci** disabled
   with **Potvrdit sekci může pouze lékař. Přepněte roli na „Lékař KOC 2“.**
-- **Say:** „Z dokumentů vznikne handover o patnácti sekcích a u každé hodnoty je vidět zdroj a citace. Chybí stav
-  výkonnosti, TNM a e-mail pacientky; datum posledního apixabanu a datum odběru histologie si v dokumentaci odporují;
-  váha je zastaralá. Nic nedomýšlíme. Všechno je Návrh AI, dokud to lékař nepotvrdí.“
+- **Say:** „AI z dokumentů navrhne handover o patnácti sekcích a u každé hodnoty je vidět zdroj a citace. V dokumentaci není
+  uveden stav výkonnosti, TNM ani e-mail pacientky; datum posledního apixabanu a datum odběru histologie si v
+  dokumentaci odporují; poslední údaj o váze je starší, proto je označen Zastaralé. Nic nedomýšlíme. Všechno je Návrh AI, dokud to lékař nepotvrdí.“
 - **Proof of the audit trail:** the Audit tab is not reliable against the real backend (#47). If asked, say that every
-  read and write is recorded in the audit trail (`AuditEvent`) and show the entry in Mailpit/step 6 instead.
+  read and write is recorded in the audit trail (`AuditEvent`) and that the only visible proof in the UI is the GP message „Otevření závěru bylo zaznamenáno do auditní stopy.“ in
+  step 6 (Mailpit is not an audit record).
 - **Fallback:** pre-extracted answers come from the LLM cache (default); if the upload is slow, upload only `08` and
   `11` live and the rest beforehand.
 
@@ -191,7 +192,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   Výsledek doručen**; after the advance only the histology task is **Po termínu** (1 pracovní den) with **Slíbeno do**
   15. 10. and **Eskalováno 16. 10. 2026**.
 - **Say:** „Sada vytvoří úkoly a každý má vlastníka, místo a termín. Termíny jsou demo předpoklad. Histologie byla
-  slíbena do tří pracovních dnů od 12. 10., tedy do 15. 10. K 16. 10. je po termínu a koordinátorka dostane eskalaci.“
+  slíbena do tří pracovních dnů od 12. 10. (demo předpoklad), tedy do 15. 10. K 16. 10. je po termínu a úkol se
+  koordinátorce označí jako eskalovaný.“
 - **Fallback:** the board shows the same lanes from a freshly launched set; if `advance` answers 409 or 403, check
   that 08–10 are uploaded and that the header is `X-Demo-Role: coordinator`; otherwise skip the escalation and say it.
 
@@ -214,8 +216,9 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   two date conflicts still listed; the waiver asks for a reason (recorded as who, when, why); the DOCX downloads under
   the app's own file name.
 - **Say:** „K MDT použijeme jen to, co bylo známo k 21. 10. v 8:00. Zprávy 12 a 13 vznikly později, proto jsou označeny
-  Po MDT a nejsou v podkladu. Server hlídá připravenost: stav výkonnosti v dokumentaci chybí. Lékař ho může vědomě
-  prominout s odůvodněním, zaznamená se kdo a proč. Hodnotu nikdo nedomýšlí.“
+  Po MDT a nejsou v podkladu. Server hlídá připravenost: stav výkonnosti v dokumentaci chybí. Lékař může položku pro
+  připravenost k MDT prominout s odůvodněním; údaj zůstává v podkladu jako chybějící a zaznamená se kdo, kdy a proč.
+  Hodnotu nikdo nedomýšlí. Zápis je dál označen jako návrh, dokud lékař nepotvrdí všechny sekce.“
 - **Fallback:** `make up-local SCENARIO=story` seeds the case already in **Připraveno k rozhodnutí/MDT** with all 13
   documents and `mdt_start` 21. 10. 08:00; set the switcher to 21. 10. 2026, show the DOCX from the MDT page and go on
   with step 6.
@@ -242,8 +245,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   <name> dne <date>**); state **Uzavřeno**; the case header **Časové intervaly** (T1, T2, T3) as returned by the API or
   **zatím neběží**; they are proxies (T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT, T3 = MDT →
   onkologické konzilium) and must be called so.
-- **Say:** „Závěr MDT podepíše lékař, koordinátorka ho odešle a praktickému lékaři přijde e-mail bez klinického
-  textu. Otevření závěru se zapíše do auditní stopy. Případ je uzavřen. Intervaly T1, T2, T3 jsou zástupné hodnoty.“
+- **Say:** „Závěr MDT zapíše a potvrdí lékař (v ukázce bez skutečného elektronického podpisu), koordinátorka ho odešle a
+  praktickému lékaři se předá k doručení e-mail bez klinického textu (v ukázce Mailpit). Otevření závěru se zapíše do auditní stopy. Případ je uzavřen. Intervaly T1, T2, T3 jsou zástupné hodnoty.“
 - **Do not claim:** that the e-mail was *read* (the screen says „předáno k doručení“, the relay accepted it); that the
   insurer's reviewer is informed automatically (#74) or sees a scoped summary (#104, #105); that the app knows whether
   the GP opened the conclusion on the coordinator screen (#113).

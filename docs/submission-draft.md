@@ -22,12 +22,12 @@ léčby se skládá z T1 (symptom → diagnostika), T2 (diagnostika → MDT) a T
 ## 2. Řešení
 
 Štafeta je **sdílený onkologický případ**, který propojuje odesílajícího praktického lékaře (PL), koordinátorku KOC,
-lékaře KOC a MDT. Přijme klinické dokumenty, vytěží z nich strukturovaný handover **s doslovným zdrojem u každé
-hodnoty**, hlídá úkoly, vlastníky a termíny, připraví podklad pro MDT a uzavře smyčku zpět k PL s důkazem o předání.
+lékaře KOC a MDT. Přijme klinické dokumenty, vytěží z nich strukturovaný handover **s doslovnou citací zdroje u každé
+hodnoty navržené AI**, hlídá úkoly, vlastníky a termíny, připraví podklad pro MDT a uzavře smyčku zpět k PL s důkazem o předání.
 V každém okamžiku je vidět, kde případ je, kdo je na tahu a dokdy.
 
-AI jen připravuje návrh; rozhoduje a potvrzuje lékař. Aplikace je prototyp ověřující princip, ne zdravotnický prostředek
-pro klinické rozhodování (v aplikaci je vždy patička „Prototyp – fiktivní data, neurčeno pro klinické rozhodování“).
+AI jen připravuje návrh; rozhoduje a potvrzuje lékař. Aplikace je prototyp ověřující princip, určený pro koordinaci a dokumentaci,
+ne pro klinické rozhodování. Kvalifikace podle MDR (pravidlo 11) a AI Act nebyla posouzena (v aplikaci je vždy patička „Prototyp – fiktivní data, neurčeno pro klinické rozhodování“).
 
 ## 3. Šest kroků ukázky
 
@@ -44,11 +44,11 @@ Podrobný scénář po kliknutích: [demo-script.md](demo-script.md).
    ponechá jako chybějící.
 4. **Koordinace a „kdo je na tahu“.** Spuštění sady „Karcinom pankreatu – diagnostika“ vytvoří úkoly (CT v KOC 1,
    EUS-FNB, odběry, histologie, algeziolog, psycholog, MDT) s vlastníkem, místem, termínem a závislostmi (termíny jsou
-   demo předpoklad). Histologie slíbená do tří pracovních dnů je k 16. 10. po termínu a vznikne eskalace.
+   demo předpoklad). Histologie slíbená do tří pracovních dnů je k 16. 10. po termínu a úkol se označí jako eskalovaný.
 5. **Podklad pro MDT k 21. 10. 2026 08:00.** Do podkladu vstoupí jen dokumenty vyhotovené i přijaté do tohoto okamžiku;
    zprávy 12 a 13 jsou označeny **Po MDT** a nezahrnuty. Server vyhodnotí připravenost; chybějící položku může lékař
    KOC prominout s důvodem. Zápis se stáhne jako DOCX v rozložení MDT_zapis.
-6. **Uzavření smyčky.** Lékař KOC zapíše podepsaný závěr MDT, koordinátorka ho odešle PL (e-mail v Mailpitu bez
+6. **Uzavření smyčky.** Lékař KOC zapíše a potvrdí závěr MDT (simulované přihlášení, bez elektronického podpisu), koordinátorka ho odešle PL (e-mail v Mailpitu bez
    klinického obsahu, jen odkaz do portálu). PL závěr otevře v portálu; otevření se zapíše do auditní stopy. Případ se
    uzavře a měří se zástupné hodnoty T1, T2, T3.
 
@@ -104,17 +104,18 @@ Pravidla jsou závazná pro každý kód i text v repozitáři (`AGENTS.md`).
 - **Lékař potvrzuje.** Výstup AI je návrh (**Návrh AI – čeká na potvrzení**), dokud ho lékař KOC nepotvrdí. Potvrzení,
   úprava i „ponecháno jako chybějící“ se zapisují jako `Provenance` (kdo, kdy, co se změnilo). Potvrzení je vázáno na
   otisk hodnoty, kterou lékař viděl; změněná sekce se znovu otevře. Chybějící položku připravenosti může prominout jen
-  lékař KOC s důvodem.
-- **Žádné klinické rady od AI.** AI cituje, strukturuje, shrnuje s citacemi a upozorňuje na nesoulady. Neodporučuje
+  lékař KOC s důvodem. Brána připravenosti zatím nevyžaduje potvrzení všech sekcí (#102); stažený zápis je do té doby
+  označen jako koncept.
+- **Žádné klinické rady od AI.** AI cituje, strukturuje, shrnuje s citacemi a upozorňuje na nesoulady. Nedoporučuje
   léčbu, dávky ani diagnózy. Texty jsou neutrální („v dokumentaci uvedeno…“, „nesoulad mezi…“, „chybí…“). Odpovědi na
   dotazy k případu (`POST /api/cases/{id}/ask`) jsou omezeny citací po větách.
-- **Pravidlo `as_of`.** Handover obsahuje jen dokumenty vyhotovené i přijaté nejpozději k danému okamžiku (demo: začátek
+- **Pravidlo `as_of`.** Handover obsahuje jen dokumenty přijaté nejpozději k danému okamžiku a vyhotovené před dnem tohoto okamžiku (demo: začátek
   MDT 21. 10. 2026 08:00). Čas určuje server, frontend ho nepočítá.
-- **Audit a soukromí.** Zápisy i čtení klinického obsahu vytvářejí `AuditEvent`; v logu nejsou osobní údaje; e-mail pro
+- **Audit a soukromí.** Zápisy i čtení klinického obsahu vytvářejí `AuditEvent`; logování je navrženo bez osobních údajů; e-mail pro
   PL neobsahuje klinický text. Jen smyšlená data. Podrobně [security-privacy.md](security-privacy.md).
 
-Měření extrakce na smyšlené sadě 13 zpráv (z `docs/extraction.md`, běh z mezipaměti): citace ověřitelné v 100 %
-(476 citací), žádný fakt z dokumentů po MDT v podkladu, nalezeno 53 z 54 klíčových hodnot (98,2 %; v prvním živém běhu
+Měření extrakce na smyšlené sadě 13 zpráv (z `docs/extraction.md`, běh z mezipaměti): všech 476 citací se v původním textu doslova nachází (to vynucuje zámek; neznamená to, že je každá hodnota správně
+přiřazena), žádný fakt z dokumentů po MDT v podkladu, nalezeno 53 z 54 klíčových hodnot (98,2 %; v prvním živém běhu
 před opravami zámku 51 z 54), stav polí handoveru shodný s očekávaným souborem u 15 z 15 polí. Jde o **jeden případ bez
 nezávislé testovací sady**; pravidla byla laděna na týchž dokumentech, takže to není měření zobecnění.
 

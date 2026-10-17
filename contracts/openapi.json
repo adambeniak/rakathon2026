@@ -708,7 +708,7 @@
         "type": "object"
       },
       "CaseCounts": {
-        "description": "Handover counters. Each is null (UI shows '—') until the handover service computes it; null is not 0.",
+        "description": "Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé).",
         "properties": {
           "conflict": {
             "anyOf": [
@@ -755,6 +755,12 @@
               "id": "hruby-pavel@koc2-nemocnice-lipova",
               "role": "koc_physician"
             },
+            "conflict_count": 2,
+            "counts": {
+              "conflict": 2,
+              "missing": 3,
+              "stale": 1
+            },
             "document_count": 13,
             "documents": [
               {
@@ -768,6 +774,7 @@
               }
             ],
             "id": "rakathon-2026-prochazkova",
+            "missing_count": 3,
             "next_deadline": "2026-10-21T08:00:00+02:00",
             "opened_at": "2026-10-02T09:30:00+02:00",
             "patient": {
@@ -806,7 +813,7 @@
                 "type": "null"
               }
             ],
-            "description": "Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.",
+            "description": "Same number as `counts.conflict`; null when `counts` is null.",
             "title": "Conflict Count"
           },
           "counts": {
@@ -818,7 +825,7 @@
                 "type": "null"
               }
             ],
-            "description": "Null until the handover service (P2) computes the counters; never a false zero."
+            "description": "Computed from the handover at the case's `mdt_start` (or the demo clock). Null when the handover cannot be built or has no usable document; never a false zero."
           },
           "document_count": {
             "description": "All documents of the case (not filtered by as-of).",
@@ -860,7 +867,7 @@
                 "type": "null"
               }
             ],
-            "description": "Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'.",
+            "description": "Same number as `counts.missing`; null when `counts` is null.",
             "title": "Missing Count"
           },
           "next_deadline": {
@@ -955,8 +962,15 @@
               "id": "hruby-pavel@koc2-nemocnice-lipova",
               "role": "koc_physician"
             },
+            "conflict_count": 2,
+            "counts": {
+              "conflict": 2,
+              "missing": 3,
+              "stale": 1
+            },
             "document_count": 13,
             "id": "rakathon-2026-prochazkova",
+            "missing_count": 3,
             "next_deadline": "2026-10-21T08:00:00+02:00",
             "opened_at": "2026-10-02T09:30:00+02:00",
             "patient": {
@@ -995,7 +1009,7 @@
                 "type": "null"
               }
             ],
-            "description": "Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.",
+            "description": "Same number as `counts.conflict`; null when `counts` is null.",
             "title": "Conflict Count"
           },
           "counts": {
@@ -1007,7 +1021,7 @@
                 "type": "null"
               }
             ],
-            "description": "Null until the handover service (P2) computes the counters; never a false zero."
+            "description": "Computed from the handover at the case's `mdt_start` (or the demo clock). Null when the handover cannot be built or has no usable document; never a false zero."
           },
           "document_count": {
             "description": "All documents of the case (not filtered by as-of).",
@@ -1041,7 +1055,7 @@
                 "type": "null"
               }
             ],
-            "description": "Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'.",
+            "description": "Same number as `counts.missing`; null when `counts` is null.",
             "title": "Missing Count"
           },
           "next_deadline": {

@@ -30,8 +30,9 @@ _SUMMARY_EXAMPLE: JsonDict = {
     "next_deadline": "2026-10-21T08:00:00+02:00",
     "opened_at": "2026-10-02T09:30:00+02:00",
     "document_count": 13,
-    "missing_count": None,
-    "conflict_count": None,
+    "counts": {"missing": 3, "conflict": 2, "stale": 1},
+    "missing_count": 3,
+    "conflict_count": 2,
 }
 
 
@@ -68,7 +69,7 @@ class ReferringGp(BaseModel):
 
 
 class CaseCounts(BaseModel):
-    """Handover counters. Each is null (UI shows '—') until the handover service computes it; null is not 0."""
+    """Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé)."""
 
     missing: int | None = None
     conflict: int | None = None
@@ -94,14 +95,14 @@ class CaseSummary(BaseModel):
     koc: str | None = Field(None, description="Name of the managing KOC (Organization).")
     referring_gp: ReferringGp | None = None
     counts: CaseCounts | None = Field(
-        None, description="Null until the handover service (P2) computes the counters; never a false zero."
+        None,
+        description="Computed from the handover at the case's `mdt_start` (or the demo clock). Null when the handover "
+        "cannot be built or has no usable document; never a false zero.",
     )
     document_count: int = Field(ge=0, description="All documents of the case (not filtered by as-of).")
-    missing_count: int | None = Field(
-        None, description="Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'."
-    )
+    missing_count: int | None = Field(None, description="Same number as `counts.missing`; null when `counts` is null.")
     conflict_count: int | None = Field(
-        None, description="Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'."
+        None, description="Same number as `counts.conflict`; null when `counts` is null."
     )
 
 

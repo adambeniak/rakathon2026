@@ -797,7 +797,7 @@ export interface components {
         };
         /**
          * CaseCounts
-         * @description Handover counters. Each is null (UI shows '—') until the handover service computes it; null is not 0.
+         * @description Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé).
          */
         CaseCounts: {
             /** Conflict */
@@ -815,6 +815,12 @@ export interface components {
          *         "id": "hruby-pavel@koc2-nemocnice-lipova",
          *         "role": "koc_physician"
          *       },
+         *       "conflict_count": 2,
+         *       "counts": {
+         *         "conflict": 2,
+         *         "missing": 3,
+         *         "stale": 1
+         *       },
          *       "document_count": 13,
          *       "documents": [
          *         {
@@ -828,6 +834,7 @@ export interface components {
          *         }
          *       ],
          *       "id": "rakathon-2026-prochazkova",
+         *       "missing_count": 3,
          *       "next_deadline": "2026-10-21T08:00:00+02:00",
          *       "opened_at": "2026-10-02T09:30:00+02:00",
          *       "patient": {
@@ -850,10 +857,10 @@ export interface components {
             bucket: components["schemas"]["QueueBucket"];
             /**
              * Conflict Count
-             * @description Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.
+             * @description Same number as `counts.conflict`; null when `counts` is null.
              */
             conflict_count?: number | null;
-            /** @description Null until the handover service (P2) computes the counters; never a false zero. */
+            /** @description Computed from the handover at the case's `mdt_start` (or the demo clock). Null when the handover cannot be built or has no usable document; never a false zero. */
             counts?: components["schemas"]["CaseCounts"] | null;
             /**
              * Document Count
@@ -877,7 +884,7 @@ export interface components {
             koc?: string | null;
             /**
              * Missing Count
-             * @description Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'.
+             * @description Same number as `counts.missing`; null when `counts` is null.
              */
             missing_count?: number | null;
             /** Next Deadline */
@@ -913,8 +920,15 @@ export interface components {
          *         "id": "hruby-pavel@koc2-nemocnice-lipova",
          *         "role": "koc_physician"
          *       },
+         *       "conflict_count": 2,
+         *       "counts": {
+         *         "conflict": 2,
+         *         "missing": 3,
+         *         "stale": 1
+         *       },
          *       "document_count": 13,
          *       "id": "rakathon-2026-prochazkova",
+         *       "missing_count": 3,
          *       "next_deadline": "2026-10-21T08:00:00+02:00",
          *       "opened_at": "2026-10-02T09:30:00+02:00",
          *       "patient": {
@@ -937,10 +951,10 @@ export interface components {
             bucket: components["schemas"]["QueueBucket"];
             /**
              * Conflict Count
-             * @description Not computed yet (consistency detector, F3-1): always null for now, UI shows '—'.
+             * @description Same number as `counts.conflict`; null when `counts` is null.
              */
             conflict_count?: number | null;
-            /** @description Null until the handover service (P2) computes the counters; never a false zero. */
+            /** @description Computed from the handover at the case's `mdt_start` (or the demo clock). Null when the handover cannot be built or has no usable document; never a false zero. */
             counts?: components["schemas"]["CaseCounts"] | null;
             /**
              * Document Count
@@ -959,7 +973,7 @@ export interface components {
             koc?: string | null;
             /**
              * Missing Count
-             * @description Not computed yet (handover assembly, F2-2): always null for now, UI shows '—'.
+             * @description Same number as `counts.missing`; null when `counts` is null.
              */
             missing_count?: number | null;
             /** Next Deadline */

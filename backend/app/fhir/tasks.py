@@ -292,7 +292,7 @@ class TaskStore:
         resource["id"] = stored.fhir_id
         if "focus" in stored.resource:
             resource["focus"] = stored.resource["focus"]  # the ServiceRequest this step fulfils
-        order = await self._closed_order(stored, task)
+        order = await self.closed_order(stored, task)
         try:
             if order is None:
                 updated = await self._repo.update(
@@ -313,7 +313,7 @@ class TaskStore:
             raise NotFoundError("task", task.id) from exc
         return StoredTask(task, resource)
 
-    async def _closed_order(self, stored: StoredTask, task: Task) -> Resource | None:
+    async def closed_order(self, stored: StoredTask, task: Task) -> Resource | None:
         """The order of `task` with its new status (completed -> completed, cancelled -> revoked), if it must change.
 
         A failed step keeps its active order (R4 has no "failed" request status; the coordinator decides what next).

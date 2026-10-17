@@ -104,8 +104,10 @@ def _result_guard(t: Task, ctx: TaskContext) -> str | None:
 
 
 _OC: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORDINATOR})
-# SYSTEM may record start / performed / result only when a received result report proves them
-# (`app.domain.task_results`, #132); the API refuses a SYSTEM actor, so no user reaches these through it.
+# SYSTEM records progress only when a stored record proves it (`app.domain.task_results`): a received result report
+# (start / performed / result, #132) or the signed MDT conclusion (the MDT step from any open state, #149). The API
+# refuses a SYSTEM actor, so no user reaches these through it.
+_OC_SYSTEM: frozenset[Role | _Owner] = frozenset({OWNER, Role.COORDINATOR, Role.SYSTEM})
 _OWNER_SYSTEM: frozenset[Role | _Owner] = frozenset({OWNER, Role.SYSTEM})
 _COORD_ONLY: frozenset[Role | _Owner] = frozenset({Role.COORDINATOR})
 
@@ -117,7 +119,7 @@ _RULES: tuple[_Rule, ...] = (
     _Rule(
         "order_confirmed",
         TaskStatus.REQUESTED,
-        _OC,
+        _OC_SYSTEM,
         _confirm_guard,
         lambda t, c: t.model_copy(
             update={
@@ -130,7 +132,7 @@ _RULES: tuple[_Rule, ...] = (
     _Rule(
         "accept",
         TaskStatus.REQUESTED,
-        _OC,
+        _OC_SYSTEM,
         _accept_guard,
         lambda t, _c: t.model_copy(update={"status": TaskStatus.ACCEPTED}),
     ),

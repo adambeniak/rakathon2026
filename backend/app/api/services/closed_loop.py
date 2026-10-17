@@ -5,7 +5,10 @@ that carry data or a side effect and delegates every other event to the base cla
 
 - `record_mdt_conclusion`: ONE transaction = case Task PUT (If-Match) + business AuditEvent + the conclusion
   `Composition` + its sign-off `Provenance`. The case cannot be signed off without the text being stored, and the
-  signer is always the acting physician.
+  signer is always the acting physician. A second, idempotent write then completes the pathway's open MDT step
+  (`app.domain.task_results.complete_mdt_step`, #149): the task machine walks it to `vysledek_dorucen` as the system
+  actor with the conclusion as its result, guards included. That write never fails the sign-off: a refused guard or a
+  failed save is logged, and `close` reconciles it.
 - `send_feedback`: both machine events are checked in memory first (nothing is sent when a guard fails), then the
   e-mail goes to the referring GP through the `Mailer`; only after the relay accepted it ONE transaction writes the
   case Task (state `zpetna_vazba_odeslana`, delivery receipt), the AuditEvent of `send_feedback` (the coordinator),
@@ -17,7 +20,9 @@ that carry data or a side effect and delegates every other event to the base cla
 - `close`: a closed case leaves nobody "on the move". Every still open step (pathway or ad-hoc) is cancelled with the
   reason "Případ uzavřen" and its order (ServiceRequest) revoked, in ONE transaction with the case Task: case state,
   step Tasks, orders and the AuditEvents (each step's on its own Task) commit or fail together. Completed and failed
-  steps stay as they are. The board then shows the steps as cancelled, and alerts and the SLA watchdog, which only
+  steps stay as they are. The MDT step, if still open (the second write of the sign-off failed), is completed with the
+  signed conclusion in the same transaction instead of being cancelled; only if the machine refuses it is it cancelled.
+  The board then shows the steps as cancelled, and alerts and the SLA watchdog, which only
   look at open steps, stop for the case (#133).
 """
 
@@ -33,8 +38,10 @@ from app.domain import case_machine, task_machine
 from app.domain.case import CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.errors import ForbiddenError, InvalidInputError, NotFoundError
-from app.domain.events import EventKind
+from app.domain.events import DomainEvent, EventKind, TransitionError
+from app.domain.task import Task, TaskBusinessStatus, TaskStatus
 from app.domain.task_machine import OPEN_STATUSES
+from app.domain.task_results import complete_mdt_step, is_open_mdt_step
 from app.fhir.audit import build_domain_audit_event
 from app.fhir.bundles import BundleBuilder
 from app.fhir.cases import CaseReader, LoadedCase
@@ -44,6 +51,7 @@ from app.fhir.mappers.feedback import feedback_communication_to_fhir
 from app.fhir.mappers.mdt_conclusion import (
     TYPE_MDT_CONCLUSION,
     MdtConclusionRecord,
+    conclusion_business_id,
     is_conclusion_of,
     latest_conclusion,
     mdt_conclusion_from_fhir,
@@ -66,6 +74,8 @@ log = structlog.get_logger(__name__)
 GP_VISIBLE_STATES = frozenset({CaseState.ZPETNA_VAZBA_ODESLANA, CaseState.UZAVRENO})
 # Status reason of the steps still open when the case is closed (workflow wording, no clinical content).
 CLOSE_REASON = "Případ uzavřen"
+# Confirmed place of an MDT step without one when the managing KOC is not in the directory (workflow wording).
+MDT_PLACE_FALLBACK = "MDT KOC"
 
 
 class ClosedLoopWorkflow(CaseWorkflow):
@@ -131,7 +141,31 @@ class ClosedLoopWorkflow(CaseWorkflow):
         )
         builder.post(mdt_conclusion_provenance(target=composition, signer=actor, recorded=now))
         await self.save_case(loaded, new_case, result.events, actor=actor, directory=directory, bundle=builder)
+        await self._complete_mdt_step(loaded, conclusion_business_id(case_id, now), directory=directory, now=now)
         return TransitionOutcome(new_case, result.events)
+
+    async def _complete_mdt_step(
+        self, loaded: LoadedCase, conclusion_id: str, *, directory: Directory, now: datetime
+    ) -> None:
+        """Second write after the sign-off (#149): the open MDT step of the pathway -> `vysledek_dorucen`.
+
+        Idempotent: without a pathway, an open MDT step or with an already completed one nothing is written. Never
+        raises: the conclusion is stored and signed. A refused guard (e.g. a predecessor is still open) or a failed save
+        is logged; `close` completes the step later.
+        """
+        store = TaskStore(self._repo)
+        step: StoredTask | None = None
+        try:
+            steps = await store.list_for_case(f"Task/{loaded.task['id']}")  # audited read
+            step = next((s for s in steps if is_open_mdt_step(s.task)), None)
+            if step is None:
+                return
+            task, events, _ = _completed_mdt_step(step, steps, conclusion_id, loaded, directory, now)
+            await store.save(step, task, description=_mdt_description(step.task, task, events))
+        except TransitionError as exc:
+            log.info("mdt_step_not_completed", task_id=step.task.id if step else None, reason=exc.code)
+        except Exception:
+            log.exception("mdt_step_not_saved", task_id=step.task.id if step else None)
 
     async def get_conclusion(self, case_id: str, *, actor: PartyRef, directory: Directory) -> MdtConclusionRecord:
         loaded = await self._reader.load(case_id)  # audited read
@@ -234,13 +268,14 @@ class ClosedLoopWorkflow(CaseWorkflow):
         new_case = assign_holder(result.case, actor, directory, loaded)
         case_reference = f"Task/{loaded.task['id']}"
         builder = BundleBuilder()
-        for stored in await TaskStore(self._repo).list_for_case(case_reference):  # audited read
+        store = TaskStore(self._repo)
+        steps = await store.list_for_case(case_reference)  # audited read
+        has_open_mdt = any(is_open_mdt_step(s.task) for s in steps)
+        conclusion_id = await self._conclusion_id(loaded, case_id) if has_open_mdt else None
+        for stored in steps:
             if stored.task.status not in OPEN_STATUSES:
                 continue
-            cancelled = task_machine.transition(
-                stored.task, "cancel", actor.role, task_machine.TaskContext(reason=CLOSE_REASON), now
-            )
-            task = cancelled.task.model_copy(update={"note": CLOSE_REASON})  # stored as Task.statusReason
+            task, events = _closed_step(stored, steps, conclusion_id, loaded, directory, actor, now)
             resource = task_to_fhir(
                 task, case_task_reference=case_reference, patient_reference=str(stored.resource["for"]["reference"])
             )
@@ -248,23 +283,74 @@ class ClosedLoopWorkflow(CaseWorkflow):
             if "focus" in stored.resource:
                 resource["focus"] = stored.resource["focus"]  # the ServiceRequest this step fulfils
             builder.put(resource, version_id=stored.version_id)
-            order = await self._revoked_order(stored)
+            order = await store.closed_order(stored, task)  # cancelled -> revoked, completed -> completed
             if order is not None:
                 builder.put(order, version_id=(order.get("meta") or {}).get("versionId"))
-            for event in cancelled.events:  # the cancel is audited on the step, the close on the case Task
+            for event in events:  # every step change is audited on the step, the close on the case Task
                 if event.kind is EventKind.AUDIT:
                     builder.post(build_domain_audit_event(event, actor=actor, entities=[f"Task/{stored.fhir_id}"]))
         await self.save_case(loaded, new_case, result.events, actor=actor, directory=directory, bundle=builder)
         return TransitionOutcome(new_case, result.events)
 
-    async def _revoked_order(self, stored: StoredTask) -> Resource | None:
-        """The order (ServiceRequest) of a cancelled step as revoked; None for a step without one (ad-hoc task)."""
-        reference = str((stored.resource.get("focus") or {}).get("reference", ""))
-        if not reference.startswith("ServiceRequest/"):
-            return None
-        order = await self._repo.read("ServiceRequest", reference.split("/", 1)[1])
-        await self._repo.audit_read([reference], subtype="read")
-        return {**order, "status": "revoked"}
+    async def _conclusion_id(self, loaded: LoadedCase, case_id: str) -> str | None:
+        """Business id of the signed conclusion (metadata only: its text is not read)."""
+        latest = await self._latest_conclusion(loaded, case_id)
+        value = ((latest or {}).get("identifier") or {}).get("value")
+        return str(value) if value else None
+
+
+def _completed_mdt_step(
+    step: StoredTask,
+    steps: Sequence[StoredTask],
+    conclusion_id: str,
+    loaded: LoadedCase,
+    directory: Directory,
+    now: datetime,
+) -> tuple[Task, list[str], list[DomainEvent]]:
+    """The open MDT step walked to `vysledek_dorucen`; raises TransitionError if the machine refuses."""
+    koc = directory.org(managing_koc_id(loaded, directory) or "")
+    return complete_mdt_step(
+        step.task,
+        conclusion_id,
+        [s.task.id for s in steps if s.task.status is TaskStatus.COMPLETED],
+        place=koc.org.name if koc else MDT_PLACE_FALLBACK,
+        mdt_start=loaded.case.mdt_start or now,
+        at=now,
+    )
+
+
+def _closed_step(
+    stored: StoredTask,
+    steps: Sequence[StoredTask],
+    conclusion_id: str | None,
+    loaded: LoadedCase,
+    directory: Directory,
+    actor: PartyRef,
+    now: datetime,
+) -> tuple[Task, tuple[DomainEvent, ...]]:
+    """An open step at close: the MDT step is completed with the signed conclusion (reconciles a failed second write of
+    the sign-off); every other step, and an MDT step the machine refuses, is cancelled."""
+    if conclusion_id is not None and is_open_mdt_step(stored.task):
+        try:
+            task, _, events = _completed_mdt_step(stored, steps, conclusion_id, loaded, directory, now)
+            return task, tuple(events)
+        except TransitionError as exc:
+            log.info("mdt_step_not_completed", task_id=stored.task.id, reason=exc.code)
+    cancelled = task_machine.transition(
+        stored.task, "cancel", actor.role, task_machine.TaskContext(reason=CLOSE_REASON), now
+    )
+    return cancelled.task.model_copy(update={"note": CLOSE_REASON}), cancelled.events  # note -> Task.statusReason
+
+
+def _mdt_description(before: Task, after: Task, events: Sequence[str]) -> str:
+    """Audit text of the MDT step's completion: ids and states only."""
+    b = TaskBusinessStatus
+    return (
+        f"task {after.id}: {' + '.join(events)}; "
+        f"{before.status.value}/{(before.business_status or b.OBJEDNANO).value} -> "
+        f"{after.status.value}/{(after.business_status or b.OBJEDNANO).value}; "
+        "MDT conclusion signed, recorded by the system"
+    )
 
 
 def _task_ref(loaded: LoadedCase, key: str) -> str:

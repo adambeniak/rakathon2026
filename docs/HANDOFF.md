@@ -114,3 +114,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: dress-rehearse step 4 → 5 on a local IRIS (histology flips ≤ 60 s after the 21. 10. switch, or `advance` to 21. 10.); ADR file needs a number at merge
   Risks: step completion is a second write after the stored upload (logged + retried by the watchdog, not one transaction); a misnamed upload could complete a step (authored-date guard limits it); tasks launched before this change keep owner=null
   Issues: #132, #137 (close), #169 (owner backfill)
+- 2026-10-17 · claude (P4, qa) · qa/e2e-demo-flow · #125: `make e2e` works: frontend/e2e/demo-flow.spec.ts walks demo steps 1–6 in one test against `VITE_MOCKS=1 pnpm dev` (port 5199, 1 worker, video on, full Chromium channel); video at frontend/test-results/demo-flow-demo-flow-mock/video.webm; spec linted + type-checked
+  Next: rehearse the `live` project (`E2E_BASE_URL=…`) on a fresh `make up-local` (#175); align the mock story with the runbook (#172), then move the readiness gate back to 21. 10.
+  Risks: on WSL without sudo Chromium lacks libnspr4/libnss3/libasound2 (`sudo pnpm exec playwright install-deps chromium` once); the headless shell crashed there, hence `channel: 'chromium'`
+  Issues: #172 (mock vs runbook step 5), #173 (findings all labelled Nesouhlasí), #174 (no path back to a case after send_feedback), #175 (live project + mock-only gaps), #176 (runbook label drift)

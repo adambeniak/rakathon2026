@@ -141,11 +141,11 @@ async def test_baton_goes_to_a_role_level_physician_when_the_coordinator_complet
     assert outcome.case.baton_holder.display == "Lékař KOC 2"
 
 
-async def test_events_without_an_endpoint_yet_are_refused() -> None:
+async def test_events_that_are_not_case_endpoints_are_refused() -> None:
     workflow, repo = _workflow(_loaded(CaseState.KOMPLETNI))
 
     with pytest.raises(InvalidInputError):
-        await workflow.transition("c", "mark_ready_mdt", actor=COORDINATOR.party(), directory=DIRECTORY, now=NOW)  # type: ignore[union-attr]
+        await workflow.transition("c", "submit", actor=COORDINATOR.party(), directory=DIRECTORY, now=NOW)  # type: ignore[union-attr]
 
     assert repo.bundles == []
 

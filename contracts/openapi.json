@@ -4438,6 +4438,32 @@
         "title": "QueueBucket",
         "type": "string"
       },
+      "ReadinessWaiver": {
+        "additionalProperties": false,
+        "description": "A KOC physician's waiver of one blocking readiness item. The signer is always the acting physician.",
+        "properties": {
+          "item": {
+            "description": "Readiness item from the pathway, e.g. 'performance_status'.",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Item",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the MDT may go ahead without it.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "reason"
+        ],
+        "title": "ReadinessWaiver",
+        "type": "object"
+      },
       "ReferralCreated": {
         "properties": {
           "case": {
@@ -5815,6 +5841,15 @@
             "reason": "chybí CT"
           },
           {
+            "event": "mark_ready_mdt",
+            "waivers": [
+              {
+                "item": "performance_status",
+                "reason": "PS doplní lékař na MDT."
+              }
+            ]
+          },
+          {
             "conclusion": "Závěr MDT dle zápisu.",
             "event": "record_mdt_conclusion"
           }
@@ -5834,7 +5869,7 @@
             "title": "Conclusion"
           },
           "event": {
-            "description": "accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator). Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.",
+            "description": "accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator) | mark_ready_mdt (koc_physician; readiness is computed on the server from the pathway's required items and the persisted handover, never taken from the client) | reopen (koc_physician; reason required).",
             "maxLength": 40,
             "title": "Event",
             "type": "string"
@@ -5877,6 +5912,15 @@
             ],
             "description": "Required by postpone: date or external step.",
             "title": "Resume On"
+          },
+          "waivers": {
+            "description": "Only for mark_ready_mdt, only from a koc_physician: items still blocking after the server's own check that the physician waives with a reason. Each one is recorded as Provenance and in the AuditEvent.",
+            "items": {
+              "$ref": "#/components/schemas/ReadinessWaiver"
+            },
+            "maxItems": 20,
+            "title": "Waivers",
+            "type": "array"
           }
         },
         "required": [

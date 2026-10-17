@@ -18,6 +18,7 @@ that carry data or a side effect and delegates every other event to the base cla
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
 
@@ -43,6 +44,7 @@ from app.fhir.mappers.mdt_conclusion import (
     mdt_conclusion_provenance,
     mdt_conclusion_to_fhir,
 )
+from app.fhir.readiness import WaiverRequest
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_COMPOSITION_TYPE
 from app.fhir.workflow import CaseWorkflow, TransitionOutcome, assign_holder, authorize_case, managing_koc_id
@@ -74,6 +76,7 @@ class ClosedLoopWorkflow(CaseWorkflow):
         resume_on: str | None = None,
         conclusion: str | None = None,
         receipt_id: str | None = None,
+        waivers: Sequence[WaiverRequest] = (),
     ) -> TransitionOutcome:
         if event == "record_mdt_conclusion":
             return await self.record_conclusion(case_id, conclusion, actor=actor, directory=directory, now=now)
@@ -89,6 +92,7 @@ class ClosedLoopWorkflow(CaseWorkflow):
             resume_on=resume_on,
             conclusion=conclusion,
             receipt_id=receipt_id,
+            waivers=waivers,
         )
 
     async def record_conclusion(

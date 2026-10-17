@@ -28,6 +28,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | MDT record | `Composition` | sections = MDT_zapis | F3-3 |
 | AI evidence | `Provenance` | target = derived resource (or the Composition, activity `assemble`), activity `extract`, agent assembler = Device (model + prompt versions), entity.role source, what = DocumentReference, `evidence-quote` extension (quote, charStart, charEnd) | F2-2 |
 | Physician confirmation | `Provenance` | target = Composition, activity confirm / edit / accept-missing, agent verifier = PractitionerRole (business identifier + display, workflow role), extensions `handover-section` + `previous-value-sha256` | F2-2 |
+| MDT readiness waiver | `Provenance` | target = the coordinating `Task`, activity `provenance-activity|waive-readiness`, agent verifier = the acting KOC physician (PractitionerRole identifier + display, workflow role), `reason.text` = the physician's reason, extension `readiness-item`; written in the same transaction as the `mark_ready_mdt` Task update and its `AuditEvent` (detail `waived`) | #68 `mappers/readiness.py`, `readiness.py` |
 | Consent / wishes | `Consent` | identifier `consent|<case id>`, scope patient-privacy, patient, organization KOC, sourceReference letter, provision permit/disclose to the KOC; statements of the letter verbatim in `consent-statement` extensions (not interpreted) | F2-1 |
 | Messages | `CommunicationRequest` / `Communication` | request missing reports (fixed template + label as written in the letter; status `active` → `completed` when the report arrives); MDT result to GP; `received` = delivery proof | F2-1 / F3-4 |
 | Report request step | `Task` code `request-report` | partOf case Task, basedOn CommunicationRequest, owner coordinator, `restriction.period.end` = due (+2 working days), `restriction.recipient` = workplace, businessStatus `objednano` → `vysledek_dorucen`, `output` = delivered DocumentReference, extension `request-exam-date` | F2-1 `mappers/document_request.py` |
@@ -75,7 +76,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `handover-section` | 1_patient … 15_other (keys shared with `data/golden`) |
 | `handover-field-status` | complete, partial, missing, stale, needs_clarification, complete_with_conflict, generated_with_citations |
 | `handover-review-state` | draft, confirmed, accepted_missing (used as `valueCode` in the review extension) |
-| `provenance-activity` | assemble, extract, confirm, edit, accept-missing |
+| `provenance-activity` | assemble, extract, confirm, edit, accept-missing, waive-readiness |
 
 ## Our extensions (`https://stafeta.example/fhir/StructureDefinition/<name>`, not loaded into IRIS)
 | Name | On | Value |
@@ -88,6 +89,7 @@ mCODE STU4 for cancer condition/staging. Decision record: [ADR-0001](adr/0001-ir
 | `evidence-quote` | Provenance.entity | complex: quote (string), charStart, charEnd (integer) |
 | `handover-section` | Provenance (confirmation) | valueCode, the section key |
 | `previous-value-sha256` | Provenance (confirmation) | valueString, SHA-256 of the section value before the confirmation |
+| `readiness-item` | Provenance (readiness waiver) | valueCode, the PlanDefinition `mdt-required-items` entry that was waived |
 | `tag` | stafeta-demo (all demo writes; wiped by `make demo-reset` except AuditEvents, which are never deleted), stafeta-test (integration tests, cleaned up by the tests) |
 
 ## Our extensions (`https://stafeta.example/fhir/StructureDefinition/<name>`)

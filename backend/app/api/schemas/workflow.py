@@ -11,6 +11,17 @@ from app.domain.task import TaskBusinessStatus, TaskStatus
 from app.domain.triage import RequestProposal
 
 
+class ReadinessWaiver(BaseModel):
+    """A KOC physician's waiver of one blocking readiness item. The signer is always the acting physician."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    item: str = Field(
+        min_length=1, max_length=100, description="Readiness item from the pathway, e.g. 'performance_status'."
+    )
+    reason: str = Field(min_length=1, max_length=500, description="Why the MDT may go ahead without it.")
+
+
 class TransitionRequest(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -18,6 +29,10 @@ class TransitionRequest(BaseModel):
             "examples": [
                 {"event": "accept"},
                 {"event": "missing_found", "reason": "chybí CT"},
+                {
+                    "event": "mark_ready_mdt",
+                    "waivers": [{"item": "performance_status", "reason": "PS doplní lékař na MDT."}],
+                },
                 {"event": "record_mdt_conclusion", "conclusion": "Závěr MDT dle zápisu."},
             ]
         },
@@ -28,8 +43,9 @@ class TransitionRequest(BaseModel):
         description="accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | "
         "record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and "
         "records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | "
-        "gp_opened (the referring GP) | close (coordinator). "
-        "Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.",
+        "gp_opened (the referring GP) | close (coordinator) | mark_ready_mdt (koc_physician; readiness is computed "
+        "on the server from the pathway's required items and the persisted handover, never taken from the client) | "
+        "reopen (koc_physician; reason required).",
     )
     reason: str | None = Field(None, max_length=500, description="Required by missing_found and postpone.")
     resume_on: str | None = Field(None, max_length=200, description="Required by postpone: date or external step.")
@@ -39,6 +55,12 @@ class TransitionRequest(BaseModel):
         description="Required by record_mdt_conclusion. The signing clinician is the acting user (`confirmed_by`).",
     )
     receipt_id: str | None = Field(None, max_length=200, description="Required by delivery_confirmed.")
+    waivers: list[ReadinessWaiver] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Only for mark_ready_mdt, only from a koc_physician: items still blocking after the server's own "
+        "check that the physician waives with a reason. Each one is recorded as Provenance and in the AuditEvent.",
+    )
 
 
 class DocumentRequestItem(BaseModel):

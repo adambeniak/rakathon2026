@@ -6,6 +6,7 @@ a failed or raced write never leaves a half-applied state. The state machine its
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
@@ -18,6 +19,7 @@ from app.domain.directory import OrganizationKind
 from app.domain.document import SourceDocument
 from app.domain.errors import ConflictError, ForbiddenError, InvalidInputError, NotFoundError
 from app.domain.events import DomainEvent, EventKind, TransitionError
+from app.domain.pathway import Readiness
 from app.domain.task import Task
 from app.fhir.audit import build_domain_audit_event
 from app.fhir.bundles import BundleBuilder
@@ -31,13 +33,14 @@ from app.fhir.mappers.document_request import (
     request_task_from_fhir,
     request_task_to_fhir,
 )
+from app.fhir.mappers.readiness import waiver_provenance
+from app.fhir.readiness import ReadinessSource, WaiverRequest
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_TASK_CODE, SID_REQUEST_TASK, SID_SOURCE_DOCUMENT, TASK_CODE_REQUEST_REPORT
 from app.security.actor import SYSTEM_ACTOR
 
-# Events whose guards need data that has no endpoint yet (`mark_ready_mdt`: the readiness gate input) are refused
-# instead of being half-supported. `delivery_confirmed` is system-only in the machine and `system` cannot be picked
-# over HTTP, so only internal callers (notify) can fire it.
+# `delivery_confirmed` is system-only in the machine and `system` cannot be picked over HTTP, so only internal callers
+# (notify) can fire it. `mark_ready_mdt` takes its readiness from the server (`ReadinessSource`), never from the client.
 SUPPORTED_EVENTS = frozenset(
     {
         "accept",
@@ -45,6 +48,8 @@ SUPPORTED_EVENTS = frozenset(
         "mark_complete",
         "docs_received",
         "missing_found",
+        "mark_ready_mdt",
+        "reopen",
         "postpone",
         "resume",
         "record_mdt_conclusion",
@@ -120,6 +125,7 @@ class CaseWorkflow:
     def __init__(self, repository: FhirRepository, reader: CaseReader) -> None:
         self._repo = repository
         self._reader = reader
+        self._readiness = ReadinessSource(repository)
 
     async def open_request_count(self, loaded: LoadedCase) -> int:
         return await self._repo.count(
@@ -143,14 +149,28 @@ class CaseWorkflow:
         resume_on: str | None = None,
         conclusion: str | None = None,
         receipt_id: str | None = None,
+        waivers: Sequence[WaiverRequest] = (),
     ) -> TransitionOutcome:
         if event not in SUPPORTED_EVENTS:
             raise InvalidInputError(f"event {event!r} is not available through this endpoint")
+        if waivers and event != "mark_ready_mdt":
+            raise InvalidInputError("waivers apply only to mark_ready_mdt")
         loaded = await self._reader.load(case_id)
         authorize_case(loaded, actor, directory)
         open_requests = await self.open_request_count(loaded)
         requester = _requester(loaded, directory)
+        readiness: Readiness | None = None
+        # Only a request the machine would take as far as the guard is evaluated: a wrong state, a postponed case or a
+        # wrong role gets the machine's own refusal (invalid_transition, case_postponed, forbidden_role) first.
+        if (
+            event == "mark_ready_mdt"
+            and loaded.case.state is CaseState.KOMPLETNI
+            and not loaded.case.odlozeny
+            and actor.role is Role.KOC_PHYSICIAN
+        ):
+            readiness = await self._readiness.evaluate(loaded, actor, waivers)
         ctx = case_machine.CaseContext(
+            readiness=readiness,
             reason=reason,
             resume_on=resume_on,
             open_request_tasks=open_requests,
@@ -166,7 +186,12 @@ class CaseWorkflow:
         new_case = assign_holder(result.case, actor, directory, loaded)
         if event == "accept" and actor.role is Role.COORDINATOR:
             new_case = new_case.model_copy(update={"baton_holder": actor})
-        await self.save_case(loaded, new_case, result.events, actor=actor, directory=directory, status_reason=reason)
+        builder = BundleBuilder()
+        for waiver in readiness.waived if readiness else ():  # who waived what and why, with the state change
+            builder.post(waiver_provenance(waiver, target=f"Task/{loaded.task['id']}", signer=actor, recorded=now))
+        await self.save_case(
+            loaded, new_case, result.events, actor=actor, directory=directory, status_reason=reason, bundle=builder
+        )
         return TransitionOutcome(new_case, result.events)
 
     async def save_case(

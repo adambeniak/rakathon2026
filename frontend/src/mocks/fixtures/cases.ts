@@ -40,6 +40,10 @@ export interface MockStore {
   acknowledged: string[]
   feedbackSent: boolean
   mdtGeneratedAt: string | null
+  /** The conclusion a physician signed through `record_mdt_conclusion`. */
+  conclusion: { text: string; by: string; signedAt: string } | null
+  /** The coordinator closed the case (`close`). */
+  closed: boolean
   confirmed: Record<string, string>
   extraCases: MockCase[]
   /** ids of document requests the coordinator has sent. */
@@ -56,6 +60,8 @@ export function newStore(): MockStore {
     acknowledged: [],
     feedbackSent: false,
     mdtGeneratedAt: null,
+    conclusion: null,
+    closed: false,
     confirmed: {},
     extraCases: [],
     requested: [],
@@ -72,7 +78,7 @@ function alena(today: string, s: MockStore): MockCase | null {
   let state: CaseState
   let subStatus: string
   let baton: MockCase['baton']
-  if (s.feedbackSent && s.acknowledged.includes(ALENA_ID)) {
+  if (s.closed || (s.feedbackSent && s.acknowledged.includes(ALENA_ID))) {
     state = 'uzavreno'
     subStatus = 'Uzavřeno – převzetí potvrzeno PL'
     baton = { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null }
@@ -80,6 +86,10 @@ function alena(today: string, s: MockStore): MockCase | null {
     state = 'zpetna_vazba_odeslana'
     subStatus = 'Závěr MDT odeslán PL, čeká na potvrzení přijetí'
     baton = { name: `${DEMO_USERS.gp.name} (PL)`, action: 'Potvrdit přijetí závěru MDT', due: '2026-10-23' }
+  } else if (s.conclusion) {
+    state = 'zaver_mdt'
+    subStatus = 'Závěr MDT zapsán – čeká na odeslání PL'
+    baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Odeslat závěr PL', due: '2026-10-22' }
   } else if (today === '2026-10-21') {
     state = 'pripraveno_mdt'
     subStatus = 'MDT dnes 8:00 – handover k as-of 21. 10. 2026'

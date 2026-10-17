@@ -81,3 +81,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #111 `GET /api/me` so the names are no longer mirrored by hand
   Risks: names are a hand-kept mirror of the seed (both tests fail if they drift); the overview card "Zjištění z dokumentace" is still only a hint + link to the handover, no findings list; no browser screenshots
   Issues: #95 (closes), #111
+- 2026-10-17 · claude (P4) · fix/mdt-conclusion · #41: MDT screen closes the loop via `POST /transitions` only: physician form -> `record_mdt_conclusion` (shown as saved only after the API signed it, read back from `GET /mdt-conclusion` with signer + time), coordinator `send_feedback` (503 -> Czech retry, state unchanged) and `close` (warning, closing allowed); mock transitions/store extended, provisional `/send-feedback` + `/mdt/generate` mocks removed
+  Next: #97 mark-ready (without #108, from the 409 `guard_failed` detail); positive write path NOT run live (backend is on the shared ACI, no reset): run it once on a resettable IRIS (`make up-local`) or accept the state change
+  Risks: no GP-read signal in the API, so the close warning is neutral (#113); the 409 `detail` is English guard text
+  Issues: #113 (gp_opened_at on the case)

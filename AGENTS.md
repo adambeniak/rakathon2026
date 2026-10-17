@@ -41,7 +41,7 @@ back to the GP with proof of delivery. Demo case: fictitious patient Alena Proch
 | Task | Command |
 | --- | --- |
 | Start backend + mailpit (against the IRIS in `.env`, team ACI) | `make up` |
-| Same + local IRIS container (demo fallback) | `make up-local` (password in `.iris/password.txt`) |
+| Demo fallback, ONE command: local IRIS + bootstrap + seed + backend + health check | `make up-local` (`SCENARIO=story` for the full case; password in `.iris/password.txt`) |
 | Bootstrap IRIS (idempotent) | `make iris-bootstrap` |
 | Seed demo case | `make seed` |
 | Lint + types + unit tests | `make check` |

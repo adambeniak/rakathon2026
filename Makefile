@@ -9,7 +9,7 @@ SHELL := /bin/bash
 up:            ## start backend + mailpit against the IRIS configured in .env (team ACI)
 	docker compose up -d --build
 
-up-local:      ## same + local IRIS container (demo fallback); a fresh container gets a clean password file (scripts/iris_local_prepare.sh)
+up-local:      ## demo fallback in ONE command: local IRIS + bootstrap + seed (SCENARIO=demo-start|story) + backend + health check OK/FAIL
 	./scripts/up_local.sh
 
 down:

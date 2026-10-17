@@ -172,6 +172,9 @@ coverage type v3-ActCode, organisation type `http://terminology.hl7.org/CodeSyst
   (authored, not searchable) in code.
 - Case read-backs (#131, #113; not yet verified on IRIS): `AuditEvent?entity=Task/<id>&subtype=<audit-event-code>|gp_opened`
   (+ `|reopen`), `Provenance?target=Task/<id>` filtered on activity `waive-readiness` in code (ADR case-waivers).
+- Case activity (#47; not yet verified on IRIS): `AuditEvent?entity=<ref>,<ref>,...` (chunks of 20, merged by id, sorted in
+  code) for the audit trail; `+&type=<audit-type>|domain-event` for timeline events; `Communication?subject=Patient/<id>` /
+  `CommunicationRequest?subject=Patient/<id>` filtered by `about` = the case EpisodeOfCare in code (ADR case-audit-timeline-messages).
 
 ## Seeded demo data (`python -m app.seed`, scenario `story`)
 8 Organization · 17 Practitioner · 17 PractitionerRole · 1 Patient · 1 RelatedPerson · 1 Coverage · 1 EpisodeOfCare ·

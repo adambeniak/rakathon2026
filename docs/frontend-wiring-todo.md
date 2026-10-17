@@ -17,7 +17,7 @@ iteration (they work with `VITE_MOCKS=1` only). Not blocking this PR; each row i
 | Task set | `POST /api/cases/{id}/task-sets` | `POST /api/cases/{id}/pathways` (`LaunchPathwayRequest`) | |
 | Task board | `GET /api/cases/{id}/tasks` + `.../tasks/{t}/phase` | `GET /api/cases/{id}/board` (`Board`), `POST /api/tasks/{task_id}/transitions` | board already groups by baton holder; check lanes vs `Board` |
 | Handover | `GET /api/cases/{id}/handover` and `POST .../sections/{number}/confirm` are **on the contract** (`features/handover/adapter.ts`, `expected_value_hash`); still mock: `.../confirm-all`, `.../edit` | no edit / confirm-all endpoint in the contract | per-row edit attribution (`items[].edit`) is a mock-only extension: the API records only `review.edited/by/at` and no reason; the real backend therefore shows no per-row reason |
-| Findings, timeline, messages, audit, MDT, `gp/cases`, `reviewer/cases` | mocks | not in contract | `GET /api/cases/{id}/alerts` may replace findings |
+| Findings, MDT, `gp/cases`, `reviewer/cases` | mocks | not in contract | `GET /api/cases/{id}/alerts` may replace findings |
 
 ## Known gaps / small issues (not fixed here)
 

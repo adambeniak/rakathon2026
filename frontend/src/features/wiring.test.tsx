@@ -66,6 +66,10 @@ describe('demo steps 2 and 4', () => {
     expect(screen.getAllByRole('checkbox')).toHaveLength(5)
     expect(screen.getAllByText(/Adresát:/)).toHaveLength(5)
     expect(screen.queryByText(/epikr/i)).toBeNull()
+    // The hint is sourced: its chip is report 07 (the letter) with a quote the API returned.
+    const hint = document.getElementById('triage-hint')!
+    await userEvent.click(within(hint).getByRole('button', { name: /^Zdroj:/ }))
+    expect(await screen.findByText(/^1\. Laboratorní vyšetření 1\. 9\. 2026/)).toBeInTheDocument() // verbatim line of report 07
     await userEvent.click(screen.getAllByRole('checkbox')[0]!) // deselect one
     await userEvent.click(screen.getByRole('button', { name: 'Vyžádat vybrané' }))
     await waitFor(() => expect(screen.getAllByText('Čeká na podklady').length).toBeGreaterThan(0))
@@ -94,11 +98,17 @@ describe('demo steps 2 and 4', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Případ se nepodařilo převzít. Případ už byl převzat jiným koordinátorem')
   })
 
-  it('claim from the inbox turns the case into triage', async () => {
+  it('claim from the inbox turns the case into triage and moves it from Nový to Aktivní', async () => {
     renderRoute('/inbox', { today: '2026-10-02' })
+    await screen.findByRole('heading', { name: /Nový/ })
+    const column = (name: RegExp) => within(screen.getByRole('heading', { name }).closest('section')!)
+    expect(await column(/Nový/).findByRole('article', { name: 'Alena Procházková' })).toBeInTheDocument() // odeslano is the only Nový state
+    expect(column(/Aktivní/).queryByRole('article', { name: 'Alena Procházková' })).toBeNull()
     await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Alena Procházková' }))
     await waitFor(() => expect(screen.queryByRole('button', { name: /Převzít případ: Alena/ })).toBeNull())
     expect(within(screen.getByRole('article', { name: 'Alena Procházková' })).getByText('V triage')).toBeInTheDocument()
+    expect(column(/Aktivní/).getByRole('article', { name: 'Alena Procházková' })).toBeInTheDocument()
+    expect(column(/Nový/).queryByRole('article', { name: 'Alena Procházková' })).toBeNull()
   })
 
   it('a proposal without a resolved workplace cannot be requested, an attached report is not offered again', async () => {

@@ -30,6 +30,7 @@ export function TriagePanel({ caseId, canAct }: { caseId: string; canAct: boolea
     requested: requests.data.some((r) => r.label === p.label),
     selectable: p.status === 'missing' && !!p.recipient_org_id && !requests.data.some((r) => r.label === p.label),
   }))
+  const hintSource = proposals.data.proposals.flatMap((p) => p.evidence)[0]
   const selected = rows.filter((r) => r.selectable && !unchecked.has(r.p.key))
   const toggle = (key: string) =>
     setUnchecked((prev) => {
@@ -47,7 +48,11 @@ export function TriagePanel({ caseId, canAct }: { caseId: string; canAct: boolea
           </h2>
           <StatusPill kind="ai" />
         </div>
-        <p className="text-sm text-muted">{t.triage.hint}</p>
+        <p id="triage-hint" className="flex flex-wrap items-center gap-2 text-sm text-muted">
+          {t.triage.hint}
+          {/* The letter is the source of the hint: the chip quotes a line the API returned from it, never UI text. */}
+          {hintSource && <EvidenceChip docId={hintSource.doc_id} quote={hintSource.quote} doc={documents?.find((d) => d.id === hintSource.doc_id)} />}
+        </p>
         <p className="text-sm font-medium">{t.triage.proposal}</p>
       </div>
       <ul className="divide-y divide-hairline">

@@ -1,6 +1,6 @@
-"""Demo steps 5-6 as write operations that need more than a state change: the MDT conclusion and the GP feedback.
+"""Demo steps 5-6 as write operations that need more than a state change: MDT conclusion, GP feedback, closing.
 
-`CaseWorkflow` stays the one entry point of `POST /cases/{id}/transitions`; this subclass intercepts the two events
+`CaseWorkflow` stays the one entry point of `POST /cases/{id}/transitions`; this subclass intercepts the three events
 that carry data or a side effect and delegates every other event to the base class.
 
 - `record_mdt_conclusion`: ONE transaction = case Task PUT (If-Match) + business AuditEvent + the conclusion
@@ -14,6 +14,11 @@ that carry data or a side effect and delegates every other event to the base cla
   The receipt means "the relay accepted the message" (handed over for delivery), not that the GP got or read it;
   the GP opening the feedback is the separate `gp_opened` event. If the write fails AFTER a successful send, the
   mail is out but nothing is recorded: the Message-ID is logged and a retry would send a second mail (see PR risks).
+- `close`: a closed case leaves nobody "on the move". Every still open step (pathway or ad-hoc) is cancelled with the
+  reason "Případ uzavřen" and its order (ServiceRequest) revoked, in ONE transaction with the case Task: case state,
+  step Tasks, orders and the AuditEvents (each step's on its own Task) commit or fail together. Completed and failed
+  steps stay as they are. The board then shows the steps as cancelled, and alerts and the SLA watchdog, which only
+  look at open steps, stop for the case (#133).
 """
 
 from __future__ import annotations
@@ -24,11 +29,12 @@ from datetime import datetime
 
 import structlog
 
-from app.domain import case_machine
+from app.domain import case_machine, task_machine
 from app.domain.case import CaseState
 from app.domain.common import PartyRef, Role
 from app.domain.errors import ForbiddenError, InvalidInputError, NotFoundError
 from app.domain.events import EventKind
+from app.domain.task_machine import OPEN_STATUSES
 from app.fhir.audit import build_domain_audit_event
 from app.fhir.bundles import BundleBuilder
 from app.fhir.cases import CaseReader, LoadedCase
@@ -44,9 +50,11 @@ from app.fhir.mappers.mdt_conclusion import (
     mdt_conclusion_provenance,
     mdt_conclusion_to_fhir,
 )
+from app.fhir.mappers.task import task_to_fhir
 from app.fhir.readiness import WaiverRequest
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import CS_COMPOSITION_TYPE
+from app.fhir.tasks import StoredTask, TaskStore
 from app.fhir.workflow import CaseWorkflow, TransitionOutcome, assign_holder, authorize_case, managing_koc_id
 from app.notify.feedback_mail import FeedbackMailInput, build_feedback_mail
 from app.notify.mailer import Mailer, new_message_id
@@ -56,6 +64,8 @@ log = structlog.get_logger(__name__)
 
 # The GP may read the conclusion only once the feedback has been sent to them.
 GP_VISIBLE_STATES = frozenset({CaseState.ZPETNA_VAZBA_ODESLANA, CaseState.UZAVRENO})
+# Status reason of the steps still open when the case is closed (workflow wording, no clinical content).
+CLOSE_REASON = "Případ uzavřen"
 
 
 class ClosedLoopWorkflow(CaseWorkflow):
@@ -82,6 +92,8 @@ class ClosedLoopWorkflow(CaseWorkflow):
             return await self.record_conclusion(case_id, conclusion, actor=actor, directory=directory, now=now)
         if event == "send_feedback":
             return await self.send_feedback(case_id, actor=actor, directory=directory, now=now)
+        if event == "close" and not waivers:  # waivers with close: the base class refuses them
+            return await self.close(case_id, actor=actor, directory=directory, now=now)
         return await super().transition(
             case_id,
             event,
@@ -213,6 +225,46 @@ class ClosedLoopWorkflow(CaseWorkflow):
             log.error("feedback_mail_sent_but_state_not_saved", message_id=message_id)
             raise
         return TransitionOutcome(new_case, (*sent.events, *delivered.events))
+
+    async def close(self, case_id: str, *, actor: PartyRef, directory: Directory, now: datetime) -> TransitionOutcome:
+        loaded = await self._reader.load(case_id)
+        authorize_case(loaded, actor, directory)
+        # The machine checks the role and the guard (delivery confirmed) before any step is read or changed.
+        result = case_machine.transition(loaded.case, "close", actor.role, case_machine.CaseContext(), now)
+        new_case = assign_holder(result.case, actor, directory, loaded)
+        case_reference = f"Task/{loaded.task['id']}"
+        builder = BundleBuilder()
+        for stored in await TaskStore(self._repo).list_for_case(case_reference):  # audited read
+            if stored.task.status not in OPEN_STATUSES:
+                continue
+            cancelled = task_machine.transition(
+                stored.task, "cancel", actor.role, task_machine.TaskContext(reason=CLOSE_REASON), now
+            )
+            task = cancelled.task.model_copy(update={"note": CLOSE_REASON})  # stored as Task.statusReason
+            resource = task_to_fhir(
+                task, case_task_reference=case_reference, patient_reference=str(stored.resource["for"]["reference"])
+            )
+            resource["id"] = stored.fhir_id
+            if "focus" in stored.resource:
+                resource["focus"] = stored.resource["focus"]  # the ServiceRequest this step fulfils
+            builder.put(resource, version_id=stored.version_id)
+            order = await self._revoked_order(stored)
+            if order is not None:
+                builder.put(order, version_id=(order.get("meta") or {}).get("versionId"))
+            for event in cancelled.events:  # the cancel is audited on the step, the close on the case Task
+                if event.kind is EventKind.AUDIT:
+                    builder.post(build_domain_audit_event(event, actor=actor, entities=[f"Task/{stored.fhir_id}"]))
+        await self.save_case(loaded, new_case, result.events, actor=actor, directory=directory, bundle=builder)
+        return TransitionOutcome(new_case, result.events)
+
+    async def _revoked_order(self, stored: StoredTask) -> Resource | None:
+        """The order (ServiceRequest) of a cancelled step as revoked; None for a step without one (ad-hoc task)."""
+        reference = str((stored.resource.get("focus") or {}).get("reference", ""))
+        if not reference.startswith("ServiceRequest/"):
+            return None
+        order = await self._repo.read("ServiceRequest", reference.split("/", 1)[1])
+        await self._repo.audit_read([reference], subtype="read")
+        return {**order, "status": "revoked"}
 
 
 def _task_ref(loaded: LoadedCase, key: str) -> str:

@@ -98,3 +98,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: demo-script step 5 opens Připravit MDT first (#156); 'převzato' marker in the DOCX/UI (#167)
   Risks: carry-over runs once, when the snapshot is created; GET shows carried decisions only after the MDT screen stored the snapshot; snapshots stored before this change carry nothing (no conflicts stored)
   Issues: #151 (Loop.test flake, pre-existing like #144), #156, #167
+- 2026-10-17 · claude (P4) · fix/closed-case-tasks · #133: `close` (intercepted in `ClosedLoopWorkflow`) cancels every still open step with reason "Případ uzavřen" and revokes its ServiceRequest in ONE transaction with the case Task; completed/failed steps untouched; per-step cancel AuditEvent on the step Task. Board shows them cancelled, /alerts empty, the watchdog skips them (it reads open steps only)
+  Live run DONE on a throw-away local IRIS (story seed, pathway, advance to 16. 10., conclusion, feedback, close): board all cancelled/completed, /alerts [], SRs revoked, watchdog alive but leaves the cancelled steps alone. Next: #149 (MDT step ends cancelled, not completed), #166 (a closed case still accepts new tasks)
+  Risks: closing now writes the steps too, so a concurrent step update makes `close` fail with 412 (retry); no contract change
+  Issues: #148 (Loop.test.tsx flake under parallel vitest, alongside #144), #149, #166

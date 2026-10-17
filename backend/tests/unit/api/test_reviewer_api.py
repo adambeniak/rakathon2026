@@ -11,6 +11,7 @@ from datetime import date, datetime
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import SecretStr
 
 from app.api.deps import (
     LlmClients,
@@ -21,7 +22,7 @@ from app.api.deps import (
     get_iris_pool,
     get_llm_clients,
 )
-from app.api.services.reviewer import case_ref, diagnosis_group, initials
+from app.api.services.reviewer import case_ref, diagnosis_category, initials
 from app.domain.case import Case, CaseState
 from app.domain.errors import NotFoundError
 from app.domain.patient import Patient, Sex
@@ -114,11 +115,11 @@ def test_reviewer_sees_only_own_insurer_cases_minimised(client: TestClient, sett
     assert response.status_code == 200
     [case] = response.json()
     assert case == {
-        "ref": case_ref(SENT.id, settings.jwt_secret),
+        "ref": case_ref(SENT.id, settings.reviewer_pseudonym_key),
         "initials": "A. P.",
         "birth_year": 1963,
         "insurer_code": "211",
-        "diagnosis_group": "C25",
+        "diagnosis_category": "C25",
         "state": "zpetna_vazba_odeslana",
         "referred_on": "2026-10-02",
         "intervals": {
@@ -126,7 +127,7 @@ def test_reviewer_sees_only_own_insurer_cases_minimised(client: TestClient, sett
             "t2": {"days": 19, "status": "measured", "start": "2026-10-02", "end": "2026-10-21"},
             "t3": {"days": None, "status": "running", "start": "2026-10-21", "end": None},
         },
-        "delivery": {"status": "opened_by_gp", "gp_opened_at": "2026-10-22T09:15:00+02:00"},
+        "delivery": {"status": "opened_by_gp", "gp_opened_on": "2026-10-22"},
     }
 
 
@@ -138,17 +139,17 @@ def test_reviewer_payload_carries_no_identifying_or_clinical_text(client: TestCl
 
 
 def test_ref_is_a_stable_pseudonym_not_the_case_id(settings: Settings) -> None:
-    ref = case_ref(SENT.id, settings.jwt_secret)
+    ref = case_ref(SENT.id, settings.reviewer_pseudonym_key)
 
     assert re.fullmatch(r"RV-[0-9A-F]{12}", ref)
-    assert ref == case_ref(SENT.id, settings.jwt_secret)
-    assert ref != case_ref(OTHER_INSURER.id, settings.jwt_secret)
+    assert ref == case_ref(SENT.id, settings.reviewer_pseudonym_key)
+    assert ref != case_ref(OTHER_INSURER.id, settings.reviewer_pseudonym_key)
 
 
 def test_reviewer_detail_by_ref_is_an_audited_single_case_read(
     client: TestClient, reader: ReviewerReader, settings: Settings
 ) -> None:
-    ref = case_ref(SENT.id, settings.jwt_secret)
+    ref = case_ref(SENT.id, settings.reviewer_pseudonym_key)
 
     response = client.get(f"/api/reviewer/cases/{ref}", headers=REVIEWER)
 
@@ -158,7 +159,7 @@ def test_reviewer_detail_by_ref_is_an_audited_single_case_read(
 
 
 def test_other_insurers_case_is_not_found_for_the_reviewer(client: TestClient, settings: Settings) -> None:
-    ref = case_ref(OTHER_INSURER.id, settings.jwt_secret)
+    ref = case_ref(OTHER_INSURER.id, settings.reviewer_pseudonym_key)
 
     response = client.get(f"/api/reviewer/cases/{ref}", headers=REVIEWER)
 
@@ -219,7 +220,39 @@ def test_delivery_status(
 
 def test_helpers() -> None:
     assert initials("alena", "Procházková") == "A. P."
-    assert diagnosis_group("c25.0") == "C25"
-    assert diagnosis_group("C61") == "C61"
-    assert diagnosis_group("tumor") is None
-    assert diagnosis_group(None) is None
+    assert diagnosis_category("c25.0") == "C25"
+    assert diagnosis_category("C61") == "C61"
+    assert diagnosis_category("tumor") is None
+    assert diagnosis_category(None) is None
+
+
+def test_reviewer_responses_are_not_cached(client: TestClient) -> None:
+    response = client.get("/api/reviewer/cases", headers=REVIEWER)
+
+    assert response.headers["cache-control"] == "no-store"
+    assert "X-Demo-Role" in response.headers["vary"]
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("GET", f"/api/cases/{CASE.id}/handover"),
+        ("POST", f"/api/cases/{CASE.id}/handover"),
+        ("GET", f"/api/cases/{CASE.id}/handover/export"),
+    ],
+)
+def test_reviewer_gets_403_on_the_handover_before_any_read(
+    client: TestClient, reader: ReviewerReader, method: str, path: str
+) -> None:
+    response = client.request(method, path, headers=REVIEWER)
+
+    assert response.status_code == 403
+    assert reader.calls == []
+
+
+def test_pseudonym_key_is_dedicated_or_derived_never_the_raw_token_secret(settings: Settings) -> None:
+    derived = settings.reviewer_pseudonym_key.get_secret_value()
+
+    assert derived != settings.jwt_secret.get_secret_value()
+    explicit = settings.model_copy(update={"reviewer_ref_key": SecretStr("from-key-vault")})
+    assert explicit.reviewer_pseudonym_key.get_secret_value() == "from-key-vault"

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from enum import StrEnum
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.schemas.intervals import TimeToTreatmentIntervals
 from app.domain.case import CaseState
@@ -25,8 +25,10 @@ class ReviewerDelivery(BaseModel):
         description="not_sent | handed_over (the relay accepted the e-mail; not proof of reading) | opened_by_gp "
         "(the GP opened the conclusion) | unconfirmed (past the feedback, no receipt recorded)."
     )
-    gp_opened_at: AwareDatetime | None = Field(
-        None, description="When the referring GP first opened the conclusion; null when no opening is recorded."
+    gp_opened_on: date | None = Field(
+        None,
+        description="Date (Europe/Prague) the referring GP first opened the conclusion; null when no opening is "
+        "recorded.",
     )
 
 
@@ -39,7 +41,7 @@ class ReviewerCase(BaseModel):
                     "initials": "A. P.",
                     "birth_year": 1963,
                     "insurer_code": "211",
-                    "diagnosis_group": "C25",
+                    "diagnosis_category": "C25",
                     "state": "zpetna_vazba_odeslana",
                     "referred_on": "2026-10-02",
                     "intervals": {
@@ -47,7 +49,7 @@ class ReviewerCase(BaseModel):
                         "t2": {"days": 19, "status": "measured", "start": "2026-10-02", "end": "2026-10-21"},
                         "t3": {"days": None, "status": "running", "start": "2026-10-21", "end": None},
                     },
-                    "delivery": {"status": "handed_over", "gp_opened_at": None},
+                    "delivery": {"status": "handed_over", "gp_opened_on": None},
                 }
             ]
         }
@@ -60,8 +62,8 @@ class ReviewerCase(BaseModel):
     )
     initials: str = Field(description="Initials of the patient, e.g. 'A. P.'.")
     birth_year: int = Field(description="Year of birth only.")
-    insurer_code: str = Field(description="Always the reviewer's own insurer.")
-    diagnosis_group: str | None = Field(
+    insurer_code: str = Field(pattern=r"^\d{3}$", description="Always the reviewer's own insurer.")
+    diagnosis_category: str | None = Field(
         None,
         description="MKN-10 category (three characters, e.g. 'C25') of the suspected diagnosis in the referral, as "
         "written by the GP; no text. Null when the referral has no code.",

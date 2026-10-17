@@ -145,10 +145,10 @@ export function toReviewerCase(c: MockCase): ApiReviewerCase {
     initials: [given, family].filter(Boolean).map((p) => `${p[0]}.`).join(' '),
     birth_year: Number(c.birthDate.slice(0, 4)),
     insurer_code: c.insurer.slice(0, 3),
-    diagnosis_group: /^[A-Z]\d{2}/.exec(c.diagnosis)?.[0] ?? null,
+    diagnosis_category: /^[A-Z]\d{2}/.exec(c.diagnosis)?.[0] ?? null,
     state: c.state,
     referred_on: c.referredAt,
     intervals: toApiIntervals(c),
-    delivery: { status: FEEDBACK_SENT.has(c.state) ? 'handed_over' : 'not_sent', gp_opened_at: null },
+    delivery: { status: FEEDBACK_SENT.has(c.state) ? 'handed_over' : 'not_sent', gp_opened_on: null },
   }
 }

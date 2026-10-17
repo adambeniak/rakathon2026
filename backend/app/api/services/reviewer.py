@@ -37,6 +37,7 @@ FEEDBACK_STATES = frozenset({CaseState.ZPETNA_VAZBA_ODESLANA, CaseState.UZAVRENO
 
 
 def case_ref(case_id: str, secret: SecretStr) -> str:
+    """Pseudonym, not anonymisation: whoever holds the key can recompute it from the case id."""
     digest = hmac.new(secret.get_secret_value().encode(), _REF_LABEL + case_id.encode(), hashlib.sha256).hexdigest()
     return f"RV-{digest[:12].upper()}"
 
@@ -45,9 +46,16 @@ def initials(given: str, family: str) -> str:
     return " ".join(f"{part[0].upper()}." for part in (given.strip(), family.strip()) if part)
 
 
-def diagnosis_group(code: str | None) -> str | None:
+def diagnosis_category(code: str | None) -> str | None:
     match = _MKN10_CATEGORY.match(code.strip().upper()) if code else None
     return match.group(1) if match else None
+
+
+def deny_reviewer(actor: PartyRef) -> None:
+    """The insurer's reviewer gets the minimal `/api/reviewer/cases` view, not the full case (names, birth dates,
+    documents, handover). Checked before anything is read. Per-participant checks for other roles: #16, #35."""
+    if actor.role is Role.REVIEWER:
+        raise ForbiddenError("Revizní lékař má k dispozici jen omezený přehled pro pojišťovnu")
 
 
 def reviewer_insurer(actor: PartyRef, directory: Directory) -> str:
@@ -72,17 +80,18 @@ def _delivery(overview: CaseOverview) -> ReviewerDelivery:
         status = FeedbackDelivery.HANDED_OVER
     else:
         status = FeedbackDelivery.UNCONFIRMED
-    return ReviewerDelivery(status=status, gp_opened_at=opened if case.state in FEEDBACK_STATES else None)
+    shown = opened if case.state in FEEDBACK_STATES else None
+    return ReviewerDelivery(status=status, gp_opened_on=shown.astimezone(TZ).date() if shown else None)
 
 
-def reviewer_case(overview: CaseOverview, secret: SecretStr) -> ReviewerCase:
+def reviewer_case(overview: CaseOverview, secret: SecretStr, insurer: str) -> ReviewerCase:
     case, patient = overview.case, overview.case.patient
     return ReviewerCase(
         ref=case_ref(case.id, secret),
         initials=initials(patient.given, patient.family),
         birth_year=patient.birth_date.year,
-        insurer_code=patient.insurer_code or "",
-        diagnosis_group=diagnosis_group(overview.extras.diagnosis_code),
+        insurer_code=insurer,
+        diagnosis_category=diagnosis_category(overview.extras.diagnosis_code),
         state=case.state,
         referred_on=case.opened_at.astimezone(TZ).date() if case.opened_at else None,
         intervals=TimeToTreatmentIntervals.of(case_intervals(case)),
@@ -102,7 +111,8 @@ class ReviewerCases:
         overviews = await self._reader.list_cases()
         own = [o for o in overviews if o.case.patient.insurer_code == insurer]
         return sorted(
-            (reviewer_case(o, self._secret) for o in own), key=lambda c: (c.referred_on is None, c.referred_on, c.ref)
+            (reviewer_case(o, self._secret, insurer) for o in own),
+            key=lambda c: (c.referred_on is None, c.referred_on, c.ref),
         )
 
     async def get(self, ref: str) -> ReviewerCase:
@@ -119,4 +129,4 @@ class ReviewerCases:
         if match is None:
             raise NotFoundError("case", ref)
         fresh = await self._reader.overview(match.case.id)  # an audited read of this one case
-        return reviewer_case(fresh, self._secret)
+        return reviewer_case(fresh, self._secret, insurer)

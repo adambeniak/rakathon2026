@@ -3,7 +3,7 @@ import { cases as t } from '@/i18n/cs/cases'
 import type { TreatmentInterval } from '@/lib/domain'
 
 export function intervalText(i: TreatmentInterval | undefined): string {
-  if (!i) return t.header.pending
-  if (i.status === 'measured') return i.days === null ? t.header.pending : t.header.days(i.days)
+  if (!i) return t.header.unknown
+  if (i.status === 'measured') return i.days === null ? t.header.unknown : t.header.days(i.days)
   return t.header.intervalStatus[i.status]
 }

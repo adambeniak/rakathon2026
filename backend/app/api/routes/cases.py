@@ -23,20 +23,13 @@ from app.api.schemas.cases import (
 from app.api.schemas.common import problem_responses
 from app.api.schemas.intervals import TimeToTreatmentIntervals
 from app.api.services.case_counts import case_counts, counts_for
+from app.api.services.reviewer import deny_reviewer
 from app.domain.case import Case
-from app.domain.common import BUSINESS_ID_PATTERN, PartyRef, Role
-from app.domain.errors import ForbiddenError
+from app.domain.common import BUSINESS_ID_PATTERN
 from app.fhir.cases import CaseExtras
 from app.timeline.intervals import case_intervals
 
 router = APIRouter(prefix="/cases", tags=["cases"])
-
-
-def deny_reviewer(actor: PartyRef) -> None:
-    """The insurer's reviewer gets the minimal `/api/reviewer/cases` view, never the full case (names, birth dates,
-    documents). Checked before anything is read. Per-participant filtering for other roles: #16, #35."""
-    if actor.role is Role.REVIEWER:
-        raise ForbiddenError("Revizní lékař má k dispozici jen omezený přehled pro pojišťovnu")
 
 
 def summary_fields(

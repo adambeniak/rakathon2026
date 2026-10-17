@@ -29,9 +29,11 @@ export const cases = {
       running: 'běží',
       not_started: 'zatím neběží',
       not_recorded: 'nezaznamenáno',
-      inconsistent: 'nesoulad dat',
+      inconsistent: 'nesoulad dat (konec před začátkem)',
     },
-    clocksHint: 'Zástupné hodnoty. „Nezaznamenáno“: výchozí bod není v systému zapsán.',
+    clocksHint:
+      'Orientační ukazatele (proxy). „Nezaznamenáno“: výchozí bod není v systému zapsán. „Běží“: koncový bod zatím není zapsán.',
+    unknown: '—',
   },
   actions: {
     claim: 'Převzít',

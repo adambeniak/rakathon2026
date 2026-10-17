@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Response
 
 from app.api.deps import ActorDep, CaseReaderDep, DirectoryProviderDep, SettingsDep
 from app.api.schemas.common import problem_responses
@@ -17,10 +17,16 @@ router = APIRouter(prefix="/reviewer", tags=["reviewer"])
 async def get_reviewer_cases(
     reader: CaseReaderDep, actor: ActorDep, directory: DirectoryProviderDep, settings: SettingsDep
 ) -> ReviewerCases:
-    return ReviewerCases(reader, actor, await directory.get(), settings.jwt_secret)
+    return ReviewerCases(reader, actor, await directory.get(), settings.reviewer_pseudonym_key)
 
 
 ReviewerCasesDep = Annotated[ReviewerCases, Depends(get_reviewer_cases)]
+
+
+def _no_store(response: Response) -> None:
+    """Personal data scoped by the acting role: never cached, and never served from a cache to another role."""
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Vary"] = "X-Demo-Role, Authorization"
 
 
 @router.get(
@@ -31,7 +37,8 @@ ReviewerCasesDep = Annotated[ReviewerCases, Depends(get_reviewer_cases)]
     "date, birth number or clinical text; T1-T3 are proxies and null when an end point is not recorded. Audited.",
     responses=problem_responses(401, 403, 500, 502, 503),
 )
-async def list_reviewer_cases(service: ReviewerCasesDep) -> list[ReviewerCase]:
+async def list_reviewer_cases(service: ReviewerCasesDep, response: Response) -> list[ReviewerCase]:
+    _no_store(response)
     return await service.list()
 
 
@@ -44,6 +51,8 @@ async def list_reviewer_cases(service: ReviewerCasesDep) -> list[ReviewerCase]:
 )
 async def get_reviewer_case(
     service: ReviewerCasesDep,
+    response: Response,
     ref: str = Path(pattern=REVIEWER_REF_PATTERN, examples=["RV-3F9A2C1B7D40"]),
 ) -> ReviewerCase:
+    _no_store(response)
     return await service.get(ref)

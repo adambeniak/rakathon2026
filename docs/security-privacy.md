@@ -28,10 +28,13 @@ pilot must add. Owner: P1 (infra) + P4 (auth, audit); reviewed by the `security-
   deployment beyond the demo.
 - `POST /api/cases/{id}/ask` returns retrieved chunk text (document excerpts). It is gated by case membership
   (`authorize_case`, like triage: referring GP or staff of the managing KOC; a reviewer gets 403) and audited.
-- The insurer's reviewer (`reviewer`) gets 403 on `GET /api/cases` and `/api/cases/{id}` and reads only
-  `GET /api/reviewer/cases(/{ref})`: own insurer only, pseudonymous ref (HMAC of the case id), initials, birth year,
-  MKN-10 category, state, dates, T1-T3, delivery status; audited (ADR reviewer-scoped-api). The list still reads every
-  case server-side before the insurer filter (#190); the handover routes lack per-case authorisation (#35).
+- The insurer's reviewer (`reviewer`, purpose: insurer review of the care pathway) gets 403 on `GET /api/cases`,
+  `/api/cases/{id}` and the handover read/persist/export routes, and reads `GET /api/reviewer/cases(/{ref})`: own
+  insurer only, pseudonymous ref (HMAC keyed with `REVIEWER_REF_KEY`, else a key derived from `JWT_SECRET`), initials, birth year, MKN-10 category, state,
+  dates, T1-T3, delivery status; audited, `Cache-Control: no-store` (ADR reviewer-scoped-api). This is
+  pseudonymisation, not anonymisation: the fields are still health data (GDPR Art. 9). Open: the list reads every case
+  server-side before the insurer filter (#190); other case sub-routes still need per-case checks (#35); in demo mode
+  the reviewer role is self-asserted through `X-Demo-Role` (#4).
 - Coordination (board, alerts, launch, ad-hoc tasks, task transitions) is gated by case membership (`authorize_case`:
   referring GP or staff of the managing KOC; anyone else 403). Task ownership is checked by role, not by person, and
   launch and ad-hoc task creation are coordinator-only. Real access control belongs to #4.

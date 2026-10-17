@@ -2740,7 +2740,7 @@ export interface components {
          *       "delivery": {
          *         "status": "handed_over"
          *       },
-         *       "diagnosis_group": "C25",
+         *       "diagnosis_category": "C25",
          *       "initials": "A. P.",
          *       "insurer_code": "211",
          *       "intervals": {
@@ -2772,10 +2772,10 @@ export interface components {
             birth_year: number;
             delivery: components["schemas"]["ReviewerDelivery"];
             /**
-             * Diagnosis Group
+             * Diagnosis Category
              * @description MKN-10 category (three characters, e.g. 'C25') of the suspected diagnosis in the referral, as written by the GP; no text. Null when the referral has no code.
              */
-            diagnosis_group?: string | null;
+            diagnosis_category?: string | null;
             /**
              * Initials
              * @description Initials of the patient, e.g. 'A. P.'.
@@ -2802,10 +2802,10 @@ export interface components {
         /** ReviewerDelivery */
         ReviewerDelivery: {
             /**
-             * Gp Opened At
-             * @description When the referring GP first opened the conclusion; null when no opening is recorded.
+             * Gp Opened On
+             * @description Date (Europe/Prague) the referring GP first opened the conclusion; null when no opening is recorded.
              */
-            gp_opened_at?: string | null;
+            gp_opened_on?: string | null;
             /** @description not_sent | handed_over (the relay accepted the e-mail; not proof of reading) | opened_by_gp (the GP opened the conclusion) | unconfirmed (past the feedback, no receipt recorded). */
             status: components["schemas"]["FeedbackDelivery"];
         };
@@ -4200,6 +4200,24 @@ export interface operations {
                     "application/json": components["schemas"]["Handover"];
                 };
             };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
@@ -4270,6 +4288,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Handover"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
@@ -4345,6 +4381,24 @@ export interface operations {
                 content: {
                     "text/markdown": string;
                     "text/plain": string;
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */

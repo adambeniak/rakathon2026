@@ -35,7 +35,7 @@ describe('insurer reviewer screen (#105, contract GET /api/reviewer/cases)', () 
     ]) {
       expect(text).not.toContain(leaked)
     }
-    expect(screen.getByText(/T1–T3 jsou zástupné hodnoty/)).toBeInTheDocument()
+    expect(screen.getByText(/T1–T3 jsou orientační ukazatele/)).toBeInTheDocument()
   })
 
   it('every mock row satisfies the contract schema', async () => {

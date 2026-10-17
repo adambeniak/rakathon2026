@@ -12,7 +12,7 @@ describe('case header time-to-treatment intervals (CaseDetail.intervals)', () =>
     expect(clocks).toHaveTextContent('nezaznamenánoT1 · první návštěva PL → žádost do KOC')
     expect(clocks).toHaveTextContent('běžíT2 · žádost do KOC → MDT')
     expect(clocks).toHaveTextContent('zatím neběžíT3 · MDT → onkologické konzilium')
-    expect(screen.getByText(/Zástupné hodnoty/)).toBeInTheDocument()
+    expect(screen.getByText(/Orientační ukazatele \(proxy\)/)).toBeInTheDocument()
   })
 })
 
@@ -24,7 +24,7 @@ describe('intervalText', () => {
     expect(intervalText({ days: null, status: 'running' })).toBe('běží')
     expect(intervalText({ days: null, status: 'not_started' })).toBe('zatím neběží')
     expect(intervalText({ days: null, status: 'not_recorded' })).toBe('nezaznamenáno')
-    expect(intervalText({ days: null, status: 'inconsistent' })).toBe('nesoulad dat')
-    expect(intervalText(undefined)).toBe('zatím neběží')
+    expect(intervalText({ days: null, status: 'inconsistent' })).toBe('nesoulad dat (konec před začátkem)')
+    expect(intervalText(undefined)).toBe('—')
   })
 })

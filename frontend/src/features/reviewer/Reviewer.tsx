@@ -3,14 +3,14 @@ import { EmptyState, ErrorState } from '@/components/EmptyState'
 import { LoadingBlock } from '@/components/Skeleton'
 import { intervalText } from '@/features/cases/intervals'
 import { reviewer as t } from '@/i18n/cs/reviewer'
-import { formatDate, formatDateTime } from '@/lib/date'
+import { formatDate } from '@/lib/date'
 import { useReviewerCases, type ReviewerCase } from './api'
 
 const cell = 'px-3 py-3 align-top'
 
 function delivery(d: ReviewerCase['delivery']): string {
-  if (d.status === 'opened_by_gp' && d.gp_opened_at)
-    return t.openedOn(formatDateTime(d.gp_opened_at))
+  if (d.status === 'opened_by_gp' && d.gp_opened_on)
+    return t.openedOn(formatDate(d.gp_opened_on))
   return t.delivery[d.status]
 }
 
@@ -53,7 +53,7 @@ export function Reviewer() {
                     {c.initials}, {c.birth_year}
                   </th>
                   <td className={`${cell} font-mono text-xs`}>{c.ref}</td>
-                  <td className={cell}>{c.diagnosis_group ?? t.pending}</td>
+                  <td className={cell}>{c.diagnosis_category ?? t.pending}</td>
                   <td className={cell}>
                     <CaseStateBadge state={c.state} />
                   </td>

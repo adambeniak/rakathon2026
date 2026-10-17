@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 from app.api.deps import ActorDep, CaseReaderDep, HandoverStoreDep, LlmClientsDep, SettingsDep
 from app.api.schemas.common import problem_responses
 from app.api.services.handover_assembly import assemble_handover, default_cut_off, with_review
+from app.api.services.reviewer import deny_reviewer
 from app.domain.common import BUSINESS_ID_PATTERN, PartyRef, Role
 from app.domain.errors import ConflictError, ForbiddenError, InvalidInputError
 from app.domain.handover import Handover, HandoverStatus, ReviewState, SectionReview
@@ -127,16 +128,18 @@ async def _reviewed(
     description="Deterministic assembly from evidence-locked facts; every value cites its source. Documents "
     "authored or received after `as_of` are listed in `excluded_documents`. AI parts are drafts ('Návrh AI'). "
     "If the handover was persisted, the stored review state and confirmed edits are applied.",
-    responses=problem_responses(404, 422, 500, 502, 503),
+    responses=problem_responses(401, 403, 404, 422, 500, 502, 503),
 )
 async def get_handover(
     reader: CaseReaderDep,
     settings: SettingsDep,
     llm: LlmClientsDep,
     store: HandoverStoreDep,
+    actor: ActorDep,
     case_id: str = CASE_ID,
     as_of: str | None = AS_OF,
 ) -> Handover:
+    deny_reviewer(actor)
     return await _reviewed(reader, settings, llm, store, case_id, as_of)
 
 
@@ -145,16 +148,18 @@ async def get_handover(
     response_model=Handover,
     summary="Persist the handover for review (Composition preliminary + Provenance)",
     description="Idempotent per (case, as_of): an existing Composition and its review state are kept.",
-    responses=problem_responses(404, 422, 500, 502, 503),
+    responses=problem_responses(401, 403, 404, 422, 500, 502, 503),
 )
 async def persist_handover(
     reader: CaseReaderDep,
     settings: SettingsDep,
     llm: LlmClientsDep,
     store: HandoverStoreDep,
+    actor: ActorDep,
     case_id: str = CASE_ID,
     as_of: str | None = AS_OF,
 ) -> Handover:
+    deny_reviewer(actor)
     cut_off = await parse_as_of(as_of, settings, reader, case_id)
     handover = await assemble_handover(reader, settings, llm, case_id, cut_off)
     composition = await store.persist(handover, device_display=device_display(settings), recorded=settings.now())
@@ -222,7 +227,7 @@ def _require_confirming_role(actor: PartyRef) -> None:
     summary="Handover as copyable text (Markdown), one block per section",
     responses={
         200: {"content": {"text/markdown": {"schema": {"type": "string"}}}, "description": "Markdown"},
-        **problem_responses(404, 422, 500, 502, 503),
+        **problem_responses(401, 403, 404, 422, 500, 502, 503),
     },
 )
 async def export_handover(
@@ -230,9 +235,11 @@ async def export_handover(
     settings: SettingsDep,
     llm: LlmClientsDep,
     store: HandoverStoreDep,
+    actor: ActorDep,
     case_id: str = CASE_ID,
     as_of: str | None = AS_OF,
     format: Literal["md"] = Query("md", description="Only Markdown for now."),
 ) -> PlainTextResponse:
+    deny_reviewer(actor)
     handover = await _reviewed(reader, settings, llm, store, case_id, as_of)
     return PlainTextResponse(to_markdown(handover), media_type="text/markdown; charset=utf-8")

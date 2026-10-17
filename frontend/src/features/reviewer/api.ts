@@ -25,7 +25,7 @@ export const reviewerCase = z.object({
   initials: z.string(),
   birth_year: z.number().int(),
   insurer_code: z.string(),
-  diagnosis_group: z.string().nullish(),
+  diagnosis_category: z.string().nullish(),
   state: z.enum([
     'odeslano',
     'triage',
@@ -40,7 +40,7 @@ export const reviewerCase = z.object({
   intervals: z.object({ t1: interval, t2: interval, t3: interval }),
   delivery: z.object({
     status: z.enum(['not_sent', 'handed_over', 'opened_by_gp', 'unconfirmed']),
-    gp_opened_at: z.string().nullish(),
+    gp_opened_on: z.string().nullish(),
   }),
 }) satisfies z.ZodType<Schemas['ReviewerCase']>
 

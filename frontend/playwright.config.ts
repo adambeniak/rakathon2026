@@ -4,8 +4,8 @@ import { defineConfig } from '@playwright/test'
 // (the demo fallback). A dedicated port with --strictPort, so a presenter's non-mock `pnpm dev` on 5173 is never
 // mistaken for the mock server. E2E_SLOWMO=<ms> slows every action down for a recording people can follow.
 // E2E_BASE_URL=<url> points the same spec at a running app with a live backend instead (project `live`, no web server
-// is started; backend on the demo-start scenario). Not rehearsed yet: several steps assert mock-mode behaviour, see the
-// comments in e2e/demo-flow.spec.ts.
+// is started): a FRESH `make up-local` (demo-start) plus `pnpm dev` without VITE_MOCKS, Mailpit at E2E_MAILPIT_URL
+// (default http://localhost:8025). The spec branches on the project name where the live app legitimately differs.
 const PORT = Number(process.env.E2E_PORT ?? 5199)
 const liveUrl = process.env.E2E_BASE_URL
 
@@ -17,8 +17,9 @@ export default defineConfig({
   retries: 0,
   forbidOnly: !!process.env.CI,
   // The whole demo is one test (the mock state lives in the page, a reload resets it), so the budget is generous.
-  timeout: 180_000,
-  expect: { timeout: 10_000 },
+  // Live: real uploads, extraction from the LLM cache and FHIR round trips are slower than the in-page mocks.
+  timeout: liveUrl ? 420_000 : 180_000,
+  expect: { timeout: liveUrl ? 30_000 : 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     // Full Chromium in new headless mode instead of the separate headless shell (crashed on WSL2 in testing).

@@ -27,6 +27,8 @@ _FICTIVE = re.compile(r"\s*\(fiktivní\)\s*$", re.IGNORECASE)
 _DASH: Final = " – "
 # Title prefixes that only name the kind of report; the examination is what follows the dash.
 _GENERIC_TITLE_PREFIXES: Final = ("výsledek vyšetření", "výsledky vyšetření", "protokol o výkonu")
+_CONTACT = re.compile(r"@|https?://|www\.|\btel\b|\bfax\b|\+\d{3}", re.IGNORECASE)
+_PATHOLOGY_TITLE = re.compile(r"\b(?:bioptick|histologick)\w*\s+(?:nález|vyšetření)", re.IGNORECASE)
 _REPORT_ID = re.compile(r"^Číslo vyšetření:\s*(\S*\d\S*)$")
 _ISSUED = re.compile(r"^(?:Datum vydání|Vydáno):\s*(.+)$")
 
@@ -37,6 +39,11 @@ class HeaderValue:
 
     text: str
     evidence: tuple[Evidence, ...]
+
+    @property
+    def pathology_title(self) -> bool:
+        """The title line names a histological report ("Bioptický nález", "Histologické vyšetření")."""
+        return any(_PATHOLOGY_TITLE.search(ev.quote) for ev in self.evidence)
 
 
 @dataclass(frozen=True)
@@ -91,13 +98,14 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
     blocks = _header_blocks(doc)
     report_id: HeaderValue | None = None
     issued: HeaderDate | None = None
-    year = doc.authored_date.year if doc.authored_date else None
     for block in blocks:
         if report_id is None and (m := _REPORT_ID.match(block.text)):
             report_id = HeaderValue(m.group(1), (_evidence(doc.doc_id, block),))
         if issued is None and (m := _ISSUED.match(block.text)):
-            dates = find_dates(m.group(1), year)
-            if len(dates) == 1:  # "Vydáno: 4. 9. 2026 (kultivace), 1. 9. 2026 (ostatní)" names no single date
+            # No year hint: a year-less "19. 10." gives no date. Two dates ("Vydáno: 4. 9. 2026 (kultivace),
+            # 1. 9. 2026 (ostatní)") name no single issue date.
+            dates = find_dates(m.group(1))
+            if len(dates) == 1:
                 issued = HeaderDate(dates[0], _evidence(doc.doc_id, block))
 
     # Letterhead: lines before the patient line; the address (postcode) separates the workplace from the title.
@@ -127,7 +135,11 @@ def parse_header(doc: NormalizedDoc) -> DocumentHeader:
         (
             b
             for b in letterhead[address + 1 :]
-            if not _LABELLED.match(b.text) and not _PERSON.search(b.text) and not _POSTCODE.search(b.text)
+            if not _LABELLED.match(b.text)
+            and not _PERSON.search(b.text)
+            and not _POSTCODE.search(b.text)
+            and not _CONTACT.search(b.text)
+            and any(c.isalpha() for c in b.text)
         ),
         None,
     )

@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Final
 
-from app.documents.doc_type import infer_type_code
 from app.domain.document import SourceDocument
 from app.domain.evidence import Certainty, DatePrecision, Evidence, Fact, FactType
 from app.domain.handover import HandoverItem, ItemEvidence
@@ -76,12 +75,13 @@ class Context:
         ]
 
     def doc_type(self, fact: Fact) -> str | None:
-        return self.type_of(self.docs[fact.doc_id])
+        return self.docs[fact.doc_id].type_code
 
-    @staticmethod
-    def type_of(doc: SourceDocument) -> str | None:
-        """LOINC type from the metadata, else from the file name (a document stored before uploads were typed)."""
-        return doc.type_code or infer_type_code(doc.doc_id)
+    def is_pathology_report(self, doc_id: str) -> bool:
+        """Pathology report by its LOINC type in the metadata or by its own title line ("Bioptický nález")."""
+        header = self.headers.get(doc_id)
+        titled = header is not None and header.examination is not None and header.examination.pathology_title
+        return self.docs[doc_id].type_code == LOINC_PATHOLOGY or titled
 
     def authored(self, fact: Fact) -> date:
         return self.docs[fact.doc_id].authored_at

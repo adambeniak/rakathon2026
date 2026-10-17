@@ -159,6 +159,40 @@ def test_histology_number_and_dates_from_the_header_without_a_document_type() ->
     by_label = {i.label: i for i in histology.items}
     assert by_label["Číslo vyšetření"].evidence[0].quote == "Číslo vyšetření: B-2026/00001"
     assert by_label["Datum vydání"].value == "19. 10. 2026"
+    issued_item = next(i for i in diagnosis.items if i.label == "Datum vydání histologického nálezu")
+    assert [e.quote for e in issued_item.evidence] == ["Datum vydání: 19. 10. 2026"]
+
+
+def test_a_report_restating_the_histology_never_lends_its_number_or_dates() -> None:
+    text = PATHOLOGY_TEXT.replace("Ústav patologie", "Interní klinika").replace("Bioptický nález", "Propouštěcí zpráva")
+    d = doc_from_text(PATHOLOGY_ID, text, date(2026, 10, 19))
+    facts = [
+        _fact(d, 4, "histology", 3, {"kind": "coded", "code": "8500/3", "system": "MKN-O", "text": "Duktální "
+              "adenokarcinom"}, "Duktální adenokarcinom. MKN-O 8500/3."),
+    ]  # fmt: skip
+    h = assemble_handover(
+        "case-h",
+        AS_OF,
+        facts,
+        {PATHOLOGY_ID: _source(PATHOLOGY_ID, "11488-4")},
+        headers=parse_headers({PATHOLOGY_ID: d}),
+    )
+    assert h.fields.histology.value is not None
+    assert (h.fields.histology.value.report_id, h.fields.histology.value.issued) == (None, None)
+    assert h.fields.diagnosis.value is not None
+    assert h.fields.diagnosis.value.verified_histologically_on is None
+
+
+def test_issue_date_without_a_year_is_not_completed() -> None:
+    d = doc_from_text(PATHOLOGY_ID, PATHOLOGY_TEXT.replace("19. 10. 2026", "19. 10."), date(2026, 10, 19))
+    assert parse_header(d).issued is None
+
+
+def test_contact_line_is_never_the_examination_type() -> None:
+    text = "Pracoviště A\nUlice 1, 100 00 Praha\ntel. 241 000 111\nwww.pracoviste.example\nZpráva o vyšetření\nPOPIS"
+    header = parse_header(doc_from_text("05_Text_2026-09-15", text))
+    assert header.examination is not None
+    assert header.examination.text == "Zpráva o vyšetření"
 
 
 def test_without_header_or_type_the_histology_dates_stay_empty() -> None:
@@ -169,14 +203,14 @@ def test_without_header_or_type_the_histology_dates_stay_empty() -> None:
     assert h.fields.diagnosis.value.verified_histologically_on is None  # never guessed from an untyped document
 
 
-def test_untyped_pathology_named_by_its_file_is_treated_as_pathology() -> None:
+def test_file_name_alone_never_dates_the_verification() -> None:
     doc_id = "11_Histologie_2026-10-19"
     d = doc_from_text(doc_id, "Duktální adenokarcinom. MKN-O 8500/3.", date(2026, 10, 19))
     morph = _fact(d, 3, "histology", 3, {"kind": "coded", "code": "8500/3", "system": "MKN-O", "text": "Duktální "
                   "adenokarcinom"}, "Duktální adenokarcinom. MKN-O 8500/3.")  # fmt: skip
-    h = assemble_handover("case-h", AS_OF, [morph], {doc_id: _source(doc_id, None)})
+    h = assemble_handover("case-h", AS_OF, [morph], {doc_id: _source(doc_id, None)}, headers=parse_headers({doc_id: d}))
     assert h.fields.diagnosis.value is not None
-    assert h.fields.diagnosis.value.verified_histologically_on == date(2026, 10, 19)
+    assert h.fields.diagnosis.value.verified_histologically_on is None  # no quoted issue date, no metadata type
 
 
 def test_examination_rows_from_headers_with_evidence(doc: Callable[[str], NormalizedDoc]) -> None:
@@ -207,4 +241,5 @@ def test_examination_row_without_header_falls_back_to_metadata_then_not_stated()
     docs = {a: _source(a, "18748-4", custodian="Pracoviště z metadat", title="Zpráva A"), b: _source(b, None)}
     rows = assemble_handover("case-h", AS_OF, [], docs).fields.examinations.value
     assert rows is not None
-    assert [(r.type, r.place) for r in rows] == [("Zpráva A", "Pracoviště z metadat"), (f"{b}.docx", NOT_STATED)]
+    # A curated title is shown; an uploaded file name is not an examination type (#130).
+    assert [(r.type, r.place) for r in rows] == [("Zpráva A", "Pracoviště z metadat"), (NOT_STATED, NOT_STATED)]

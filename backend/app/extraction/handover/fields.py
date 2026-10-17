@@ -15,6 +15,7 @@ from datetime import date, timedelta
 from typing import Final, Literal
 
 from app.domain.common import Role
+from app.domain.document import SourceDocument
 from app.domain.evidence import Certainty, Evidence, Fact, FactType
 from app.domain.handover import (
     ComorbiditiesField,
@@ -339,10 +340,12 @@ def diagnosis_field(ctx: Context) -> DiagnosisField:
         label = "MKN-10 (v dokumentu uvedeno jako suspektní)" if icd.certainty == Certainty.SUSPECTED else "MKN-10"
         items.append(make_item(ctx, icd_v.code or "", [icd], label=label))
     if morph is not None and morph_v is not None:
-        items.append(
-            make_item(ctx, morph_v.text, [morph], label="Histologie", clinical_date=verified, extra=verified_ev)
-        )
+        items.append(make_item(ctx, morph_v.text, [morph], label="Histologie", clinical_date=verified))
         items.append(make_item(ctx, morph_v.code or "", [morph], label="MKN-O morfologie"))
+    if verified is not None and verified_ev:
+        # The issue date of the histology report, not the biopsy or specimen date.
+        label = "Datum vydání histologického nálezu"
+        items.append(make_item(ctx, cz_date(verified), [], label=label, clinical_date=verified, extra=verified_ev))
     if tnm_fact is not None and value.tnm:
         items.append(make_item(ctx, value.tnm, [tnm_fact], label="TNM"))
     missing: list[MissingItem] = []
@@ -362,15 +365,15 @@ def diagnosis_field(ctx: Context) -> DiagnosisField:
 
 
 def _histology_verified_on(ctx: Context, morph: Fact | None) -> tuple[date | None, list[Evidence]]:
-    """Date of the histological verification: the issue date the pathology report states ("Datum vydání: …"),
-    else the authored date of a pathology report. A morphology restated in another document gives no date."""
-    if morph is None:
+    """Date of the histological verification: the issue date a pathology report states ("Datum vydání: …", quoted),
+    else the authored date of a report typed as pathology in the metadata. A morphology restated in another
+    document gives no date."""
+    if morph is None or not ctx.is_pathology_report(morph.doc_id):
         return None, []
     header = ctx.headers.get(morph.doc_id)
-    pathology = ctx.doc_type(morph) == LOINC_PATHOLOGY
-    if header is not None and header.issued is not None and (pathology or header.report_id is not None):
+    if header is not None and header.issued is not None:
         return header.issued.date, [header.issued.evidence]
-    return (ctx.authored(morph), []) if pathology else (None, [])
+    return (ctx.authored(morph), []) if ctx.doc_type(morph) == LOINC_PATHOLOGY else (None, [])
 
 
 # ---------------------------------------------------------------- 5 MDT question
@@ -645,10 +648,10 @@ def symptoms_field(ctx: Context) -> SymptomsField:
 
 def examinations_field(ctx: Context) -> ExaminationsField:
     """One row per report (referral letters excluded). Type and place come from the report's own header lines
-    (title, letterhead) with their quotes; without them the document title and the issuing workplace from the
-    document metadata are shown, and a place nobody states is "v dokumentaci neuvedeno"."""
+    (title, letterhead) with their quotes; without them the curated document title and the issuing workplace from
+    the document metadata are shown. A file name is never shown as the type: "v dokumentaci neuvedeno"."""
     docs = sorted(
-        (d for d in ctx.docs.values() if ctx.type_of(d) != LOINC_REFERRAL_NOTE),
+        (d for d in ctx.docs.values() if d.type_code != LOINC_REFERRAL_NOTE),
         key=lambda d: (d.authored_at, d.doc_id),
     )
     if not docs:
@@ -664,7 +667,7 @@ def examinations_field(ctx: Context) -> ExaminationsField:
         row = Examination(
             date=d.authored_at,
             place=place.text if place else (d.custodian or NOT_STATED),
-            type=exam.text if exam else d.title,
+            type=exam.text if exam else _curated_title(d),
             doc_id=d.doc_id,
         )
         evidence = [*(exam.evidence if exam else ()), *(place.evidence if place else ())]
@@ -685,6 +688,17 @@ def examinations_field(ctx: Context) -> ExaminationsField:
         evidence=dedupe_evidence(used),
         note="Plné znění v odkazovaném dokumentu (doc_id).",
     )
+
+
+_FILE_NAME = re.compile(r"\.(?:docx?|pdf|txt|rtf|odt|html?)$", re.IGNORECASE)
+
+
+def _curated_title(doc: SourceDocument) -> str:
+    """The document title from the metadata unless it is only the uploaded file name (#130)."""
+    title = doc.title.strip()
+    if not title or _FILE_NAME.search(title) or title == doc.doc_id:
+        return NOT_STATED
+    return title
 
 
 # ---------------------------------------------------------------- 13 labs
@@ -816,8 +830,9 @@ def histology_field(ctx: Context) -> HistologyField:
 
 
 def _histology_header(ctx: Context, facts: Sequence[Fact]) -> DocumentHeader | None:
-    """Header of the latest report that states a histological finding and carries a report number or issue date."""
-    doc_ids = {f.doc_id for f in facts if f.type == FactType.HISTOLOGY}
+    """Header of the latest pathology report that states a histological finding and carries a report number or
+    issue date. Another report restating the histology (and its own "Číslo vyšetření") is never used."""
+    doc_ids = {f.doc_id for f in facts if f.type == FactType.HISTOLOGY and ctx.is_pathology_report(f.doc_id)}
     headers = [
         h
         for doc_id in doc_ids

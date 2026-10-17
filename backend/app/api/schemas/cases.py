@@ -7,6 +7,7 @@ from datetime import date
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 
+from app.api.schemas.intervals import TimeToTreatmentIntervals
 from app.domain.case import CaseState, QueueBucket
 from app.domain.common import Role
 from app.domain.patient import Sex
@@ -150,6 +151,11 @@ class CaseDetail(CaseSummary):
                             "author": "MUDr. Tomáš Řezníček",
                         }
                     ],
+                    "intervals": {
+                        "t1": {"days": None, "status": "not_recorded", "start": None, "end": "2026-10-02"},
+                        "t2": {"days": None, "status": "running", "start": "2026-10-02", "end": None},
+                        "t3": {"days": None, "status": "not_started", "start": None, "end": None},
+                    },
                 }
             ]
         }
@@ -160,4 +166,8 @@ class CaseDetail(CaseSummary):
         default_factory=list,
         description="Waivers in force for the MDT readiness (the latest per item; none before the last `reopen`). "
         "Empty while the case is not marked ready for the MDT.",
+    )
+    intervals: TimeToTreatmentIntervals = Field(
+        description="Time-to-treatment proxies T1-T3 (header 'Časové intervaly'); a value is null when an end point "
+        "is not recorded, never estimated.",
     )

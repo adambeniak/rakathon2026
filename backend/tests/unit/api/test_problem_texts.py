@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from pydantic import AwareDatetime, BaseModel, Field, ValidationError, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.deps import get_case_reader, get_handover_store
+from app.api.deps import get_case_reader, get_directory_provider, get_handover_store
 from app.api.errors import STATUS_TITLES, _fhir_status, problem_title, validation_message
 from app.api.schemas.common import _PROBLEM_DESCRIPTIONS, ProblemDetails
 from app.domain.errors import (
@@ -28,6 +28,7 @@ from app.fhir.errors import FhirConflictError, FhirUnavailableError
 from app.main import create_app
 from app.settings import Settings
 from tests.unit.api.fake_handover_store import FakeStore
+from tests.unit.api.test_api import DemoDirectory
 
 
 class RaisingReader:
@@ -41,6 +42,7 @@ class RaisingReader:
 def client_for(settings: Settings, error: Exception | None = None) -> TestClient:
     app = create_app(settings)
     app.dependency_overrides[get_case_reader] = lambda: RaisingReader(error or RuntimeError("unused"))
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     app.dependency_overrides[get_handover_store] = FakeStore
     return TestClient(app)
 

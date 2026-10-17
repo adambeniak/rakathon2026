@@ -774,6 +774,19 @@
               }
             ],
             "id": "rakathon-2026-prochazkova",
+            "intervals": {
+              "t1": {
+                "end": "2026-10-02",
+                "status": "not_recorded"
+              },
+              "t2": {
+                "start": "2026-10-02",
+                "status": "running"
+              },
+              "t3": {
+                "status": "not_started"
+              }
+            },
             "missing_count": 3,
             "next_deadline": "2026-10-21T08:00:00+02:00",
             "opened_at": "2026-10-02T09:30:00+02:00",
@@ -858,6 +871,10 @@
             "description": "Case business id, e.g. 'rakathon-2026-prochazkova'.",
             "title": "Id",
             "type": "string"
+          },
+          "intervals": {
+            "$ref": "#/components/schemas/TimeToTreatmentIntervals",
+            "description": "Time-to-treatment proxies T1-T3 (header 'Časové intervaly'); a value is null when an end point is not recorded, never estimated."
           },
           "koc": {
             "anyOf": [
@@ -955,7 +972,8 @@
           "patient",
           "state",
           "document_count",
-          "documents"
+          "documents",
+          "intervals"
         ],
         "title": "CaseDetail",
         "type": "object"
@@ -2805,6 +2823,16 @@
         "title": "ExcludedDocument",
         "type": "object"
       },
+      "FeedbackDelivery": {
+        "enum": [
+          "not_sent",
+          "handed_over",
+          "opened_by_gp",
+          "unconfirmed"
+        ],
+        "title": "FeedbackDelivery",
+        "type": "string"
+      },
       "FieldStatus": {
         "description": "Subset of the shared handover field status enum.",
         "enum": [
@@ -3391,6 +3419,17 @@
         ],
         "title": "HistologyField",
         "type": "object"
+      },
+      "IntervalStatus": {
+        "enum": [
+          "measured",
+          "running",
+          "not_started",
+          "not_recorded",
+          "inconsistent"
+        ],
+        "title": "IntervalStatus",
+        "type": "string"
       },
       "ItemEvidence": {
         "additionalProperties": false,
@@ -4853,6 +4892,132 @@
         "title": "ReviewState",
         "type": "string"
       },
+      "ReviewerCase": {
+        "examples": [
+          {
+            "birth_year": 1963,
+            "delivery": {
+              "status": "handed_over"
+            },
+            "diagnosis_group": "C25",
+            "initials": "A. P.",
+            "insurer_code": "211",
+            "intervals": {
+              "t1": {
+                "end": "2026-10-02",
+                "status": "not_recorded"
+              },
+              "t2": {
+                "days": 19,
+                "end": "2026-10-21",
+                "start": "2026-10-02",
+                "status": "measured"
+              },
+              "t3": {
+                "start": "2026-10-21",
+                "status": "running"
+              }
+            },
+            "ref": "RV-3F9A2C1B7D40",
+            "referred_on": "2026-10-02",
+            "state": "zpetna_vazba_odeslana"
+          }
+        ],
+        "properties": {
+          "birth_year": {
+            "description": "Year of birth only.",
+            "title": "Birth Year",
+            "type": "integer"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/ReviewerDelivery"
+          },
+          "diagnosis_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MKN-10 category (three characters, e.g. 'C25') of the suspected diagnosis in the referral, as written by the GP; no text. Null when the referral has no code.",
+            "title": "Diagnosis Group"
+          },
+          "initials": {
+            "description": "Initials of the patient, e.g. 'A. P.'.",
+            "title": "Initials",
+            "type": "string"
+          },
+          "insurer_code": {
+            "description": "Always the reviewer's own insurer.",
+            "title": "Insurer Code",
+            "type": "string"
+          },
+          "intervals": {
+            "$ref": "#/components/schemas/TimeToTreatmentIntervals"
+          },
+          "ref": {
+            "description": "Stable pseudonym of the case for the reviewer (keyed hash of the case id; the case id itself contains the surname and is not returned).",
+            "pattern": "^RV-[0-9A-F]{12}$",
+            "title": "Ref",
+            "type": "string"
+          },
+          "referred_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date the referral reached the KOC (Europe/Prague).",
+            "title": "Referred On"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CaseState"
+          }
+        },
+        "required": [
+          "ref",
+          "initials",
+          "birth_year",
+          "insurer_code",
+          "state",
+          "intervals",
+          "delivery"
+        ],
+        "title": "ReviewerCase",
+        "type": "object"
+      },
+      "ReviewerDelivery": {
+        "properties": {
+          "gp_opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the referring GP first opened the conclusion; null when no opening is recorded.",
+            "title": "Gp Opened At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FeedbackDelivery",
+            "description": "not_sent | handed_over (the relay accepted the e-mail; not proof of reading) | opened_by_gp (the GP opened the conclusion) | unconfirmed (past the feedback, no receipt recorded)."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ReviewerDelivery",
+        "type": "object"
+      },
       "Role": {
         "description": "Workflow role of a party: decides who may act and in which board lane a task appears.",
         "enum": [
@@ -5599,6 +5764,100 @@
         "title": "TextListField",
         "type": "object"
       },
+      "TimeToTreatmentIntervals": {
+        "description": "Proxies, to be labelled so: T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT,\nT3 = MDT → onkologické konzilium. Unknown values are null, never estimated.",
+        "examples": [
+          {
+            "t1": {
+              "end": "2026-10-02",
+              "status": "not_recorded"
+            },
+            "t2": {
+              "days": 19,
+              "end": "2026-10-21",
+              "start": "2026-10-02",
+              "status": "measured"
+            },
+            "t3": {
+              "start": "2026-10-21",
+              "status": "running"
+            }
+          }
+        ],
+        "properties": {
+          "t1": {
+            "$ref": "#/components/schemas/TreatmentInterval",
+            "description": "První návštěva PL → žádost do KOC (proxy)."
+          },
+          "t2": {
+            "$ref": "#/components/schemas/TreatmentInterval",
+            "description": "Žádost do KOC → MDT (proxy; the MDT counts once it has been held)."
+          },
+          "t3": {
+            "$ref": "#/components/schemas/TreatmentInterval",
+            "description": "MDT → onkologické konzilium (proxy)."
+          }
+        },
+        "required": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "title": "TimeToTreatmentIntervals",
+        "type": "object"
+      },
+      "TreatmentInterval": {
+        "properties": {
+          "days": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whole calendar days (Europe/Prague); null unless `measured`.",
+            "title": "Days"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date of the end point, when recorded.",
+            "title": "End"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date of the start point, when recorded.",
+            "title": "Start"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntervalStatus",
+            "description": "measured = both end points recorded (`days` set); running = started, end not recorded yet; not_started = neither end point recorded yet; not_recorded = the start was never recorded; inconsistent = the recorded end lies before the start."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TreatmentInterval",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -6147,6 +6406,7 @@
   "paths": {
     "/api/cases": {
       "get": {
+        "description": "Not for the insurer's reviewer (403): see `GET /api/reviewer/cases`.",
         "operationId": "cases-list_cases",
         "parameters": [
           {
@@ -6181,6 +6441,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6231,6 +6511,7 @@
     },
     "/api/cases/{case_id}": {
       "get": {
+        "description": "Not for the insurer's reviewer (403): see `GET /api/reviewer/cases/{ref}`.",
         "operationId": "cases-get_case",
         "parameters": [
           {
@@ -6275,6 +6556,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -9087,6 +9388,235 @@
         "summary": "Prefill the referral from the GP letter (DOCX/PDF); nothing is stored",
         "tags": [
           "referrals"
+        ]
+      }
+    },
+    "/api/reviewer/cases": {
+      "get": {
+        "description": "Only for the `reviewer` role (others 403). Only cases of the reviewer's own insurer. No name, birth date, birth number or clinical text; T1-T3 are proxies and null when an end point is not recorded. Audited.",
+        "operationId": "reviewer-list_reviewer_cases",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewerCase"
+                  },
+                  "title": "Response Reviewer-List Reviewer Cases",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "Cases of the reviewer's insured persons (minimal, pseudonymous)",
+        "tags": [
+          "reviewer"
+        ]
+      }
+    },
+    "/api/reviewer/cases/{ref}": {
+      "get": {
+        "description": "404 also for a case of another insurer, so its existence is not confirmed. Audited.",
+        "operationId": "reviewer-get_reviewer_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "examples": [
+                "RV-3F9A2C1B7D40"
+              ],
+              "pattern": "^RV-[0-9A-F]{12}$",
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewerCase"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "One case of the reviewer's insured persons (minimal, pseudonymous)",
+        "tags": [
+          "reviewer"
         ]
       }
     },

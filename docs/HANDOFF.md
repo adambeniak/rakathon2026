@@ -89,3 +89,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: live run on a local IRIS (a human sets the local IRIS password files that `make up-local` asks for, then `make up-local SCENARIO=story`; reopen the story case to `kompletni`, then mark-ready -> conclusion -> send -> gp_opened -> close; `make down && make up`)
   Risks: the button is for koc_physician (the state machine allows only that role), not the coordinator; the blocking items are parsed from the English guard `detail` (no `code` on ApiProblem); the handover must be persisted for the gate, else the API says so
   Issues: none new
+- 2026-10-17 · claude (P3, docs) · docs/demo-and-submission · docs/demo-script.md rewritten as a click-by-click runbook from the code (real labels, clock per step, approved wording) + docs/submission-draft.md (Czech DRAFT, repo facts only, `TODO(Adam):` for the rest); docs only, no code run
+  Next: a human dry-runs the runbook on a fresh `make up-local` (never run live); Adam fills the `TODO(Adam):` items and re-runs `make eval` for the numbers
+  Risks: UI upload cannot close a document request (step 3 uses curl, #120); step 3 needs a clock the switcher lacks (#121); confirmations do not carry from step 3 to step 5 (#122); reviewer screen and Audit/Časová osa/Komunikace tabs sit on provisional endpoints (#105, #47)
+  Issues: #120, #121, #122, #123 (Ověřeno string), #124 (stale demo-flow skill), #125 (no make e2e), #126 (no HL7 v2)

@@ -259,7 +259,7 @@ export interface paths {
         put?: never;
         /**
          * Apply a case event (state machine)
-         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode).
+         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician; the GP recipient of `send_feedback` is the referring GP of the case. Every event writes one AuditEvent.
          */
         post: operations["cases-transition_case"];
         delete?: never;
@@ -2862,11 +2862,20 @@ export interface components {
          *       "event": "missing_found",
          *       "reason": "chybí CT"
          *     }
+         * @example {
+         *       "conclusion": "Závěr MDT dle zápisu.",
+         *       "event": "record_mdt_conclusion"
+         *     }
          */
         app__api__schemas__workflow__TransitionRequest: {
             /**
+             * Conclusion
+             * @description Required by record_mdt_conclusion. The signing clinician is the acting user (`confirmed_by`).
+             */
+            conclusion?: string | null;
+            /**
              * Event
-             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume. Other machine events are refused (422) until their endpoints exist.
+             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician) | send_feedback (coordinator) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator). Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.
              */
             event: string;
             /**
@@ -2874,6 +2883,11 @@ export interface components {
              * @description Required by missing_found and postpone.
              */
             reason?: string | null;
+            /**
+             * Receipt Id
+             * @description Required by delivery_confirmed.
+             */
+            receipt_id?: string | null;
             /**
              * Resume On
              * @description Required by postpone: date or external step.
@@ -4151,6 +4165,15 @@ export interface operations {
             };
             /** @description Actor not identified (application/problem+json) */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

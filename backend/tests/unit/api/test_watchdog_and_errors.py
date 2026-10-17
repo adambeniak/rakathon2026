@@ -7,13 +7,14 @@ import pytest
 import respx
 from fastapi.testclient import TestClient
 
-from app.api.deps import get_case_reader, get_handover_store
+from app.api.deps import get_case_reader, get_directory_provider, get_handover_store
 from app.domain.errors import ForbiddenError
 from app.fhir.errors import FhirConflictError
 from app.main import create_app
 from app.settings import Settings
 from tests.conftest import FHIR_BASE
 from tests.unit.api.fake_handover_store import FakeStore
+from tests.unit.api.test_api import DemoDirectory
 
 
 class RaisingReader:
@@ -27,6 +28,7 @@ class RaisingReader:
 def get_cases_with(settings: Settings, error: Exception) -> httpx.Response:
     app = create_app(settings)
     app.dependency_overrides[get_case_reader] = lambda: RaisingReader(error)
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     app.dependency_overrides[get_handover_store] = FakeStore  # the summary also reads the handover store
     with TestClient(app) as client:
         return client.get("/api/cases")

@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List cases */
+        /**
+         * List cases
+         * @description Not for the insurer's reviewer (403): see `GET /api/reviewer/cases`.
+         */
         get: operations["cases-list_cases"];
         put?: never;
         post?: never;
@@ -28,7 +31,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Case detail with its documents */
+        /**
+         * Case detail with its documents
+         * @description Not for the insurer's reviewer (403): see `GET /api/reviewer/cases/{ref}`.
+         */
         get: operations["cases-get_case"];
         put?: never;
         post?: never;
@@ -420,6 +426,46 @@ export interface paths {
          * @description Every value carries the verbatim quote it was read from; a value the letter does not state is `missing`. The sex is derived from the rodné číslo and marked `derived`. This is a draft for the GP to confirm.
          */
         post: operations["referrals-prefill_referral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reviewer/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cases of the reviewer's insured persons (minimal, pseudonymous)
+         * @description Only for the `reviewer` role (others 403). Only cases of the reviewer's own insurer. No name, birth date, birth number or clinical text; T1-T3 are proxies and null when an end point is not recorded. Audited.
+         */
+        get: operations["reviewer-list_reviewer_cases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reviewer/cases/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One case of the reviewer's insured persons (minimal, pseudonymous)
+         * @description 404 also for a case of another insurer, so its existence is not confirmed. Audited.
+         */
+        get: operations["reviewer-get_reviewer_case"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -858,6 +904,19 @@ export interface components {
          *         }
          *       ],
          *       "id": "rakathon-2026-prochazkova",
+         *       "intervals": {
+         *         "t1": {
+         *           "end": "2026-10-02",
+         *           "status": "not_recorded"
+         *         },
+         *         "t2": {
+         *           "start": "2026-10-02",
+         *           "status": "running"
+         *         },
+         *         "t3": {
+         *           "status": "not_started"
+         *         }
+         *       },
          *       "missing_count": 3,
          *       "next_deadline": "2026-10-21T08:00:00+02:00",
          *       "opened_at": "2026-10-02T09:30:00+02:00",
@@ -908,6 +967,8 @@ export interface components {
              * @description Case business id, e.g. 'rakathon-2026-prochazkova'.
              */
             id: string;
+            /** @description Time-to-treatment proxies T1-T3 (header 'Časové intervaly'); a value is null when an end point is not recorded, never estimated. */
+            intervals: components["schemas"]["TimeToTreatmentIntervals"];
             /**
              * Koc
              * @description Name of the managing KOC (Organization).
@@ -1758,6 +1819,11 @@ export interface components {
             reason: string;
         };
         /**
+         * FeedbackDelivery
+         * @enum {string}
+         */
+        FeedbackDelivery: "not_sent" | "handed_over" | "opened_by_gp" | "unconfirmed";
+        /**
          * FieldStatus
          * @description Subset of the shared handover field status enum.
          * @enum {string}
@@ -2007,6 +2073,11 @@ export interface components {
              */
             value_hash?: string | null;
         };
+        /**
+         * IntervalStatus
+         * @enum {string}
+         */
+        IntervalStatus: "measured" | "running" | "not_started" | "not_recorded" | "inconsistent";
         /**
          * ItemEvidence
          * @description Evidence of one displayed value, with the source document's dates (one evidence chip in the UI).
@@ -2663,6 +2734,82 @@ export interface components {
          */
         ReviewState: "draft" | "confirmed" | "accepted_missing";
         /**
+         * ReviewerCase
+         * @example {
+         *       "birth_year": 1963,
+         *       "delivery": {
+         *         "status": "handed_over"
+         *       },
+         *       "diagnosis_group": "C25",
+         *       "initials": "A. P.",
+         *       "insurer_code": "211",
+         *       "intervals": {
+         *         "t1": {
+         *           "end": "2026-10-02",
+         *           "status": "not_recorded"
+         *         },
+         *         "t2": {
+         *           "days": 19,
+         *           "end": "2026-10-21",
+         *           "start": "2026-10-02",
+         *           "status": "measured"
+         *         },
+         *         "t3": {
+         *           "start": "2026-10-21",
+         *           "status": "running"
+         *         }
+         *       },
+         *       "ref": "RV-3F9A2C1B7D40",
+         *       "referred_on": "2026-10-02",
+         *       "state": "zpetna_vazba_odeslana"
+         *     }
+         */
+        ReviewerCase: {
+            /**
+             * Birth Year
+             * @description Year of birth only.
+             */
+            birth_year: number;
+            delivery: components["schemas"]["ReviewerDelivery"];
+            /**
+             * Diagnosis Group
+             * @description MKN-10 category (three characters, e.g. 'C25') of the suspected diagnosis in the referral, as written by the GP; no text. Null when the referral has no code.
+             */
+            diagnosis_group?: string | null;
+            /**
+             * Initials
+             * @description Initials of the patient, e.g. 'A. P.'.
+             */
+            initials: string;
+            /**
+             * Insurer Code
+             * @description Always the reviewer's own insurer.
+             */
+            insurer_code: string;
+            intervals: components["schemas"]["TimeToTreatmentIntervals"];
+            /**
+             * Ref
+             * @description Stable pseudonym of the case for the reviewer (keyed hash of the case id; the case id itself contains the surname and is not returned).
+             */
+            ref: string;
+            /**
+             * Referred On
+             * @description Date the referral reached the KOC (Europe/Prague).
+             */
+            referred_on?: string | null;
+            state: components["schemas"]["CaseState"];
+        };
+        /** ReviewerDelivery */
+        ReviewerDelivery: {
+            /**
+             * Gp Opened At
+             * @description When the referring GP first opened the conclusion; null when no opening is recorded.
+             */
+            gp_opened_at?: string | null;
+            /** @description not_sent | handed_over (the relay accepted the e-mail; not proof of reading) | opened_by_gp (the GP opened the conclusion) | unconfirmed (past the feedback, no receipt recorded). */
+            status: components["schemas"]["FeedbackDelivery"];
+        };
+        /**
          * Role
          * @description Workflow role of a party: decides who may act and in which board lane a task appears.
          * @enum {string}
@@ -2984,6 +3131,55 @@ export interface components {
              */
             value_hash?: string | null;
         };
+        /**
+         * TimeToTreatmentIntervals
+         * @description Proxies, to be labelled so: T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT,
+         *     T3 = MDT → onkologické konzilium. Unknown values are null, never estimated.
+         * @example {
+         *       "t1": {
+         *         "end": "2026-10-02",
+         *         "status": "not_recorded"
+         *       },
+         *       "t2": {
+         *         "days": 19,
+         *         "end": "2026-10-21",
+         *         "start": "2026-10-02",
+         *         "status": "measured"
+         *       },
+         *       "t3": {
+         *         "start": "2026-10-21",
+         *         "status": "running"
+         *       }
+         *     }
+         */
+        TimeToTreatmentIntervals: {
+            /** @description První návštěva PL → žádost do KOC (proxy). */
+            t1: components["schemas"]["TreatmentInterval"];
+            /** @description Žádost do KOC → MDT (proxy; the MDT counts once it has been held). */
+            t2: components["schemas"]["TreatmentInterval"];
+            /** @description MDT → onkologické konzilium (proxy). */
+            t3: components["schemas"]["TreatmentInterval"];
+        };
+        /** TreatmentInterval */
+        TreatmentInterval: {
+            /**
+             * Days
+             * @description Whole calendar days (Europe/Prague); null unless `measured`.
+             */
+            days?: number | null;
+            /**
+             * End
+             * @description Date of the end point, when recorded.
+             */
+            end?: string | null;
+            /**
+             * Start
+             * @description Date of the start point, when recorded.
+             */
+            start?: string | null;
+            /** @description measured = both end points recorded (`days` set); running = started, end not recorded yet; not_started = neither end point recorded yet; not_recorded = the start was never recorded; inconsistent = the recorded end lies before the start. */
+            status: components["schemas"]["IntervalStatus"];
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -3242,6 +3438,24 @@ export interface operations {
                     "application/json": components["schemas"]["CaseSummary"][];
                 };
             };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3300,6 +3514,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
@@ -5148,6 +5380,169 @@ export interface operations {
             };
             /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "reviewer-list_reviewer_cases": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewerCase"][];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "reviewer-get_reviewer_case": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewerCase"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

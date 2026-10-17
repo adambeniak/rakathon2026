@@ -84,7 +84,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 | `GET /handover` does not persist; only a section confirmation does; the readiness gate needs a handover persisted for `mdt_start` | **Označit jako připravený k MDT** is refused until a section has been confirmed after the launch | Step 5: confirm one section first |
 | Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 09:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots (#122) | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
 | Audit, Časová osa and Komunikace tabs use provisional endpoints that are not in the contract (#47) | They can fail against the real backend | Do not show them; use the proofs named in each step |
-| Reviewer screen uses the provisional `/api/reviewer/cases` (#104, #105); the reviewer is not notified (#74) | **Přehled pro pojišťovnu** can fail; no automatic reviewer message exists | Skip the reviewer live; see step 6 |
+| The reviewer is not notified (#74); T1 and T3 have no recorded end point yet (#188, #189) | No automatic reviewer message; the reviewer screen shows T1 **nezaznamenáno** and T3 **běží** | Optional in step 6: role **Revizní lékař** shows initials, birth year, state, T2 and the delivery status |
 | HL7 v2 ingestion is not implemented (no production under `iris/`, #126) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
 | `make e2e` drives the six steps against the MSW mocks only, with mock deviations (readiness at 20. 10., no 3b, no Mailpit; #172, #175) | The video in `frontend/test-results/demo-flow-demo-flow-mock/video.webm` is the mock story, not the live stack | Use it as the last fallback; `E2E_SLOWMO=400 make e2e` records a watchable pace |
 
@@ -260,7 +260,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 - **Say:** „Závěr MDT zapíše a potvrdí lékař (v ukázce bez skutečného elektronického podpisu), koordinátorka ho odešle a
   praktickému lékaři se předá k doručení e-mail bez klinického textu (v ukázce Mailpit). Otevření závěru se zapíše do auditní stopy. Případ je uzavřen. Intervaly T1, T2, T3 jsou zástupné hodnoty.“
 - **Do not claim:** that the e-mail was *read* (the screen says „předáno k doručení“, the relay accepted it); that the
-  insurer's reviewer is informed automatically (#74) or sees a scoped summary (#104, #105); that the app knows whether
+  insurer's reviewer is informed automatically (#74); that T1 or T3 are measured (#188, #189); that the app knows whether
   the GP opened the conclusion on the coordinator screen (#113); that the record lists the MDT members or a separate
   recommendation, or that the system wrote any part of sections 6–7 (it prints only what the physician signed).
 - **Fallback:** a screenshot of the Mailpit message; if the send answers 503 (**E-mail se teď nepodařilo odeslat…**),

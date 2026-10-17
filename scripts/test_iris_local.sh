@@ -21,11 +21,9 @@ if [ ! -s .iris/password.txt ]; then
 fi
 
 if ! "${COMPOSE[@]}" ps --status running --services 2>/dev/null | grep -qx iris; then
-  # IRIS deletes its password file after reading it, so hand it a fresh copy on every start.
-  # A leftover password.done sentinel from an earlier container makes IRIS skip the password change.
-  rm -f .iris/password.done
-  cp .iris/password.txt .iris/password
-  chmod 777 .iris && chmod 666 .iris/password
+  # IRIS deletes its password file after reading it and a leftover password.done sentinel makes a fresh container skip
+  # the password change: the shared helper (also used by `make up-local`) hands it a clean copy (issue #43).
+  ./scripts/iris_local_prepare.sh --generate
   "${COMPOSE[@]}" up -d iris
 fi
 

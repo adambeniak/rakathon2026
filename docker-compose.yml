@@ -3,7 +3,7 @@
 #   curl -s localhost:8000/api/health
 #
 # Local IRIS instead of ACI (demo fallback) = docker-compose.local-iris.yml:
-#   mkdir -p .iris && echo 'local-password' > .iris/password.txt   (same value as IRIS_PASSWORD)
+#   mkdir -p .iris && printf '%s' 'local-password' > .iris/password.txt   (same value as IRIS_PASSWORD)
 #   make up-local
 # The backend container then uses IRIS_HOST=iris (set in the override), but `make iris-bootstrap` and `make seed`
 # run on the host and read .env: for the local fallback run them with IRIS_HOST=localhost and

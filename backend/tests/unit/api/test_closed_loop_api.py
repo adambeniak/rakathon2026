@@ -3,6 +3,7 @@ goes out and confirms delivery, the GP reads, the coordinator closes."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Iterator
 from datetime import datetime
@@ -24,6 +25,7 @@ from app.fhir.client import Resource
 from app.fhir.directory import Directory
 from app.fhir.mappers.case import case_from_fhir, case_task_to_fhir
 from app.fhir.mappers.task import task_from_fhir, task_to_fhir
+from app.fhir.tasks import TaskStore
 from app.main import create_app
 from app.notify.mailer import MailDeliveryError, MailMessage
 from app.seed import demo_case
@@ -527,3 +529,149 @@ def test_a_refused_close_changes_no_step(client: TestClient, steps: MemoryFhir) 
     assert waived.status_code == 422
     assert all(steps.resources[("Task", fhir_id)]["meta"]["versionId"] == "1" for fhir_id in STEPS)
     assert steps.resources[("ServiceRequest", "301")]["status"] == "active"
+
+
+# --- #149: the signed conclusion completes the pathway's MDT step; close leaves it completed ---
+
+MDT_STEP = Task(
+    id="step-mdt",
+    case_id=demo_case.CASE_ID,
+    code="mdt",
+    title="MDT",
+    status=TaskStatus.REQUESTED,
+    business_status=TaskBusinessStatus.OBJEDNANO,  # nobody confirms the MDT as an order in the demo
+    owner_role=Role.KOC_PHYSICIAN,
+    location="KOC 2 – Nemocnice Lipová",
+    due=MDT_START,
+    depends_on=["step-ct"],
+)
+
+
+def _add_step(store: MemoryFhir, fhir_id: str, task: Task, order_id: str) -> None:
+    resource = task_to_fhir(
+        task,
+        case_task_reference="Task/5",
+        patient_reference="Patient/2",
+        service_request_reference=f"ServiceRequest/{order_id}",
+    )
+    store.resources[("Task", fhir_id)] = {**resource, "id": fhir_id, "meta": {"versionId": "1"}}
+    store.resources[("ServiceRequest", order_id)] = {
+        "resourceType": "ServiceRequest",
+        "id": order_id,
+        "status": "completed" if task.status is TaskStatus.COMPLETED else "active",
+        "meta": {"versionId": "1"},
+    }
+
+
+@pytest.fixture
+def mdt_pathway(store: MemoryFhir) -> MemoryFhir:
+    """The completed CT and the MDT step that waits for it."""
+    _add_step(store, "203", STEPS["203"][0], "303")
+    _add_step(store, "204", MDT_STEP, "304")
+    return store
+
+
+def _mdt(store: MemoryFhir) -> Task:
+    return task_from_fhir(store.resources[("Task", "204")])
+
+
+def _conclusion_business_id(store: MemoryFhir) -> str:
+    (composition,) = store.of_type("Composition")
+    return str(composition["identifier"]["value"])
+
+
+def _on(audit: Resource, reference: str) -> bool:
+    return any(e.get("what", {}).get("reference") == reference for e in audit.get("entity", []))
+
+
+def test_signing_the_conclusion_completes_the_mdt_step_with_the_conclusion_as_result(
+    client: TestClient, mdt_pathway: MemoryFhir
+) -> None:
+    assert _sign_off(client).status_code == 200
+
+    mdt = _mdt(mdt_pathway)
+    assert (mdt.status, mdt.business_status) == (TaskStatus.COMPLETED, TaskBusinessStatus.VYSLEDEK_DORUCEN)
+    assert mdt.scheduled_at == MDT_START  # the confirmed date is the MDT start
+    assert mdt.result_doc_id == _conclusion_business_id(mdt_pathway)
+    output = mdt_pathway.resources[("Task", "204")]["output"][0]["valueReference"]
+    assert output["type"] == "Composition"  # the result is the signed conclusion, not a source document
+    assert mdt_pathway.resources[("ServiceRequest", "304")]["status"] == "completed"
+    assert _state(mdt_pathway) == "zaver_mdt"
+
+
+def test_the_issue_sequence_conclusion_then_close_leaves_the_mdt_step_completed_without_an_alert(
+    client: TestClient, mdt_pathway: MemoryFhir
+) -> None:
+    _feedback_sent(client)
+    completed = mdt_pathway.resources[("Task", "204")]["meta"]["versionId"]
+
+    assert _post(client, "close", COORDINATOR_HEADERS).status_code == 200
+
+    mdt = _mdt(mdt_pathway)
+    assert mdt.status is TaskStatus.COMPLETED  # not cancelled with "Případ uzavřen"
+    assert mdt_pathway.resources[("Task", "204")]["meta"]["versionId"] == completed  # close did not touch it
+    assert not [a for a in mdt_pathway.of_type("AuditEvent") if a["subtype"][0]["code"] == "cancel"]
+    tasks = [task_from_fhir(mdt_pathway.resources[("Task", i)]) for i in ("203", "204")]
+    assert collect_alerts(tasks, datetime(2026, 10, 30, 9, 0, tzinfo=PRAGUE)) == []
+    board = build_board(demo_case.CASE_ID, tasks, MDT_START)
+    assert board.baton_holder is None
+
+
+def test_a_repeated_completion_writes_nothing(client: TestClient, mdt_pathway: MemoryFhir) -> None:
+    assert _sign_off(client).status_code == 200
+    version = mdt_pathway.resources[("Task", "204")]["meta"]["versionId"]
+    workflow = ClosedLoopWorkflow(mdt_pathway, mdt_pathway, FakeMailer(), "http://localhost:5173/gp")  # type: ignore[arg-type]
+
+    async def again() -> None:
+        loaded = await mdt_pathway.load(demo_case.CASE_ID)
+        await workflow._complete_mdt_step(loaded, "other@x", directory=DIRECTORY, now=MDT_START)
+
+    asyncio.run(again())
+
+    assert mdt_pathway.resources[("Task", "204")]["meta"]["versionId"] == version
+    assert _mdt(mdt_pathway).result_doc_id == _conclusion_business_id(mdt_pathway)
+
+
+def test_a_failed_step_write_keeps_the_sign_off_and_close_completes_the_step(
+    client: TestClient, mdt_pathway: MemoryFhir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken_save(*_: object, **__: object) -> None:
+        raise RuntimeError("IRIS down")
+
+    monkeypatch.setattr(TaskStore, "save", broken_save)
+    assert _sign_off(client).status_code == 200  # the conclusion is stored and signed all the same
+    assert _mdt(mdt_pathway).status is TaskStatus.REQUESTED
+    monkeypatch.undo()
+    assert _post(client, "send_feedback", COORDINATOR_HEADERS).status_code == 200
+    before = mdt_pathway.transactions
+
+    assert _post(client, "close", COORDINATOR_HEADERS).status_code == 200
+
+    assert mdt_pathway.transactions == before + 1  # completed in the close transaction
+    mdt = _mdt(mdt_pathway)
+    assert (mdt.status, mdt.business_status) == (TaskStatus.COMPLETED, TaskBusinessStatus.VYSLEDEK_DORUCEN)
+    assert mdt.result_doc_id == _conclusion_business_id(mdt_pathway)
+    assert mdt_pathway.resources[("ServiceRequest", "304")]["status"] == "completed"
+    events = [a["subtype"][0]["code"] for a in mdt_pathway.of_type("AuditEvent") if _on(a, "Task/204")]
+    assert events == ["order_confirmed", "accept", "start", "performed", "result_delivered"]
+
+
+def test_an_mdt_step_whose_predecessor_is_open_stays_open_and_is_cancelled_at_close(
+    client: TestClient, store: MemoryFhir
+) -> None:
+    _add_step(store, "201", STEPS["201"][0], "301")  # histology accepted, not completed
+    _add_step(store, "204", MDT_STEP.model_copy(update={"depends_on": ["step-histology"]}), "304")
+
+    assert _sign_off(client).status_code == 200
+    assert _mdt(store).status is TaskStatus.REQUESTED  # the machine's guard holds
+    assert _post(client, "send_feedback", COORDINATOR_HEADERS).status_code == 200
+    assert _post(client, "close", COORDINATOR_HEADERS).status_code == 200
+
+    assert _mdt(store).status is TaskStatus.CANCELLED
+    assert store.resources[("ServiceRequest", "304")]["status"] == "revoked"
+
+
+def test_a_case_without_a_pathway_signs_off_as_before(client: TestClient, store: MemoryFhir) -> None:
+    assert _sign_off(client).status_code == 200
+    assert _state(store) == "zaver_mdt"
+    assert [i for (t, i) in store.resources if t == "Task"] == ["5"]

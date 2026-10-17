@@ -150,3 +150,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: none for these issues; the GP portal could show its own opening time (not asked)
   Risks: e2e step 6 now expects the opened-time line and "Potvrdit uzavření" (the GP opens before the coordinator closes); live mode untested (Docker off)
   Issues: closes #154, #161
+- 2026-10-17 · claude (P4) · fix/mdt-step-completes · #149: signing the MDT conclusion completes the pathway's `mdt` step (second idempotent write after the sign-off; task machine as SYSTEM, only missing events, guards apply; result = conclusion Composition by business id); `close` completes a still-open mdt step in its transaction instead of cancelling it; `order_confirmed`/`accept` allow SYSTEM; ADR `docs/adr/XXXX-mdt-conclusion-completes-step.md`
+  Verified: ruff, ruff format --check, mypy app, `pytest -m "not iris"` 1162 passed; new API tests fail without the second write
+  Next: #183 (MDT held with a waived open predecessor still ends cancelled), #184 (board card shows the raw conclusion id)
+  Risks: not run against IRIS (Docker off); Task.output of the mdt step now references a Composition by identifier (P1 mapping)
+  Issues: closes #149; #183, #184 new

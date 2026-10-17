@@ -243,7 +243,7 @@ export interface paths {
         };
         /**
          * MDT record in the MDT_zapis layout (DOCX), as of the MDT start
-         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items; a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.
+         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.
          */
         get: operations["handover-get_mdt_record"];
         put?: never;
@@ -873,6 +873,11 @@ export interface components {
              */
             documents: components["schemas"]["DocumentSummary"][];
             /**
+             * Gp Opened At
+             * @description When the referring GP first opened the MDT conclusion (the audited `gp_opened` event). Null when no opening is recorded; null is not proof that the GP has not read it.
+             */
+            gp_opened_at?: string | null;
+            /**
              * Id
              * @description Case business id, e.g. 'rakathon-2026-prochazkova'.
              */
@@ -901,6 +906,11 @@ export interface components {
              * @default false
              */
             postponed: boolean;
+            /**
+             * Readiness Waivers
+             * @description Waivers in force for the MDT readiness (the latest per item; none before the last `reopen`). Empty while the case is not marked ready for the MDT.
+             */
+            readiness_waivers?: components["schemas"]["RecordedReadinessWaiver"][];
             referring_gp?: components["schemas"]["ReferringGp"] | null;
             state: components["schemas"]["CaseState"];
             /** @description From the referral (suspected, as written); null when the case has no referral letter. */
@@ -961,6 +971,11 @@ export interface components {
              * @description All documents of the case (not filtered by as-of).
              */
             document_count: number;
+            /**
+             * Gp Opened At
+             * @description When the referring GP first opened the MDT conclusion (the audited `gp_opened` event). Null when no opening is recorded; null is not proof that the GP has not read it.
+             */
+            gp_opened_at?: string | null;
             /**
              * Id
              * @description Case business id, e.g. 'rakathon-2026-prochazkova'.
@@ -2445,6 +2460,32 @@ export interface components {
              * @description Why the MDT may go ahead without it.
              */
             reason: string;
+        };
+        /**
+         * RecordedReadinessWaiver
+         * @description A blocking MDT readiness item a KOC physician waived at `mark_ready_mdt` (stored as Provenance).
+         */
+        RecordedReadinessWaiver: {
+            /**
+             * Item
+             * @description Readiness item of the pathway: histology | ct_staging | tumour_markers | comorbidities | performance_status | mdt_question.
+             */
+            item: string;
+            /**
+             * Reason
+             * @description The physician's reason, as entered.
+             */
+            reason: string;
+            /**
+             * Waived At
+             * Format: date-time
+             */
+            waived_at: string;
+            /**
+             * Waived By
+             * @description Display name of the signing KOC physician.
+             */
+            waived_by?: string | null;
         };
         /** ReferralCreated */
         ReferralCreated: {

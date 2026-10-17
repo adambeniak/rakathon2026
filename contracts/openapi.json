@@ -841,6 +841,19 @@
             "title": "Documents",
             "type": "array"
           },
+          "gp_opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the referring GP first opened the MDT conclusion (the audited `gp_opened` event). Null when no opening is recorded; null is not proof that the GP has not read it.",
+            "title": "Gp Opened At"
+          },
           "id": {
             "description": "Case business id, e.g. 'rakathon-2026-prochazkova'.",
             "title": "Id",
@@ -903,6 +916,14 @@
             "description": "Postponed (waiting for an external step): queue column Odložený.",
             "title": "Postponed",
             "type": "boolean"
+          },
+          "readiness_waivers": {
+            "description": "Waivers in force for the MDT readiness (the latest per item; none before the last `reopen`). Empty while the case is not marked ready for the MDT.",
+            "items": {
+              "$ref": "#/components/schemas/RecordedReadinessWaiver"
+            },
+            "title": "Readiness Waivers",
+            "type": "array"
           },
           "referring_gp": {
             "anyOf": [
@@ -1028,6 +1049,19 @@
             "minimum": 0.0,
             "title": "Document Count",
             "type": "integer"
+          },
+          "gp_opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the referring GP first opened the MDT conclusion (the audited `gp_opened` event). Null when no opening is recorded; null is not proof that the GP has not read it.",
+            "title": "Gp Opened At"
           },
           "id": {
             "description": "Case business id, e.g. 'rakathon-2026-prochazkova'.",
@@ -4510,6 +4544,45 @@
         "title": "ReadinessWaiver",
         "type": "object"
       },
+      "RecordedReadinessWaiver": {
+        "description": "A blocking MDT readiness item a KOC physician waived at `mark_ready_mdt` (stored as Provenance).",
+        "properties": {
+          "item": {
+            "description": "Readiness item of the pathway: histology | ct_staging | tumour_markers | comorbidities | performance_status | mdt_question.",
+            "title": "Item",
+            "type": "string"
+          },
+          "reason": {
+            "description": "The physician's reason, as entered.",
+            "title": "Reason",
+            "type": "string"
+          },
+          "waived_at": {
+            "format": "date-time",
+            "title": "Waived At",
+            "type": "string"
+          },
+          "waived_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name of the signing KOC physician.",
+            "title": "Waived By"
+          }
+        },
+        "required": [
+          "item",
+          "reason",
+          "waived_at"
+        ],
+        "title": "RecordedReadinessWaiver",
+        "type": "object"
+      },
       "ReferralCreated": {
         "properties": {
           "case": {
@@ -7822,7 +7895,7 @@
     },
     "/api/cases/{case_id}/mdt-record": {
       "get": {
-        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items; a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.",
+        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.",
         "operationId": "handover-get_mdt_record",
         "parameters": [
           {

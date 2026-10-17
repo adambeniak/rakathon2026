@@ -15,6 +15,7 @@ from app.api.schemas.cases import (
     DocumentSummary,
     EvidenceRef,
     PatientSummary,
+    RecordedReadinessWaiver,
     ReferringGp,
     SuspectedDiagnosis,
 )
@@ -60,6 +61,7 @@ def summary_fields(
         # The same numbers under their older names; null when the handover cannot be built.
         "missing_count": counts.missing if counts else None,
         "conflict_count": counts.conflict if counts else None,
+        "gp_opened_at": extras.gp_opened_at,
     }
 
 
@@ -104,5 +106,9 @@ async def get_case(
             **summary_fields(view.case, settings.now().date(), view.extras, counts),
             "document_count": len(documents),
             "documents": documents,
+            "readiness_waivers": [
+                RecordedReadinessWaiver(item=w.item, reason=w.reason, waived_by=w.by_display, waived_at=w.at)
+                for w in view.readiness_waivers
+            ],
         }
     )

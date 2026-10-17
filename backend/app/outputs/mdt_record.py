@@ -11,8 +11,11 @@ never drafts a conclusion or a recommendation. Every section carries a label of 
 - "Chybí"                                      the documents do not state it
 
 Under each label the section's notes and missing items are printed, so a value is never shown without what is known to
-be uncertain about it. All text that reaches the document is sanitised first (XML-illegal characters, layout control
-characters, birth numbers), the Jinja environment is sandboxed and the rendered file is checked for completeness.
+be uncertain about it. A blocking MDT readiness item a KOC physician waived at `mark_ready_mdt` is printed next to the
+section it belongs to ("Prominuto lékařem (připravenost k MDT – …): kdo, kdy, důvod: …"), as recorded.
+
+All text that reaches the document is sanitised first (XML-illegal characters, layout control characters, birth
+numbers), the Jinja environment is sandboxed and the rendered file is checked for completeness.
 
 The template `templates/mdt_zapis.docx` is built from the sample form by `python -m app.outputs.build_template`.
 """
@@ -23,6 +26,7 @@ import html
 import io
 import re
 import zipfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
@@ -38,6 +42,7 @@ from app.domain.handover import (
     HandoverStatus,
     ReviewState,
 )
+from app.domain.pathway import RecordedWaiver
 from app.settings import PRAGUE
 
 TEMPLATE: Final = Path(__file__).parent / "templates" / "mdt_zapis.docx"
@@ -110,6 +115,17 @@ _APPENDIX_FIELDS: Final = (
     ("symptoms", "Symptomy a jejich počátek"),
     ("other", "Jiná důležitá sdělení"),
 )
+# Readiness items of the pathway (PlanDefinition) -> where the record prints their waiver: a form section or a
+# section of appendix C. An item with no place here is listed in appendix C under _WAIVER_OTHER_TITLE.
+_WAIVER_ITEMS: Final = {
+    "histology": ("Histologie", "s5"),
+    "ct_staging": ("CT staging", "s5"),
+    "tumour_markers": ("Nádorové markery", "s5"),
+    "comorbidities": ("Komorbidity", "s4"),
+    "performance_status": ("PS / Karnofsky", "performance_status"),
+    "mdt_question": ("Požadavek / otázka na MDT", "mdt_question"),
+}
+_WAIVER_OTHER_TITLE: Final = "Další prominuté položky připravenosti k MDT"
 _ONSET_LABEL: Final = "Počátek obtíží"  # documented as free text ("od poloviny srpna"): no day-exact date is printed
 _MULTILINE_KEYS: Final = frozenset({"patient_lines", "referring_lines", "comorbidities_text", "diagnosis_name"})
 
@@ -164,7 +180,22 @@ def _attestation(field: HandoverFieldBase) -> str | None:
     return f"{_line(review.by.display)}, {_cz_date(at)} {at:%H:%M}"
 
 
-def section_label(fields: list[tuple[str, HandoverFieldBase]], *, note: str | None = None) -> RichText:
+def waiver_line(waiver: RecordedWaiver) -> str:
+    """Who waived which readiness item, when and why, as recorded (neutral wording, the reason verbatim)."""
+    title = _WAIVER_ITEMS[waiver.item][0] if waiver.item in _WAIVER_ITEMS else f"položka „{waiver.item}“"
+    at = waiver.at.astimezone(PRAGUE)
+    who = waiver.by_display or "jméno neuvedeno"
+    when = f"{_cz_date(at)} {at:%H:%M}"
+    return f"Prominuto lékařem (připravenost k MDT – {title}): {_line(who)}, {when}, důvod: {_line(waiver.reason)}"
+
+
+def _waivers_at(waivers: Sequence[RecordedWaiver], place: str) -> list[str]:
+    return [waiver_line(w) for w in waivers if _WAIVER_ITEMS.get(w.item, ("", ""))[1] == place]
+
+
+def section_label(
+    fields: list[tuple[str, HandoverFieldBase]], *, note: str | None = None, extra: Sequence[str] = ()
+) -> RichText:
     """Bold review label (who/when for confirmed sections) and, below it in grey, every note, conflict and missing item
     of the source fields. `fields` are (title, field) pairs; titles prefix the notes of multi-field sections."""
     labels = list(dict.fromkeys(field_label(f) for _, f in fields))
@@ -192,6 +223,7 @@ def section_label(fields: list[tuple[str, HandoverFieldBase]], *, note: str | No
             lines.append(f"{prefix}{_line(field.note)}")
     if note:
         lines.append(note)
+    lines += extra
     text = RichText()
     text.add(head, bold=True)
     if detail:
@@ -204,7 +236,12 @@ def section_label(fields: list[tuple[str, HandoverFieldBase]], *, note: str | No
 # --- context ---------------------------------------------------------------------------------------------------------
 
 
-def build_context(handover: Handover, referring: ReferringDoctor | None, generated_at: datetime) -> dict[str, Any]:
+def build_context(
+    handover: Handover,
+    referring: ReferringDoctor | None,
+    generated_at: datetime,
+    waivers: Sequence[RecordedWaiver] = (),
+) -> dict[str, Any]:
     f = handover.fields
     patient, contacts, weight = f.patient.value, f.contacts.value, f.weight_height
     as_of = handover.as_of.astimezone(PRAGUE)
@@ -246,8 +283,8 @@ def build_context(handover: Handover, referring: ReferringDoctor | None, generat
         ),
         "s2": _plain(NO_MEMBERS),
         "s3": section_label(_titled(handover, "diagnosis")),
-        "s4": section_label(_titled(handover, "comorbidities")),
-        "s5": section_label(_titled(handover, "examinations", "labs", "histology")),
+        "s4": section_label(_titled(handover, "comorbidities"), extra=_waivers_at(waivers, "s4")),
+        "s5": section_label(_titled(handover, "examinations", "labs", "histology"), extra=_waivers_at(waivers, "s5")),
         "s6": _plain(FOR_PHYSICIANS),
         "s7": _plain(FOR_PHYSICIANS),
         "mdt_date": mdt_text,
@@ -259,7 +296,10 @@ def build_context(handover: Handover, referring: ReferringDoctor | None, generat
         "results": _results(handover),
         "findings": [_finding_line(x) for x in handover.findings] or ["Žádné záznamy."],
         "excluded": [_excluded_line(x.doc_id, x.reason, mdt_text) for x in handover.excluded_documents] or ["Žádné."],
-        "appendix": [_appendix_section(handover, key, title) for key, title in _APPENDIX_FIELDS],
+        "appendix": [
+            *(_appendix_section(handover, key, title, _waivers_at(waivers, key)) for key, title in _APPENDIX_FIELDS),
+            *_other_waivers(waivers),
+        ],
         "footer": (
             f"Zápis vygeneroval systém Štafeta (prototyp, fiktivní data) dne {_cz_date(generated)} "
             f"{generated:%H:%M}. Systém nevytváří závěr ani doporučení MDT."
@@ -268,8 +308,13 @@ def build_context(handover: Handover, referring: ReferringDoctor | None, generat
     return _sanitise(context)
 
 
-def render_mdt_record(handover: Handover, referring: ReferringDoctor | None, generated_at: datetime) -> bytes:
-    context = build_context(handover, referring, generated_at)
+def render_mdt_record(
+    handover: Handover,
+    referring: ReferringDoctor | None,
+    generated_at: datetime,
+    waivers: Sequence[RecordedWaiver] = (),
+) -> bytes:
+    context = build_context(handover, referring, generated_at, waivers)
     template = DocxTemplate(str(TEMPLATE))
     template.render(context, jinja_env=SandboxedEnvironment(autoescape=True))
     buffer = io.BytesIO()
@@ -393,7 +438,17 @@ def _excluded_line(doc_id: str, reason: str, mdt_text: str) -> str:
     return f"{doc_id} – nezahrnuto ({shown})"
 
 
-def _appendix_section(handover: Handover, key: str, title: str) -> dict[str, Any]:
+def _other_waivers(waivers: Sequence[RecordedWaiver]) -> list[dict[str, Any]]:
+    """Waived readiness items that have no section in the record (the pathway names an item not mapped here)."""
+    lines = [waiver_line(w) for w in waivers if w.item not in _WAIVER_ITEMS]
+    if not lines:
+        return []
+    heading = RichText()
+    heading.add(_WAIVER_OTHER_TITLE, bold=True)
+    return [{"title": heading, "lines": lines}]
+
+
+def _appendix_section(handover: Handover, key: str, title: str, extra: Sequence[str] = ()) -> dict[str, Any]:
     field: HandoverFieldBase = getattr(handover.fields, key)
     lines: list[str] = []
     if key == "epicrisis" and not field.items:
@@ -405,6 +460,7 @@ def _appendix_section(handover: Handover, key: str, title: str) -> dict[str, Any
     lines.extend(_missing_line(m.item, m.reason) for m in field.missing_items)
     if field.note:
         lines.append("Poznámka: " + _reword_note(field.note))
+    lines.extend(extra)
     attested = _attestation(field)
     heading = RichText()
     heading.add(f"{title} – ", bold=True)

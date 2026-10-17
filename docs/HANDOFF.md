@@ -136,3 +136,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: merge #158 first, then retarget this PR to main; #154 (frontend: `blocking_items`, and the stale 409 role-denial fixture in `mdt/Loop.test.tsx`); #84 audit of denials can key on 403
   Risks: no audit of denials exists yet (#84), so nothing there to keep; any external client that expected 409 for forbidden_role now gets 403; vitest timeouts under machine load (load avg ~40) — targeted runs pass
   Issues: closes #136; #154 (comment added), #84
+- 2026-10-17 · claude (P4) · fix/case-waivers-gp-opened · #131 + #113: `CaseDetail.readiness_waivers` (item, reason, waived_by, waived_at; read from the waiver Provenance, latest per item, none before the last reopen, KOC team only) and nullable `gp_opened_at` on `CaseSummary`/`CaseDetail` (first audited `gp_opened`); MDT record DOCX prints each waiver next to its section ("Prominuto lékařem (připravenost k MDT – …): kdo, kdy, důvod: …"); additive contract + schema.d.ts regenerated; ADR `docs/adr/XXXX-case-waivers-and-gp-opened.md`
+  Next: UI uses the fields after #122 merges (#161); verify the AuditEvent `subtype` search on IRIS (#163)
+  Risks: not run against IRIS (Docker off); `GET /cases/{id}` has no membership check (pre-existing, #162)
+  Issues: #161, #162, #163

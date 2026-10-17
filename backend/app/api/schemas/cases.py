@@ -104,6 +104,23 @@ class CaseSummary(BaseModel):
     conflict_count: int | None = Field(
         None, description="Same number as `counts.conflict`; null when `counts` is null."
     )
+    gp_opened_at: AwareDatetime | None = Field(
+        None,
+        description="When the referring GP first opened the MDT conclusion (the audited `gp_opened` event). Null when "
+        "no opening is recorded; null is not proof that the GP has not read it.",
+    )
+
+
+class RecordedReadinessWaiver(BaseModel):
+    """A blocking MDT readiness item a KOC physician waived at `mark_ready_mdt` (stored as Provenance)."""
+
+    item: str = Field(
+        description="Readiness item of the pathway: histology | ct_staging | tumour_markers | comorbidities | "
+        "performance_status | mdt_question."
+    )
+    reason: str = Field(description="The physician's reason, as entered.")
+    waived_by: str | None = Field(None, description="Display name of the signing KOC physician.")
+    waived_at: AwareDatetime
 
 
 class DocumentSummary(BaseModel):
@@ -139,3 +156,8 @@ class CaseDetail(CaseSummary):
     )
 
     documents: list[DocumentSummary] = Field(description="Ordered by received time.")
+    readiness_waivers: list[RecordedReadinessWaiver] = Field(
+        default_factory=list,
+        description="Waivers in force for the MDT readiness (the latest per item; none before the last `reopen`). "
+        "Empty while the case is not marked ready for the MDT.",
+    )

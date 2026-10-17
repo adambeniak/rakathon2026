@@ -8,7 +8,13 @@ from typing import Any
 from pydantic import JsonValue
 
 from app.domain.handover import Handover, SectionReview
-from app.fhir.mappers.handover import FhirContext, handover_bundle, handover_business_id, with_section_review
+from app.fhir.mappers.handover import (
+    FhirContext,
+    carried_reviews,
+    handover_bundle,
+    handover_business_id,
+    with_section_review,
+)
 
 
 class FakeStore:
@@ -25,7 +31,8 @@ class FakeStore:
         key = handover_business_id(handover.case_id, handover.as_of)
         if key not in self.compositions:
             ctx = FhirContext("Patient/1", "EpisodeOfCare/2", {}, device_display, recorded)
-            resource = handover_bundle(handover, ctx)["entry"][0]["resource"]
+            carried = carried_reviews(handover, list(self.compositions.values()))
+            resource = handover_bundle(handover, ctx, carried)["entry"][0]["resource"]
             self.compositions[key] = {**resource, "id": str(len(self.compositions) + 1), "meta": {"versionId": "1"}}
         return self.compositions[key]
 

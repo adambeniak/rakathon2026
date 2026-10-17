@@ -6,13 +6,12 @@ import { LoadingBlock } from '@/components/Skeleton'
 import { StatusPill, pillForHandover } from '@/components/StatusPill'
 import { Button } from '@/components/ui/button'
 import { useCase } from '@/features/cases/api'
-import { useHandover } from '@/features/handover/api'
 import type { HandoverView, SectionView } from '@/features/handover/types'
 import { mdt as t } from '@/i18n/cs/mdt'
 import { ApiProblem } from '@/lib/api/problem'
 import { formatDate, formatDateTime } from '@/lib/date'
 import type { DocumentInfo, Role } from '@/lib/domain'
-import { mdtRecordFileName, problemTitle, useDownloadMdtRecord } from './api'
+import { mdtRecordFileName, problemTitle, useDownloadMdtRecord, useMdtHandover } from './api'
 import { ConclusionPanel } from './ConclusionPanel'
 import { LoopActions } from './LoopActions'
 import { MarkReady } from './MarkReady'
@@ -130,7 +129,7 @@ function Record({ view, docs, caseId, state, role }: { view: HandoverView; docs:
 export function Mdt() {
   const { id = '' } = useParams()
   const { role } = useDemo()
-  const q = useHandover(id)
+  const q = useMdtHandover(id)
   const c = useCase(id)
   const download = useDownloadMdtRecord(id)
   const docs = new Map((c.data?.documents ?? []).map((d) => [d.id, d]))

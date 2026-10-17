@@ -19,6 +19,12 @@ export const handlers = [
     if (params.id !== ALENA_ID) return HttpResponse.json(emptyWire(String(params.id), asOf))
     return HttpResponse.json(wire(asOf))
   }),
+  // Contract route `POST …/handover`: stores the snapshot (idempotent) and answers like the GET above.
+  http.post('/api/cases/:id/handover', ({ params, request }) => {
+    const asOf = new URL(request.url).searchParams.get('as_of') ?? AS_OF_DEFAULT
+    if (params.id !== ALENA_ID) return HttpResponse.json(emptyWire(String(params.id), asOf))
+    return HttpResponse.json(wire(asOf))
+  }),
   // Contract route `POST …/sections/{number}/confirm` (body `ConfirmSection`, answer: the whole `Handover`).
   // Confirmation is per section only: there is no bulk route.
   http.post('/api/cases/:id/handover/sections/:number/confirm', async ({ params, request }) => {

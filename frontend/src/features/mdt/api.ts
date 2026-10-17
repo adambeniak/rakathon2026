@@ -1,15 +1,31 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { z } from 'zod'
+import { useDemo } from '@/app/DemoContext'
 import { caseSummary } from '@/features/cases/schemas'
 import { mdtConclusion } from '@/features/gp/api'
+import { adaptHandover } from '@/features/handover/adapter'
 import { client, unwrap } from '@/lib/api/client'
 import { mdt } from '@/i18n/cs/mdt'
 import { ApiProblem, problemTitle } from '@/lib/api/problem'
 import { queryKey, useApiMutation, useApiQuery } from '@/lib/api/query'
 
-// The handover as of the MDT start comes from `features/handover/api.ts` (`useHandover`): without `as_of` the API
-// answers with the case's `mdt_start`, and `HandoverView.asOf` carries it back. The screen never picks a date.
+// Without `as_of` the API answers with the handover as of the case's `mdt_start`, and `HandoverView.asOf` carries it
+// back. The screen never picks a date.
 // Provisional `/mdt`, `/mdt/generate` and `/send-feedback` calls are gone: the record is the contract's `mdt-record`.
+
+/**
+ * The handover as of the MDT start, stored: `POST /handover` (idempotent per case and as-of, same answer as `GET`)
+ * saves the snapshot the readiness gate reads and carries over the physician's earlier decisions on unchanged
+ * sections (#122). Under the `['case', id]` key, so a section confirmation refreshes it.
+ */
+export function useMdtHandover(id: string) {
+  const { today } = useDemo()
+  return useQuery({
+    queryKey: ['case', id, 'handover', today, 'mdt'],
+    queryFn: async () =>
+      adaptHandover(unwrap(await client.POST('/api/cases/{case_id}/handover', { params: { path: { case_id: id } } }))),
+  })
+}
 
 /** Our file name for the downloaded record; `NAVRH` while a section is unconfirmed, like the API's own name. */
 export function mdtRecordFileName(caseId: string, asOf: string, draft: boolean): string {

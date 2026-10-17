@@ -8,6 +8,8 @@
 - Provenance per derived resource: entity.what = source DocumentReference, the verbatim quote + char span in the
   `evidence-quote` extension, agent = Device (model + prompt versions). Confirmation by a physician adds a Provenance
   targeting the Composition (agent = PractitionerRole by business identifier, previous value hash).
+- A new snapshot of the case (another as_of) carries over the physician's decisions on sections whose content is
+  identical (same value hash), each with a `carry-over` Provenance (ADR handover-confirmation-carry-over).
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ import copy
 import html
 import json
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -83,6 +85,18 @@ class FhirContext:
     documents: Mapping[str, str]  # doc_id -> "DocumentReference/14"
     device_display: str  # "Štafeta AI · <model> · extract-v1, epicrisis-v1"
     recorded: datetime
+
+
+@dataclass(frozen=True)
+class CarriedReview:
+    """A physician's decision on a section in another snapshot of the case that still covers this one."""
+
+    key: str
+    review: SectionReview
+    by: PartyRef
+    at: datetime
+    edited_value: JsonValue | None
+    source: str  # "Composition/<id>/_history/<version>" of the snapshot the decision was made in
 
 
 @dataclass(frozen=True)
@@ -323,8 +337,11 @@ def _provenance(target: str, entities: list[Resource], ctx: FhirContext, activit
 # ---------------------------------------------------------------- write
 
 
-def handover_bundle(handover: Handover, ctx: FhirContext) -> Resource:
-    """Transaction Bundle: Composition first (conditional create), derived resources, Provenance."""
+def handover_bundle(handover: Handover, ctx: FhirContext, carried: Sequence[CarriedReview] = ()) -> Resource:
+    """Transaction Bundle: Composition first (conditional create), derived resources, Provenance.
+
+    `carried` decisions (see `carried_reviews`) are applied to the Composition, each with a `carry-over` Provenance.
+    """
     business_id = handover_business_id(handover.case_id, handover.as_of)
     entries: list[Resource] = []
     sections: list[Resource] = []
@@ -357,6 +374,8 @@ def handover_bundle(handover: Handover, ctx: FhirContext) -> Resource:
             refs.append({"reference": ctx.patient})
         sections.append(_section(key, title, field, refs, field.review or SectionReview()))
     composition = _composition(handover, business_id, sections, ctx)
+    for c in carried:
+        composition = with_section_review(composition, c.key, c.review, c.edited_value)
     comp_urn = _urn(business_id)
     included = [
         {"role": "source", "what": {"reference": ctx.documents[d], "display": d}}
@@ -377,6 +396,10 @@ def handover_bundle(handover: Handover, ctx: FhirContext) -> Resource:
             "resource": _provenance(comp_urn, included, ctx, "assemble"),
             "request": {"method": "POST", "url": "Provenance"},
         },
+    ]
+    head += [
+        {"resource": carry_over_provenance(comp_urn, c, ctx), "request": {"method": "POST", "url": "Provenance"}}
+        for c in carried
     ]
     return {"resourceType": "Bundle", "type": "transaction", "entry": head + entries}
 
@@ -426,6 +449,18 @@ def _composition(handover: Handover, business_id: str, sections: list[Resource],
 def stored_review(resource: Resource) -> StoredReview:
     if resource.get("resourceType") != "Composition":
         raise ValueError("expected a Composition")
+    sections, edited = _section_reviews(resource)
+    return StoredReview(
+        fhir_id=str(resource["id"]),
+        business_id=str(resource["identifier"]["value"]),
+        status="final" if resource.get("status") == "final" else "preliminary",
+        sections=sections,
+        edited_values=edited,
+    )
+
+
+def _section_reviews(resource: Resource) -> tuple[dict[str, SectionReview], dict[str, JsonValue]]:
+    """Review state and edited value per section key; also for a Composition not stored yet (no id)."""
     sections: dict[str, SectionReview] = {}
     edited: dict[str, JsonValue] = {}
     for section in resource.get("section", []):
@@ -440,13 +475,7 @@ def stored_review(resource: Resource) -> StoredReview:
                 sections[key] = _review_from_extension(ext)
             elif ext.get("url") == EXT_HANDOVER_EDITED_VALUE:
                 edited[key] = json.loads(ext["valueString"])
-    return StoredReview(
-        fhir_id=str(resource["id"]),
-        business_id=str(resource["identifier"]["value"]),
-        status="final" if resource.get("status") == "final" else "preliminary",
-        sections=sections,
-        edited_values=edited,
-    )
+    return sections, edited
 
 
 def _review_from_extension(ext: Resource) -> SectionReview:
@@ -489,7 +518,7 @@ def with_section_review(
         break
     else:
         raise ValueError(f"Composition has no section {key}")
-    reviews = stored_review(updated).sections
+    reviews, _ = _section_reviews(updated)
     if all(reviews.get(k, SectionReview()).state in REVIEW_DONE for k in section_keys()) and review.by and review.at:
         updated["status"] = "final"
         updated["attester"] = [
@@ -525,4 +554,72 @@ def confirmation_provenance(
             {"url": EXT_HANDOVER_SECTION, "valueCode": key},
             {"url": EXT_PREVIOUS_VALUE_HASH, "valueString": previous_hash},
         ],
+    }
+
+
+# ---------------------------------------------------------------- carry-over between snapshots of a case
+
+
+def carried_reviews(handover: Handover, snapshots: Sequence[Resource]) -> list[CarriedReview]:
+    """The physician's decisions from the case's other handover snapshots that still cover this one.
+
+    Per section the latest decision (by its time) among the snapshots counts; it is carried only when the section
+    content is identical (stored value hash == assembled value hash), so a section that changed stays a draft.
+    Ordered by time: applied in this order, the latest decision attests a Composition that becomes final.
+    """
+    own = handover_business_id(handover.case_id, handover.as_of)
+    latest: dict[str, CarriedReview] = {}
+    for resource in snapshots:
+        identifier = resource.get("identifier", {})
+        value = str(identifier.get("value", ""))
+        if (
+            resource.get("resourceType") != "Composition"
+            or identifier.get("system") != SID_HANDOVER
+            or not value.startswith(f"{handover.case_id}@")
+            or value == own
+        ):
+            continue
+        stored = stored_review(resource)
+        for key, review in stored.sections.items():
+            if review.state not in REVIEW_DONE or review.by is None or review.at is None:
+                continue
+            known = latest.get(key)
+            if known is None or review.at > known.at:
+                version = resource.get("meta", {}).get("versionId")
+                source = f"Composition/{stored.fhir_id}" + (f"/_history/{version}" if version else "")
+                latest[key] = CarriedReview(key, review, review.by, review.at, stored.edited_values.get(key), source)
+    hashes = {key: field.value_hash for key, _, field in _fields(handover)}
+    carried = [c for c in latest.values() if c.review.value_hash and c.review.value_hash == hashes.get(c.key)]
+    return sorted(carried, key=lambda c: c.at)
+
+
+def carry_over_provenance(composition_ref: str, carried: CarriedReview, ctx: FhirContext) -> Resource:
+    """Provenance of a decision carried over: the Device copied it (the only agent: nobody confirmed anything now);
+    the snapshot it comes from is the source entity, with the physician who made the decision as that entity's agent
+    (the original time stays in the section's review)."""
+    return {
+        "resourceType": "Provenance",
+        "target": [{"reference": composition_ref}],
+        "recorded": ctx.recorded.isoformat(timespec="seconds"),
+        "activity": {"coding": [{"system": CS_PROVENANCE_ACTIVITY, "code": "carry-over"}]},
+        "agent": [
+            {
+                "type": {"coding": [{"system": PROVENANCE_AGENT_TYPE, "code": "assembler"}]},
+                "who": _device() | {"display": ctx.device_display},
+            }
+        ],
+        "entity": [
+            {
+                "role": "source",
+                "what": {"reference": carried.source},
+                "agent": [
+                    {
+                        "type": {"coding": [{"system": PROVENANCE_AGENT_TYPE, "code": "verifier"}]},
+                        "role": [{"coding": [{"system": CS_WORKFLOW_ROLE, "code": carried.by.role.value}]}],
+                        "who": practitioner_reference(carried.by),
+                    }
+                ],
+            }
+        ],
+        "extension": [{"url": EXT_HANDOVER_SECTION, "valueCode": carried.key}],
     }

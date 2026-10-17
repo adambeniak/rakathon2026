@@ -15,6 +15,7 @@ from app.fhir.client import Resource, reference_from_location
 from app.fhir.errors import FhirError
 from app.fhir.mappers.handover import (
     FhirContext,
+    carried_reviews,
     confirmation_provenance,
     handover_bundle,
     handover_business_id,
@@ -47,14 +48,16 @@ class HandoverStore:
     async def persist(self, handover: Handover, *, device_display: str, recorded: datetime) -> Resource:
         """Idempotent per (case, as_of): an existing Composition (with its review state) is returned unchanged.
 
-        One transaction (audited by the repository); the Composition is a conditional create, so a concurrent
-        persist cannot create a second one.
+        A new one carries over the physician's decisions from the case's other snapshots where the section content is
+        identical (`carried_reviews`, with a `carry-over` Provenance each). One transaction (audited by the
+        repository); the Composition is a conditional create, so a concurrent persist cannot create a second one.
         """
         existing = await self.find(handover.case_id, handover.as_of)
         if existing is not None:
             return existing
         ctx = await self._context(handover.case_id, device_display, recorded)
-        bundle = handover_bundle(handover, ctx)
+        carried = carried_reviews(handover, await self._snapshots(ctx.patient))
+        bundle = handover_bundle(handover, ctx, carried)
         response = await self._repo.transaction(bundle, audit_in_bundle=True)
         location = (response.get("entry") or [{}])[0].get("response", {}).get("location")
         if not location:
@@ -92,6 +95,13 @@ class HandoverStore:
         }
         await self._repo.transaction(bundle, audit_in_bundle=True)
         return updated
+
+    async def _snapshots(self, patient: str) -> list[Resource]:
+        """The patient's Compositions (audited search); `carried_reviews` keeps the handover snapshots of the case."""
+        found = await self._repo.search("Composition", {"subject": patient, "_count": "100"})
+        if found:
+            await self._repo.audit_read([f"Composition/{r['id']}" for r in found], subtype="search-type")
+        return found
 
     async def _context(self, case_id: str, device_display: str, recorded: datetime) -> FhirContext:
         task = await self._repo.find_by_identifier("Task", SID_CASE_TASK, case_id)

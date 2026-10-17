@@ -109,12 +109,33 @@ export const handlers = [
     const today = todayOf(request)
     const c = caseById(id, today, store)
     if (!c) return problem(404, 'Případ nebyl nalezen')
-    const { event } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
+    const { event, conclusion } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
     if (event === 'gp_opened') {
       // The GP's read receipt: no state change, only while the feedback is out and not yet closed.
       if (roleOf(request) !== 'gp') return problem(409, 'Otevření závěru potvrzuje pouze praktický lékař')
       if (c.state !== 'zpetna_vazba_odeslana') return problem(409, 'Zpětná vazba není ve stavu k otevření')
       return HttpResponse.json(toApiCase(c, today))
+    }
+    // Demo step 5-6 loop; the guards mirror the state machine (case_machine.py), the texts are the mock's.
+    if (event === 'record_mdt_conclusion') {
+      if (roleOf(request) !== 'physician') return problem(409, 'Závěr MDT může zapsat pouze lékař KOC')
+      if (c.state !== 'pripraveno_mdt') return problem(409, 'Přechod není ve stavu případu povolen')
+      if (today < '2026-10-21') return problem(409, 'Splněná podmínka přechodu: MDT ještě nezačalo')
+      if (!conclusion?.trim()) return problem(422, 'Závěr MDT je povinný')
+      store.conclusion = { text: conclusion.trim(), by: DEMO_USERS.physician.name, signedAt: `${today}T09:30:00+02:00` }
+      return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
+    }
+    if (event === 'send_feedback') {
+      if (roleOf(request) !== 'coordinator') return problem(409, 'Závěr odesílá pouze koordinátorka')
+      if (c.state !== 'zaver_mdt') return problem(409, 'Přechod není ve stavu případu povolen')
+      store.feedbackSent = true
+      return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
+    }
+    if (event === 'close') {
+      if (roleOf(request) !== 'coordinator') return problem(409, 'Případ uzavírá pouze koordinátorka')
+      if (c.state !== 'zpetna_vazba_odeslana') return problem(409, 'Přechod není ve stavu případu povolen')
+      store.closed = true
+      return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     if (event !== 'accept') return problem(422, 'Událost není v této ukázce podporována')
     if (roleOf(request) !== 'coordinator') return problem(409, 'Případ smí převzít pouze koordinátorka')

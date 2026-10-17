@@ -1,8 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import { ALENA_ID } from '../fixtures/cases'
-import { AS_OF_DEFAULT } from '../fixtures/documents'
 import { buildReviewedSections } from '../fixtures/handover'
-import { buildMdt } from '../fixtures/mdt'
 import { store } from '../fixtures/store'
 import { problem, roleOf } from './util'
 
@@ -21,17 +19,5 @@ export const handlers = [
         'Content-Disposition': `attachment; filename="MDT_zapis${draft ? '_NAVRH' : ''}.docx"`,
       },
     })
-  }),
-  http.post('/api/cases/:id/send-feedback', () => {
-    if (!store.mdtGeneratedAt) return problem(409, 'Nejprve vygenerujte MDT zápis')
-    store.feedbackSent = true
-    return HttpResponse.json({ ok: true })
-  }),
-  http.post('/api/cases/:id/mdt/generate', ({ request }) => {
-    const asOf = new URL(request.url).searchParams.get('as_of') ?? AS_OF_DEFAULT
-    const view = buildMdt(asOf, buildReviewedSections(store.confirmed, store.edits, asOf), null)
-    if (!view.ready) return problem(409, 'Podmínky připravenosti nejsou splněny')
-    store.mdtGeneratedAt = asOf
-    return HttpResponse.json({ ok: true, generatedAt: asOf })
   }),
 ]

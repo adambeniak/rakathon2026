@@ -1,24 +1,14 @@
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe } from 'vitest-axe'
-import { adaptHandover } from '@/features/handover/adapter'
 import { api } from '@/lib/api/http'
 import { buildSections } from '@/mocks/fixtures/handover'
+import { setDemo } from '@/lib/demo'
+import { DEMO_USERS } from '@/mocks/fixtures/people'
 import { renderRoute } from '@/test/render'
 
 const ALENA_ID = 'rakathon-2026-prochazkova'
 const ALENA = `/cases/${ALENA_ID}`
-
-/** Setup for the MDT tests: the physician confirms the sections one by one (there is no bulk confirmation). */
-async function confirmEverySection(): Promise<void> {
-  const view = adaptHandover(await api.get<Parameters<typeof adaptHandover>[0]>(`/api/cases/${ALENA_ID}/handover`))
-  for (const s of view.sections) {
-    await api.post(`/api/cases/${ALENA_ID}/handover/sections/${s.number}/confirm`, {
-      expected_value_hash: s.valueHash,
-      accept_missing: s.status === 'missing',
-    })
-  }
-}
 
 describe('route smoke + axe', () => {
   it.each(['gp', 'coordinator', 'physician', 'reviewer'] as const)(
@@ -91,14 +81,14 @@ describe('route smoke + axe', () => {
 
   it('demo step 6 on 21. 10.: sending the conclusion makes the MDT result appear for the GP, who can read it', async () => {
     renderRoute('/', { role: 'physician', today: '2026-10-21' })
-    await confirmEverySection()
-    await api.post(`/api/cases/${ALENA_ID}/mdt/generate?as_of=${encodeURIComponent('2026-10-21T08:00:00+02:00')}`)
-    await api.post(`/api/cases/${ALENA_ID}/send-feedback`)
+    await api.post(`/api/cases/${ALENA_ID}/transitions`, { event: 'record_mdt_conclusion', conclusion: 'Závěr MDT dle zápisu.' })
+    setDemo({ role: 'coordinator', today: '2026-10-21' }) // the coordinator hands the signed conclusion to the GP
+    await api.post(`/api/cases/${ALENA_ID}/transitions`, { event: 'send_feedback' })
     cleanup()
     renderRoute('/gp', { role: 'gp', today: '2026-10-21', keepStore: true })
     const open = await screen.findByRole('button', { name: /Otevřít závěr MDT: Alena/ })
     await userEvent.click(open)
-    expect(await screen.findByText(/Podepsal\(a\) MUDr\. Lenka Marková/)).toBeInTheDocument()
+    expect(await screen.findByText(new RegExp(`Podepsal\\(a\\) ${DEMO_USERS.physician.name.replace(/[.()]/g, '\\$&')}`))).toBeInTheDocument()
     expect(await screen.findByText('Otevření závěru bylo zaznamenáno do auditní stopy.')).toBeInTheDocument()
   })
 

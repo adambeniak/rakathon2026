@@ -11,8 +11,10 @@ import type { HandoverView, SectionView } from '@/features/handover/types'
 import { mdt as t } from '@/i18n/cs/mdt'
 import { ApiProblem } from '@/lib/api/problem'
 import { formatDate, formatDateTime } from '@/lib/date'
-import type { DocumentInfo } from '@/lib/domain'
+import type { DocumentInfo, Role } from '@/lib/domain'
 import { mdtRecordFileName, problemTitle, useDownloadMdtRecord } from './api'
+import { ConclusionPanel } from './ConclusionPanel'
+import { LoopActions } from './LoopActions'
 
 type CountKey = keyof typeof t.summaryCounts
 const COUNT_KEYS = Object.keys(t.summaryCounts) as CountKey[]
@@ -87,7 +89,7 @@ function Findings({ sections, docs }: { sections: SectionView[]; docs: Map<strin
   )
 }
 
-function Record({ view, docs }: { view: HandoverView; docs: Map<string, DocumentInfo> }) {
+function Record({ view, docs, caseId, state, role }: { view: HandoverView; docs: Map<string, DocumentInfo>; caseId: string; state: string | undefined; role: Role }) {
   return (
     <section aria-labelledby="rec-h" className="space-y-3 rounded-lg border border-hairline bg-card p-5">
       <h3 id="rec-h" className="text-xl">
@@ -118,10 +120,7 @@ function Record({ view, docs }: { view: HandoverView; docs: Map<string, Document
           )}
         </div>
       ))}
-      <div className="border-t border-hairline pt-2">
-        <p className="font-medium">{t.conclusionTitle}</p>
-        <p className="rounded border border-dashed border-hairline p-3 text-sm text-muted">{t.conclusionPlaceholder}</p>
-      </div>
+      <ConclusionPanel caseId={caseId} state={state} role={role} />
     </section>
   )
 }
@@ -176,9 +175,10 @@ export function Mdt() {
 
       {view && view.sections.length > 0 && (
         <>
+          <LoopActions caseId={id} state={c.data?.state} role={role} />
           <Summary sections={view.sections} />
           <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">
-            <Record view={view} docs={docs} />
+            <Record view={view} docs={docs} caseId={id} state={c.data?.state} role={role} />
             <aside className="space-y-4">
               <Findings sections={view.sections} docs={docs} />
               {view.excluded.length > 0 && (

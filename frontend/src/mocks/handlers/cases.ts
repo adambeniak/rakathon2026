@@ -64,6 +64,13 @@ function requests(): Schemas['DocumentRequestOut'][] {
   }))
 }
 
+/** Items the mock gate blocks on (the demo case has no ECOG). */
+const MOCK_BLOCKING = ['performance_status']
+
+/** `guard_failed` like the backend: generic title "Conflict", the reason in `detail`, `code` for the machine. */
+const guardFailed = (detail: string) =>
+  HttpResponse.json({ type: 'about:blank', title: 'Conflict', status: 409, detail, code: 'guard_failed' }, { status: 409, headers: { 'Content-Type': 'application/problem+json' } })
+
 export const handlers = [
   http.get('/api/cases', ({ request }) => {
     const today = todayOf(request)
@@ -109,7 +116,7 @@ export const handlers = [
     const today = todayOf(request)
     const c = caseById(id, today, store)
     if (!c) return problem(404, 'Případ nebyl nalezen')
-    const { event, conclusion } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
+    const { event, conclusion, waivers } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
     if (event === 'gp_opened') {
       // The GP's read receipt: no state change, only while the feedback is out and not yet closed.
       if (roleOf(request) !== 'gp') return problem(409, 'Otevření závěru potvrzuje pouze praktický lékař')
@@ -117,6 +124,15 @@ export const handlers = [
       return HttpResponse.json(toApiCase(c, today))
     }
     // Demo step 5-6 loop; the guards mirror the state machine (case_machine.py), the texts are the mock's.
+    if (event === 'mark_ready_mdt') {
+      if (roleOf(request) !== 'physician') return problem(409, 'Připravenost k MDT označuje pouze lékař KOC')
+      if (c.state !== 'kompletni') return problem(409, 'Přechod není ve stavu případu povolen')
+      // The server's gate, as the mock plays it: the ECOG is missing in the demo case, so it blocks unless waived.
+      const open = MOCK_BLOCKING.filter((item) => !(waivers ?? []).some((w) => w.item === item && w.reason.trim()))
+      if (open.length > 0) return guardFailed(`readiness gate not passed, missing: ${open.join(', ')}`)
+      store.markedReady = true
+      return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
+    }
     if (event === 'record_mdt_conclusion') {
       if (roleOf(request) !== 'physician') return problem(409, 'Závěr MDT může zapsat pouze lékař KOC')
       if (c.state !== 'pripraveno_mdt') return problem(409, 'Přechod není ve stavu případu povolen')

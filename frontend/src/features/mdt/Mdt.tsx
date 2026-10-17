@@ -15,6 +15,7 @@ import type { DocumentInfo, Role } from '@/lib/domain'
 import { mdtRecordFileName, problemTitle, useDownloadMdtRecord } from './api'
 import { ConclusionPanel } from './ConclusionPanel'
 import { LoopActions } from './LoopActions'
+import { MarkReady } from './MarkReady'
 
 type CountKey = keyof typeof t.summaryCounts
 const COUNT_KEYS = Object.keys(t.summaryCounts) as CountKey[]
@@ -175,6 +176,7 @@ export function Mdt() {
 
       {view && view.sections.length > 0 && (
         <>
+          <MarkReady caseId={id} state={c.data?.state} role={role} />
           <LoopActions caseId={id} state={c.data?.state} role={role} />
           <Summary sections={view.sections} />
           <div className="grid gap-5 lg:grid-cols-[2fr_1fr]">

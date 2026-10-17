@@ -32,10 +32,10 @@ describe('request body and gate parsing', () => {
   })
 
   it('reads the blocking items from the guard_failed detail, and only from there', () => {
-    const gate = new ApiProblem(409, 'Conflict', 'readiness gate not passed, missing: performance_status, ct_staging')
+    const gate = new ApiProblem(409, 'Conflict', 'Připravenost k MDT není splněna, chybí: performance_status, ct_staging')
     expect(blockingItems(gate)).toEqual(['performance_status', 'ct_staging'])
     expect(blockingItems(new ApiProblem(409, 'Conflict', 'MDT start is not set'))).toBeNull()
-    expect(blockingItems(new ApiProblem(422, 'x', 'readiness gate not passed, missing: histology'))).toBeNull()
+    expect(blockingItems(new ApiProblem(422, 'x', 'Připravenost k MDT není splněna, chybí: histology'))).toBeNull()
     expect(blockingItems(new Error('x'))).toBeNull()
   })
 })

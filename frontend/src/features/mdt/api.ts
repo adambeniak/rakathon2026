@@ -84,7 +84,7 @@ export function loopBody(v: LoopEvent) {
   return { event: v.event }
 }
 
-const GATE_FAILED = /^readiness gate not passed, missing: (.+)$/
+const GATE_FAILED = /^Připravenost k MDT není splněna, chybí: (.+)$/
 
 /**
  * The blocking items of a refused `mark_ready_mdt`: the state machine's `guard_failed` names them in the problem's

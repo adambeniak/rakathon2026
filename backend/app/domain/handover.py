@@ -198,6 +198,11 @@ class HandoverFieldBase(DomainModel):
         default_factory=list, description="Same items as `missing`, with reason and suggested owner."
     )
     conflicts: list[str] = Field(default_factory=list, description="Ids of findings that contradict the value.")
+    finding_ids: list[str] = Field(
+        default_factory=list,
+        description="Ids of every finding about this section, of any kind (missing, stale, needs_clarification, "
+        "conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+    )
     note: str | None = None
     review: SectionReview | None = Field(None, description="None until the handover is persisted for review.")
     value_hash: str | None = Field(

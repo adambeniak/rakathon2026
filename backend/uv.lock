@@ -866,6 +866,19 @@ wheels = [
 ]
 
 [[package]]
+name = "reportlab"
+version = "4.4.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "charset-normalizer" },
+    { name = "pillow" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f8/fa/ed71f3e750afb77497641eb0194aeda069e271ce6d6931140f8787e0e69a/reportlab-4.4.4.tar.gz", hash = "sha256:cb2f658b7f4a15be2cc68f7203aa67faef67213edd4f2d4bdd3eb20dab75a80d", size = 3711935, upload-time = "2025-09-19T10:43:36.502Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/57/66/e040586fe6f9ae7f3a6986186653791fb865947f0b745290ee4ab026b834/reportlab-4.4.4-py3-none-any.whl", hash = "sha256:299b3b0534e7202bb94ed2ddcd7179b818dcda7de9d8518a57c85a58a1ebaadb", size = 1954981, upload-time = "2025-09-19T10:43:33.589Z" },
+]
+
+[[package]]
 name = "requests"
 version = "2.34.2"
 source = { registry = "https://pypi.org/simple" }
@@ -942,6 +955,7 @@ dependencies = [
     { name = "pypdf" },
     { name = "python-docx" },
     { name = "python-multipart" },
+    { name = "reportlab" },
     { name = "structlog" },
     { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
@@ -969,6 +983,7 @@ requires-dist = [
     { name = "pypdf", specifier = "==6.21.0" },
     { name = "python-docx", specifier = "==1.2.0" },
     { name = "python-multipart", specifier = "==0.0.32" },
+    { name = "reportlab", specifier = "==4.4.4" },
     { name = "structlog", specifier = "==26.1.0" },
     { name = "tenacity", specifier = "==9.2.1" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.54.0" },

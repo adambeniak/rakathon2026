@@ -463,6 +463,39 @@ def test_conflict_on_stale_field_is_recorded_without_hiding_stale() -> None:
     assert field.conflicts == ["C7"]
 
 
+def test_every_finding_kind_is_linked_to_its_section_but_only_conflicts_change_status() -> None:
+    facts = [fact(CARDIO, "vital_sign", 10, qty("hmotnost", 69), unit="kg")]
+    findings = [
+        Finding(id="S1", kind=FindingKind.STALE, severity=Severity.MEDIUM, message="zastaralé",
+                field="10_weight_height"),
+        Finding(id="M1", kind=FindingKind.MISSING, severity=Severity.HIGH, message="chybí",
+                field="9_performance_status"),
+        Finding(id="Q1", kind=FindingKind.NEEDS_CLARIFICATION, severity=Severity.MEDIUM, message="upřesnit",
+                field="5_mdt_question"),
+        Finding(id="M3", kind=FindingKind.MISSING, severity=Severity.MEDIUM, message="chybí",
+                field="2_contacts.patient_email + referring_physician_email"),
+        Finding(id="D1", kind=FindingKind.MISSING_DOCUMENT, severity=Severity.MEDIUM, message="chybí dokument"),
+    ]  # fmt: skip
+    h = assemble(facts, findings=findings)
+    assert (h.fields.weight_height.finding_ids, h.fields.weight_height.conflicts) == (["S1"], [])
+    assert h.fields.weight_height.status == HandoverStatus.STALE
+    assert h.fields.performance_status.finding_ids == ["M1"]
+    assert h.fields.mdt_question.finding_ids == ["Q1"]
+    assert h.fields.contacts.finding_ids == ["M3"]
+    assert h.fields.contacts.status != HandoverStatus.COMPLETE_WITH_CONFLICT
+    # A finding without a section is linked nowhere; `1_` does not catch `10_…`.
+    assert h.fields.patient.finding_ids == []
+    assert all("D1" not in getattr(h.fields, n).finding_ids for n in type(h.fields).model_fields)
+
+
+def test_conflict_ids_are_also_in_finding_ids() -> None:
+    facts = [fact(CARDIO, "vital_sign", 10, qty("hmotnost", 69), unit="kg")]
+    finding = Finding(id="C7", kind=FindingKind.DATE_CONFLICT, severity=Severity.HIGH, message="nesoulad",
+                      field="10_weight_height")  # fmt: skip
+    field = assemble(facts, findings=[finding]).fields.weight_height
+    assert (field.conflicts, field.finding_ids) == (["C7"], ["C7"])
+
+
 def test_unavailable_documents_are_reported_as_excluded() -> None:
     h = assemble([], unavailable={GASTRO.doc_id: "extrakce dokumentu není k dispozici"})
     assert GASTRO.doc_id not in h.included_documents

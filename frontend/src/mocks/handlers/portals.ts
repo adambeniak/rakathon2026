@@ -1,6 +1,7 @@
-// Portal endpoints: the signed MDT conclusion the GP opens (contract path) and the reviewer's case list (provisional).
+// Portal endpoints on contract paths: the signed MDT conclusion the GP opens and the insurer reviewer's case list.
 import { http, HttpResponse } from 'msw'
 import type { components } from '@/lib/api/schema'
+import { toReviewerCase } from '../fixtures/api'
 import { ALENA_ID, allCases } from '../fixtures/cases'
 import { store } from '../fixtures/store'
 import { problem, roleOf, todayOf } from './util'
@@ -37,9 +38,10 @@ export const handlers = [
       ? problem(403, 'Zpětná vazba ještě nebyla odeslána')
       : problem(404, 'Závěr MDT nebyl nalezen')
   }),
-  http.get('/api/reviewer/cases', ({ request }) =>
-    HttpResponse.json(
-      allCases(todayOf(request), store).filter((c) => c.insurer?.startsWith('211')),
-    ),
-  ),
+  // Like the backend: only the reviewer role, only the reviewer's insurer (the seeded reviewer is from ZP 211).
+  http.get('/api/reviewer/cases', ({ request }) => {
+    if (roleOf(request) !== 'reviewer') return problem(403, 'Přehled pro pojišťovnu je určen jen revizním lékařům')
+    const own = allCases(todayOf(request), store).filter((c) => c.insurer.startsWith('211'))
+    return HttpResponse.json(own.map(toReviewerCase))
+  }),
 ]

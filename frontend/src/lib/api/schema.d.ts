@@ -11,7 +11,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List cases */
+        /**
+         * List cases
+         * @description Not for the insurer's reviewer (403): see `GET /api/reviewer/cases`.
+         */
         get: operations["cases-list_cases"];
         put?: never;
         post?: never;
@@ -28,7 +31,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Case detail with its documents */
+        /**
+         * Case detail with its documents
+         * @description Not for the insurer's reviewer (403): see `GET /api/reviewer/cases/{ref}`.
+         */
         get: operations["cases-get_case"];
         put?: never;
         post?: never;
@@ -69,6 +75,26 @@ export interface paths {
          * @description Hybrid retrieval in IRIS (VECTOR_COSINE on HNSW + iFind full text, as-of filtered) and an LLM answer in Czech from the retrieved chunks only. Every sentence is evidence-locked to a verbatim quote; questions asking for treatment, dose or prognosis get only cited documentation. Only participants of the case (referring GP, staff of the managing KOC) may ask. Fictitious data only.
          */
         post: operations["cases-ask_case"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit trail of the case (who, when, what kind of action)
+         * @description AuditEvents naming the case's coordinating Task, EpisodeOfCare, steps, report requests, documents and messages, newest first, paged by `offset`/`limit`. Codes only (workflow event or interaction, record types, outcome) — no free-text reasons or clinical content. KOC team of the case only; the read is audited.
+         */
+        get: operations["cases-get_case_audit"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -242,10 +268,30 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * MDT record in the MDT_zapis layout (DOCX), as of the MDT start
-         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.
+         * MDT record in the MDT_zapis layout (DOCX or PDF), as of the MDT start
+         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Once a KOC physician has signed the MDT conclusion (at or after `mdt_start`), section 6 prints its text as signed, labelled 'Potvrzeno lékařem' with who and when, and section 7 points to it; before that sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. The system never writes a conclusion or a recommendation. `format=pdf` renders the same content as a PDF (fonts embedded). KOC team of the case only; every export is audited (with the conclusion's Composition when it is printed).
          */
         get: operations["handover-get_mdt_record"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Messages of the case
+         * @description Report requests sent to workplaces (CommunicationRequest, with the state of their tracking task) and the MDT feedback e-mail to the referring GP (Communication, with the relay's receipt id and when the GP opened it), oldest first. KOC team of the case only; the read is audited.
+         */
+        get: operations["cases-get_case_messages"];
         put?: never;
         post?: never;
         delete?: never;
@@ -280,8 +326,31 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a single (ad-hoc) task */
+        /**
+         * Create a single (ad-hoc) task
+         * @description Coordinator only (403 otherwise). A closed case (`uzavreno`) takes no new tasks: 409 `conflict`.
+         */
         post: operations["coordination-create_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Timeline of the case
+         * @description Documents (authored and received), case events and state changes, report requests and their fulfilment, step dates (scheduled, result delivered, escalated, cancelled), the MDT meeting and conclusion, and the feedback to the GP (sent, accepted by the relay, opened by the GP), oldest first, in business time. `excluded_from_handover` is the backend's as-of decision against the MDT start. KOC team of the case only; the read is audited.
+         */
+        get: operations["cases-get_case_timeline"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -417,6 +486,46 @@ export interface paths {
          * @description Every value carries the verbatim quote it was read from; a value the letter does not state is `missing`. The sex is derived from the rodné číslo and marked `derived`. This is a draft for the GP to confirm.
          */
         post: operations["referrals-prefill_referral"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reviewer/cases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cases of the reviewer's insured persons (minimal, pseudonymous)
+         * @description Only for the `reviewer` role (others 403). Only cases of the reviewer's own insurer. No name, birth date, birth number or clinical text; T1-T3 are proxies and null when an end point is not recorded. Audited.
+         */
+        get: operations["reviewer-list_reviewer_cases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reviewer/cases/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One case of the reviewer's insured persons (minimal, pseudonymous)
+         * @description 404 also for a case of another insurer, so its existence is not confirmed. Audited.
+         */
+        get: operations["reviewer-get_reviewer_case"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -695,6 +804,55 @@ export interface components {
          */
         AskStatus: "answered" | "not_documented" | "not_verified" | "advice_declined";
         /**
+         * AuditEntry
+         * @description One audit record. Codes only: the UI names them in Czech; no free text or clinical content is returned.
+         */
+        AuditEntry: {
+            /**
+             * Action
+             * @description FHIR AuditEventAction: C create, R read, U update, D delete, E execute (search, transaction).
+             * @enum {string}
+             */
+            action: "C" | "R" | "U" | "D" | "E";
+            /**
+             * Actor
+             * @description Display name of who acted (person or 'Štafeta (systém)').
+             */
+            actor?: string | null;
+            actor_role?: components["schemas"]["Role"] | null;
+            /**
+             * Entity Types
+             * @description Kinds of record touched, e.g. ['Task', 'DocumentReference'].
+             */
+            entity_types: string[];
+            /**
+             * On Behalf Of
+             * @description Workplace the coordinator recorded a step for.
+             */
+            on_behalf_of?: string | null;
+            /**
+             * Operation
+             * @description Workflow event code (`accept`, `send_feedback`, `gp_opened`, `request_report`, ...) or the interaction (`read`, `search-type`, `create`, `update`, `transaction`, `export`, `index`, `extract`, `launch_pathway`).
+             */
+            operation: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "success" | "failure";
+            /**
+             * Recorded
+             * Format: date-time
+             * @description When it happened (AuditEvent.recorded).
+             */
+            recorded: string;
+            /**
+             * Workflow Event
+             * @description A business event of the case or task state machine.
+             */
+            workflow_event: boolean;
+        };
+        /**
          * BatonBasis
          * @enum {string}
          */
@@ -796,6 +954,70 @@ export interface components {
             letter: string;
         };
         /**
+         * CaseAction
+         * @description Next step on the case as a whole, for the queue card ("Na tahu: … – <action>"). Labels live in the UI i18n.
+         * @enum {string}
+         */
+        CaseAction: "accept_case" | "triage" | "complete_documents" | "review_handover" | "hold_mdt" | "send_feedback" | "confirm_receipt" | "close_case" | "await_external" | "none";
+        /**
+         * CaseAuditTrail
+         * @example {
+         *       "case_id": "rakathon-2026-prochazkova",
+         *       "items": [
+         *         {
+         *           "action": "U",
+         *           "actor": "doc. MUDr. Pavel Hrubý, Ph.D.",
+         *           "actor_role": "koc_physician",
+         *           "entity_types": [
+         *             "Task"
+         *           ],
+         *           "operation": "record_mdt_conclusion",
+         *           "outcome": "success",
+         *           "recorded": "2026-10-21T09:30:00+02:00",
+         *           "workflow_event": true
+         *         }
+         *       ],
+         *       "limit": 100,
+         *       "offset": 0,
+         *       "total": 42,
+         *       "truncated": false
+         *     }
+         */
+        CaseAuditTrail: {
+            /** Case Id */
+            case_id: string;
+            /**
+             * Items
+             * @description Newest first.
+             */
+            items: components["schemas"]["AuditEntry"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Total
+             * @description Records in the trail of the case (before offset/limit).
+             */
+            total: number;
+            /**
+             * Truncated
+             * @description More records exist after this page.
+             */
+            truncated: boolean;
+        };
+        /**
+         * CaseBaton
+         * @description Who must act next on the case as a whole and what that step is; computed by the backend from the case state,
+         *     the machine's baton role and the postponed flag (contracts/case-states.md).
+         */
+        CaseBaton: {
+            /** @description Next step: accept_case | triage | complete_documents | review_handover | hold_mdt | send_feedback | confirm_receipt (GP, feedback not yet confirmed as delivered) | close_case (coordinator, after delivery_confirmed) | await_external (postponed) | none (closed). */
+            action: components["schemas"]["CaseAction"];
+            /** @description Role holding the baton; null when the case is closed. */
+            role: components["schemas"]["Role"] | null;
+        };
+        /**
          * CaseCounts
          * @description Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé).
          */
@@ -810,6 +1032,10 @@ export interface components {
         /**
          * CaseDetail
          * @example {
+         *       "baton": {
+         *         "action": "hold_mdt",
+         *         "role": "koc_physician"
+         *       },
          *       "baton_holder": {
          *         "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
          *         "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -834,6 +1060,19 @@ export interface components {
          *         }
          *       ],
          *       "id": "rakathon-2026-prochazkova",
+         *       "intervals": {
+         *         "t1": {
+         *           "end": "2026-10-02",
+         *           "status": "not_recorded"
+         *         },
+         *         "t2": {
+         *           "start": "2026-10-02",
+         *           "status": "running"
+         *         },
+         *         "t3": {
+         *           "status": "not_started"
+         *         }
+         *       },
          *       "missing_count": 3,
          *       "next_deadline": "2026-10-21T08:00:00+02:00",
          *       "opened_at": "2026-10-02T09:30:00+02:00",
@@ -848,6 +1087,8 @@ export interface components {
          *     }
          */
         CaseDetail: {
+            /** @description Baton role and next action of the case; the UI renders `action`, it never derives it. */
+            baton?: components["schemas"]["CaseBaton"] | null;
             /** @description 'Na tahu' — who must act next on the case. */
             baton_holder?: components["schemas"]["BatonHolder"] | null;
             /**
@@ -882,6 +1123,8 @@ export interface components {
              * @description Case business id, e.g. 'rakathon-2026-prochazkova'.
              */
             id: string;
+            /** @description Time-to-treatment proxies T1-T3 (header 'Časové intervaly'); a value is null when an end point is not recorded, never estimated. */
+            intervals: components["schemas"]["TimeToTreatmentIntervals"];
             /**
              * Koc
              * @description Name of the managing KOC (Organization).
@@ -917,6 +1160,48 @@ export interface components {
             suspected_diagnosis?: components["schemas"]["app__api__schemas__cases__SuspectedDiagnosis"] | null;
         };
         /**
+         * CaseMessage
+         * @example {
+         *       "id": "rakathon-2026-prochazkova-req-1",
+         *       "kind": "document_request",
+         *       "recipient": "Laboratoř LabJih",
+         *       "request": {
+         *         "due": "2026-10-06T23:59:00+02:00",
+         *         "request_id": "rakathon-2026-prochazkova-req-1",
+         *         "result_doc_id": "03_RTG_plic_2026-09-03",
+         *         "status": "completed"
+         *       },
+         *       "sender": "Bc. Jana Nováková",
+         *       "sent_at": "2026-10-02T11:30:00+02:00",
+         *       "status": "fulfilled",
+         *       "text": "Žádost o zaslání výsledku vyšetření: RTG plic 3. 9. 2026 (3. 9. 2026)"
+         *     }
+         */
+        CaseMessage: {
+            delivery?: components["schemas"]["MessageDelivery"] | null;
+            /** Id */
+            id: string;
+            kind: components["schemas"]["MessageKind"];
+            /** Recipient */
+            recipient?: string | null;
+            request?: components["schemas"]["MessageRequestInfo"] | null;
+            /** Sender */
+            sender?: string | null;
+            /** Sent At */
+            sent_at?: string | null;
+            /**
+             * Status
+             * @description `open` request awaiting the report, `fulfilled` report received, `cancelled` request withdrawn, `sent` feedback e-mail accepted by the relay.
+             * @enum {string}
+             */
+            status: "open" | "fulfilled" | "cancelled" | "sent";
+            /**
+             * Text
+             * @description The message as sent (fixed template; the feedback e-mail holds no clinical content).
+             */
+            text: string;
+        };
+        /**
          * CaseState
          * @description The 8 case states from the VZP brief (slide 10). Czech labels live in the UI i18n and the FHIR CodeSystem.
          * @enum {string}
@@ -925,6 +1210,10 @@ export interface components {
         /**
          * CaseSummary
          * @example {
+         *       "baton": {
+         *         "action": "hold_mdt",
+         *         "role": "koc_physician"
+         *       },
          *       "baton_holder": {
          *         "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
          *         "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -952,6 +1241,8 @@ export interface components {
          *     }
          */
         CaseSummary: {
+            /** @description Baton role and next action of the case; the UI renders `action`, it never derives it. */
+            baton?: components["schemas"]["CaseBaton"] | null;
             /** @description 'Na tahu' — who must act next on the case. */
             baton_holder?: components["schemas"]["BatonHolder"] | null;
             /**
@@ -1009,6 +1300,50 @@ export interface components {
             state: components["schemas"]["CaseState"];
             /** @description From the referral (suspected, as written); null when the case has no referral letter. */
             suspected_diagnosis?: components["schemas"]["app__api__schemas__cases__SuspectedDiagnosis"] | null;
+        };
+        /**
+         * CaseTimeline
+         * @example {
+         *       "as_of": "2026-10-21T08:00:00+02:00",
+         *       "case_id": "rakathon-2026-prochazkova",
+         *       "events": [
+         *         {
+         *           "at": "2026-10-19T12:10:00+02:00",
+         *           "doc_id": "11_Histologie_KOC2_2026-10-19",
+         *           "excluded_from_handover": false,
+         *           "id": "doc-received:11_Histologie_KOC2_2026-10-19",
+         *           "kind": "document_received",
+         *           "place": "Nemocnice Lipová – patologie",
+         *           "title": "Histologie"
+         *         },
+         *         {
+         *           "at": "2026-10-21T08:00:00+02:00",
+         *           "id": "mdt-meeting",
+         *           "kind": "mdt_meeting"
+         *         }
+         *       ],
+         *       "now": "2026-10-21T10:00:00+02:00"
+         *     }
+         */
+        CaseTimeline: {
+            /**
+             * As Of
+             * @description MDT start the handover flag is computed against.
+             */
+            as_of?: string | null;
+            /** Case Id */
+            case_id: string;
+            /**
+             * Events
+             * @description Oldest first.
+             */
+            events: components["schemas"]["TimelineEntry"][];
+            /**
+             * Now
+             * Format: date-time
+             * @description Current (demo) time `planned` is computed against.
+             */
+            now: string;
         };
         /** CheckResult */
         CheckResult: {
@@ -1046,6 +1381,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -1129,6 +1469,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -1301,6 +1646,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -1461,6 +1811,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -1663,6 +2018,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -1700,6 +2060,11 @@ export interface components {
              */
             reason: string;
         };
+        /**
+         * FeedbackDelivery
+         * @enum {string}
+         */
+        FeedbackDelivery: "not_sent" | "handed_over" | "opened_by_gp" | "unconfirmed";
         /**
          * FieldStatus
          * @description Subset of the shared handover field status enum.
@@ -1919,6 +2284,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -1945,6 +2315,11 @@ export interface components {
              */
             value_hash?: string | null;
         };
+        /**
+         * IntervalStatus
+         * @enum {string}
+         */
+        IntervalStatus: "measured" | "running" | "not_started" | "not_recorded" | "inconsistent";
         /**
          * ItemEvidence
          * @description Evidence of one displayed value, with the source document's dates (one evidence chip in the UI).
@@ -2039,6 +2414,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2146,6 +2526,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2172,6 +2557,46 @@ export interface components {
              * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
              */
             value_hash?: string | null;
+        };
+        /** MessageDelivery */
+        MessageDelivery: {
+            /**
+             * Channel
+             * @default email
+             * @constant
+             */
+            channel: "email";
+            /**
+             * Gp Opened At
+             * @description First time the referring GP opened the feedback in the portal; null = not recorded.
+             */
+            gp_opened_at?: string | null;
+            /**
+             * Receipt Id
+             * @description SMTP Message-ID: the relay accepted the e-mail (handed over, not proof it was read).
+             */
+            receipt_id?: string | null;
+        };
+        /**
+         * MessageKind
+         * @enum {string}
+         */
+        MessageKind: "document_request" | "mdt_feedback";
+        /** MessageRequestInfo */
+        MessageRequestInfo: {
+            /** Due */
+            due?: string | null;
+            /** Exam Date */
+            exam_date?: string | null;
+            /** Request Id */
+            request_id: string;
+            /**
+             * Result Doc Id
+             * @description The report that fulfilled the request.
+             */
+            result_doc_id?: string | null;
+            /** @description Status of the request's tracking task. */
+            status: components["schemas"]["TaskStatus"];
         };
         /**
          * MissingItem
@@ -2235,6 +2660,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2336,6 +2766,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2581,6 +3016,82 @@ export interface components {
          */
         ReviewState: "draft" | "confirmed" | "accepted_missing";
         /**
+         * ReviewerCase
+         * @example {
+         *       "birth_year": 1963,
+         *       "delivery": {
+         *         "status": "handed_over"
+         *       },
+         *       "diagnosis_category": "C25",
+         *       "initials": "A. P.",
+         *       "insurer_code": "211",
+         *       "intervals": {
+         *         "t1": {
+         *           "end": "2026-10-02",
+         *           "status": "not_recorded"
+         *         },
+         *         "t2": {
+         *           "days": 19,
+         *           "end": "2026-10-21",
+         *           "start": "2026-10-02",
+         *           "status": "measured"
+         *         },
+         *         "t3": {
+         *           "start": "2026-10-21",
+         *           "status": "running"
+         *         }
+         *       },
+         *       "ref": "RV-3F9A2C1B7D40",
+         *       "referred_on": "2026-10-02",
+         *       "state": "zpetna_vazba_odeslana"
+         *     }
+         */
+        ReviewerCase: {
+            /**
+             * Birth Year
+             * @description Year of birth only.
+             */
+            birth_year: number;
+            delivery: components["schemas"]["ReviewerDelivery"];
+            /**
+             * Diagnosis Category
+             * @description MKN-10 category (three characters, e.g. 'C25') of the suspected diagnosis in the referral, as written by the GP; no text. Null when the referral has no code.
+             */
+            diagnosis_category?: string | null;
+            /**
+             * Initials
+             * @description Initials of the patient, e.g. 'A. P.'.
+             */
+            initials: string;
+            /**
+             * Insurer Code
+             * @description Always the reviewer's own insurer.
+             */
+            insurer_code: string;
+            intervals: components["schemas"]["TimeToTreatmentIntervals"];
+            /**
+             * Ref
+             * @description Stable pseudonym of the case for the reviewer (keyed hash of the case id; the case id itself contains the surname and is not returned).
+             */
+            ref: string;
+            /**
+             * Referred On
+             * @description Date the referral reached the KOC (Europe/Prague).
+             */
+            referred_on?: string | null;
+            state: components["schemas"]["CaseState"];
+        };
+        /** ReviewerDelivery */
+        ReviewerDelivery: {
+            /**
+             * Gp Opened On
+             * @description Date (Europe/Prague) the referring GP first opened the conclusion; null when no opening is recorded.
+             */
+            gp_opened_on?: string | null;
+            /** @description not_sent | handed_over (the relay accepted the e-mail; not proof of reading) | opened_by_gp (the GP opened the conclusion) | unconfirmed (past the feedback, no receipt recorded). */
+            status: components["schemas"]["FeedbackDelivery"];
+        };
+        /**
          * Role
          * @description Workflow role of a party: decides who may act and in which board lane a task appears.
          * @enum {string}
@@ -2676,6 +3187,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -2820,6 +3336,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2860,6 +3381,11 @@ export interface components {
              */
             evidence?: components["schemas"]["Evidence"][];
             /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
+            /**
              * Items
              * @description Displayed values, each with its evidence.
              */
@@ -2886,6 +3412,128 @@ export interface components {
              * @description SHA-256 of the assembled `value`. A confirmation must send it back (`expected_value_hash`), so a physician never confirms content other than what they saw.
              */
             value_hash?: string | null;
+        };
+        /**
+         * TimeToTreatmentIntervals
+         * @description Proxies, to be labelled so: T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT,
+         *     T3 = MDT → onkologické konzilium. Unknown values are null, never estimated.
+         * @example {
+         *       "t1": {
+         *         "end": "2026-10-02",
+         *         "status": "not_recorded"
+         *       },
+         *       "t2": {
+         *         "days": 19,
+         *         "end": "2026-10-21",
+         *         "start": "2026-10-02",
+         *         "status": "measured"
+         *       },
+         *       "t3": {
+         *         "start": "2026-10-21",
+         *         "status": "running"
+         *       }
+         *     }
+         */
+        TimeToTreatmentIntervals: {
+            /** @description První návštěva PL → žádost do KOC (proxy). */
+            t1: components["schemas"]["TreatmentInterval"];
+            /** @description Žádost do KOC → MDT (proxy; the MDT counts once it has been held). */
+            t2: components["schemas"]["TreatmentInterval"];
+            /** @description MDT → onkologické konzilium (proxy). */
+            t3: components["schemas"]["TreatmentInterval"];
+        };
+        /** TimelineEntry */
+        TimelineEntry: {
+            /** Actor */
+            actor?: string | null;
+            /**
+             * At
+             * Format: date-time
+             * @description Business time; for `date_only` the start of that day in Europe/Prague.
+             */
+            at: string;
+            /**
+             * Date Only
+             * @description Only the day is known (authored date of a report).
+             * @default false
+             */
+            date_only: boolean;
+            /** Doc Id */
+            doc_id?: string | null;
+            /**
+             * Event
+             * @description Workflow event code of a case event (`accept`, `reopen`, ...).
+             */
+            event?: string | null;
+            /**
+             * Excluded From Handover
+             * @description Documents only: authored or received after the MDT start, so not part of the MDT handover (as-of rule, decided by the backend). Null when the case has no MDT start or for other kinds.
+             */
+            excluded_from_handover?: boolean | null;
+            /**
+             * From State
+             * @description Case state before a case event.
+             */
+            from_state?: string | null;
+            /**
+             * Id
+             * @description Stable within one response; use it as a list key.
+             */
+            id: string;
+            kind: components["schemas"]["TimelineKind"];
+            /**
+             * Place
+             * @description Issuing or receiving workplace.
+             */
+            place?: string | null;
+            /**
+             * Planned
+             * @description After the current (demo) time: a scheduled step or the MDT meeting.
+             * @default false
+             */
+            planned: boolean;
+            /**
+             * Receipt Id
+             * @description `feedback_delivered`: SMTP Message-ID accepted by the relay.
+             */
+            receipt_id?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /**
+             * Title
+             * @description Document title, step title or request label, as stored.
+             */
+            title?: string | null;
+            /**
+             * To State
+             * @description Case state after a case event; null when it did not change.
+             */
+            to_state?: string | null;
+        };
+        /**
+         * TimelineKind
+         * @enum {string}
+         */
+        TimelineKind: "document_authored" | "document_received" | "case_event" | "request_sent" | "request_fulfilled" | "step_scheduled" | "step_result_delivered" | "step_escalated" | "step_cancelled" | "mdt_meeting" | "mdt_conclusion" | "feedback_sent" | "feedback_delivered" | "gp_opened";
+        /** TreatmentInterval */
+        TreatmentInterval: {
+            /**
+             * Days
+             * @description Whole calendar days (Europe/Prague); null unless `measured`.
+             */
+            days?: number | null;
+            /**
+             * End
+             * @description Date of the end point, when recorded.
+             */
+            end?: string | null;
+            /**
+             * Start
+             * @description Date of the start point, when recorded.
+             */
+            start?: string | null;
+            /** @description measured = both end points recorded (`days` set); running = started, end not recorded yet; not_started = neither end point recorded yet; not_recorded = the start was never recorded; inconsistent = the recorded end lies before the start. */
+            status: components["schemas"]["IntervalStatus"];
         };
         /** ValidationError */
         ValidationError: {
@@ -2930,6 +3578,11 @@ export interface components {
              * @description All evidence of the section (union).
              */
             evidence?: components["schemas"]["Evidence"][];
+            /**
+             * Finding Ids
+             * @description Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.
+             */
+            finding_ids?: string[];
             /**
              * Items
              * @description Displayed values, each with its evidence.
@@ -3140,6 +3793,24 @@ export interface operations {
                     "application/json": components["schemas"]["CaseSummary"][];
                 };
             };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3198,6 +3869,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaseDetail"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
@@ -3398,6 +4087,88 @@ export interface operations {
             };
             /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-get_case_audit": {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseAuditTrail"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3866,6 +4637,24 @@ export interface operations {
                     "application/json": components["schemas"]["Handover"];
                 };
             };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
             404: {
                 headers: {
@@ -3936,6 +4725,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Handover"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
@@ -4011,6 +4818,24 @@ export interface operations {
                 content: {
                     "text/markdown": string;
                     "text/plain": string;
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
@@ -4237,8 +5062,8 @@ export interface operations {
     "handover-get_mdt_record": {
         parameters: {
             query?: {
-                /** @description Only DOCX for now. */
-                format?: "docx";
+                /** @description File format: DOCX (default) or PDF. */
+                format?: "docx" | "pdf";
             };
             header?: {
                 "X-Demo-Role"?: string | null;
@@ -4250,12 +5075,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description DOCX document */
+            /** @description DOCX or PDF document (by `format`) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/pdf": string;
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": string;
                 };
             };
@@ -4297,6 +5123,84 @@ export interface operations {
             };
             /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-get_case_messages": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseMessage"][];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4459,6 +5363,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
+            /** @description Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
             /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
                 headers: {
@@ -4470,6 +5383,84 @@ export interface operations {
             };
             /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-get_case_timeline": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseTimeline"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5036,6 +6027,169 @@ export interface operations {
             };
             /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "reviewer-list_reviewer_cases": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewerCase"][];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "reviewer-get_reviewer_case": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewerCase"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

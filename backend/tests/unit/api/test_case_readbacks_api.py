@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import (
     LlmClients,
     get_case_reader,
+    get_directory_provider,
     get_fhir_client,
     get_handover_store,
     get_iris_pool,
@@ -27,7 +28,7 @@ from app.fhir.cases import CaseDetailView, CaseExtras, CaseOverview
 from app.main import create_app
 from app.settings import PRAGUE, Settings
 from tests.unit.api.fake_handover_store import FakeStore
-from tests.unit.api.test_api import CASE, DOCUMENT, FakeFhir, FakeLlm, FakePool, FakeReader
+from tests.unit.api.test_api import CASE, DOCUMENT, DemoDirectory, FakeFhir, FakeLlm, FakePool, FakeReader
 
 OPENED_AT = datetime(2026, 10, 22, 9, 15, 30, tzinfo=PRAGUE)
 WAIVED_AT = datetime(2026, 10, 21, 7, 45, tzinfo=PRAGUE)
@@ -59,6 +60,7 @@ class ReadBackReader(FakeReader):
 def _client(settings: Settings, reader: FakeReader) -> Iterator[TestClient]:
     app = create_app(settings)
     app.dependency_overrides[get_case_reader] = lambda: reader
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     app.dependency_overrides[get_fhir_client] = lambda: FakeFhir()
     app.dependency_overrides[get_iris_pool] = lambda: FakePool()
     llm = LlmClients(FakeLlm('{"facts": []}'), FakeLlm(None))
@@ -107,3 +109,14 @@ def test_without_records_the_fields_are_empty_and_null(plain_client: TestClient)
     assert detail["readiness_waivers"] == []
     assert detail["gp_opened_at"] is None  # unknown, never a guessed "not opened"
     assert summary["gp_opened_at"] is None
+
+
+def test_case_detail_carries_the_time_to_treatment_intervals(plain_client: TestClient) -> None:
+    detail = plain_client.get("/api/cases/rakathon-2026-prochazkova").json()
+
+    # Seeded state pripraveno_mdt: the MDT is planned, not held -> T2 runs; the first GP visit is not recorded.
+    assert detail["intervals"] == {
+        "t1": {"days": None, "status": "not_recorded", "start": None, "end": "2026-10-02"},
+        "t2": {"days": None, "status": "running", "start": "2026-10-02", "end": None},
+        "t3": {"days": None, "status": "not_started", "start": None, "end": None},
+    }

@@ -160,3 +160,28 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #186 (document 409 on POST /cases/{id}/tasks in the contract, `make contract`); report requests were already refused outside triage/ceka_na_podklady
   Risks: not run against IRIS (Docker off); steps created on closed cases before this fix stay open until cancelled (the watchdog ignores them)
   Issues: closes #166; #186 new
+- 2026-10-17 · claude (P2/P4) · fix/batch-findings-baton-contract · #179: additive `finding_ids` per handover section (every finding with that section, any kind; `conflicts` unchanged), UI + mock read it. #180: additive `CaseSummary.baton {role, action}` from `Case.next_action` (zpetna_vazba_odeslana + coordinator → close_case), queue card names it via `common.caseActions`. #186: 409 documented on POST /cases/{id}/tasks. ADR `docs/adr/XXXX-section-finding-ids-and-case-baton.md`
+  Verified: ruff/format/mypy clean; targeted pytest (assembly, consistency, carry-over, closed-loop API, next_action) green; eval (cache) 53 passed; frontend lint/typecheck, targeted vitest 107/107
+  Next: live emits only C1/C2 findings (#195); #184 board label and #183 waived predecessor not started (stack on #185)
+  Risks: not run against IRIS; full `make check`/e2e not run (time limit); mock Alena after send_feedback now shows the coordinator closing
+  Issues: closes #179, #180, #186; new #195; open #184, #183
+- 2026-10-17 · claude (P4) · feat/mdt-record-post-mdt-pdf · #92: the MDT record prints the conclusion entered and confirmed by the physician in section 6 once it exists (same endpoint, no stage param; only if signed ≥ mdt_start; audited with its Composition), section 7 points to it, never split; #89: `format=pdf` via reportlab + bundled DejaVu Sans, one document model for DOCX and PDF; PDF button next to DOCX on Příprava MDT (ADR mdt-record-post-mdt-pdf)
+  Verified: backend ruff/format/mypy + pytest -m "not iris" 1166 passed (before the wording fixes; targeted outputs/API tests 53 passed after); frontend lint/typecheck, vitest 182/182 (targeted 31/31 after); e2e timed out on a cold Vite start (408, machine load), not re-run
+  Next: MDT members recorded with the conclusion (#192, needs closed_loop.py after #149); birth-number pattern (#193); re-run make e2e on a quiet machine
+  Risks: new dependency reportlab 4.4.4 (uv.lock changed) and 1.4 MB fonts in the image; new section 6 wording row in the approved-wording table needs a human OK
+  Issues: #92, #89 closed by this PR; #192, #193 new
+- 2026-10-17 · claude (P4) · feat/reviewer-screen · #104/#105: T1–T3 computed once (`backend/app/timeline/intervals.py`, Prague dates, status measured/running/not_started/not_recorded/inconsistent; MDT counts once held) on `CaseDetail.intervals` + case header; scoped `GET /api/reviewer/cases(/{ref})` (own insurer, HMAC pseudonym, initials, birth year, MKN-10 category, T1–T3, delivery; no-store); reviewer 403 on `/api/cases*` and the handover routes; reviewer screen on the contract (zod, MSW 403s); ADR `docs/adr/XXXX-reviewer-scoped-api.md`
+  Verified: ruff, mypy app, `pytest -m "not iris"` 1182 passed before rebase, targeted 317 after; vitest targeted 32 passed; tsc; mock e2e see PR
+  Next: #188 (record first GP visit -> T1), #189 (oncology consult -> T3), #190 (reviewer list reads all cases), #35 (other case sub-routes)
+  Risks: live mode untested (Docker off); live T1 always "nezaznamenáno", T3 "běží" after the MDT until #188/#189
+  Issues: closes #104, #105; #188, #189, #190 new
+- 2026-10-17 · claude (P4) · feat/case-audit-timeline-messages · #47: GET /api/cases/{id}/audit|timeline|messages (KOC team only, audited reads, codes only, as-of flag from the backend); Audit / Časová osa / Komunikace tabs on the generated client + zod, MSW mocks in contract shapes; ADR XXXX-case-audit-timeline-messages
+  Verified: ruff, mypy app, backend pytest -m "not iris" 1169 passed (before rebase) + 20 targeted after rebase; frontend lint, typecheck, vitest 187 passed (before rebase) + targeted after rebase
+  Next: #199 (security/clinical review, make e2e, screenshot), #197 (verify AuditEvent entity OR-search on make up-local), #198 (repository clock = demo clock)
+  Risks: IRIS search patterns unverified; audit trail read whole per request; audit times mix wall/demo clock
+  Issues: refs #47; #197, #198, #199 new
+- 2026-10-17 · claude (P4/QA) · qa/live-dress-rehearsal · live dress rehearsal on a local IRIS (make up-local demo-start): all 6 demo steps PASS over the API with X-Demo-Role; live Playwright project rewritten to follow the runbook (case id from URL, 3b via clock PUT, advance, 21. 10. snapshot, Mailpit, queue path Aktivní) and passed steps 1–2 + step 3 uploads live; mock project still green
+  Verified: API driver run steps 1–6 (all 2xx as expected, 409 guard_failed then waiver 200); `make e2e` mock 1 passed; live run see PR; IRIS used 1.98/2 GiB, backend ~1 GiB
+  Next: finish live steps 3–6 on an idle machine and run make test-iris-local (#202); #163 discriminating iris test
+  Risks: under heavy machine load one FHIR transaction took 155 s; each live e2e run needs a fresh make up-local
+  Issues: #175 (closed by PR), #202 new; #99/#163/#61 commented with evidence, still open

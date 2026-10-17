@@ -1,14 +1,14 @@
-// Case list and detail, the claim transition and the triage document requests (demo steps 1–2), on the contract paths.
-// Findings, timeline, messages and audit are not in contracts/openapi.json: their handlers keep the provisional paths.
+// Case list and detail, the claim transition, the triage document requests (demo steps 1–2) and the case activity
+// (audit, timeline, messages), on the contract paths. Findings are not in contracts/openapi.json yet.
 import { http, HttpResponse } from 'msw'
 import type { components } from '@/lib/api/schema'
+import { auditFor, messagesFor, timelineFor } from '../fixtures/activity'
 import { toApiCase, toApiDetail } from '../fixtures/api'
 import { ALENA_ID, allCases, caseById, inboxCases, newStore } from '../fixtures/cases'
 import { DOCUMENTS } from '../fixtures/documents'
 import { activeFindings } from '../fixtures/findings'
-import { AUDIT, MESSAGES } from '../fixtures/messages'
+import { LETTER, LISTED, requestId } from '../fixtures/requests'
 import { store } from '../fixtures/store'
-import { timelineAt } from '../fixtures/timeline'
 import { problem, roleOf, todayOf } from './util'
 import { DEMO_USERS } from '../fixtures/people'
 
@@ -18,20 +18,22 @@ const isAlena = (id: string | readonly string[] | undefined) => id === ALENA_ID
 
 const GP = DEMO_USERS.gp.name // the demo GP of the mock cases (`MockCase.gp`)
 
-const LETTER = '07_PL_zadost_KOC2_2026-10-02'
-
-// The five reports the GP's letter lists (numbered lines of report 07), in the backend's order; the GP's own epicrisis
-// (04) is not among them. The evidence quote is the verbatim numbered line, `label` the same without its number.
-const LISTED = [
-  { doc: '02_Laborator_2026-09-01', exam: '2026-09-01', org: 'labjih', recipient: 'Laboratoř LabJih', by: 'organization', label: 'Laboratorní vyšetření 1. 9. 2026 – krevní obraz, biochemie, moč chemicky a sediment, kultivace moči (LabJih)' },
-  { doc: '03_RTG_plic_2026-09-03', exam: '2026-09-03', org: 'rc-modrany', recipient: 'Radiologické centrum Modřany', by: 'organization', label: 'RTG plic 3. 9. 2026 (Radiologické centrum Modřany)' },
-  { doc: '05_Gastroenterologie_2026-09-15', exam: '2026-09-15', org: 'poliklinika-jizni', recipient: 'Poliklinika Jižní', by: 'organization', label: 'Gastroenterologické vyšetření 15. 9. 2026 (MUDr. Ivana Křížová, Poliklinika Jižní)' },
-  { doc: '06_UZ_bricha_2026-09-29', exam: '2026-09-29', org: 'poliklinika-jizni', recipient: 'Poliklinika Jižní', by: 'organization', label: 'UZ břicha 29. 9. 2026 (RDG pracoviště, Poliklinika Jižní)' },
-  { doc: '01_Kardiologie_2026-07-20', exam: '2026-07-20', org: 'kardio-jesenice', recipient: 'Kardiologická ambulance Jesenice', by: 'practitioner', label: 'Kardiologická kontrola 20. 7. 2026 (MUDr. Petr Malý)' },
-] as const
+// Like backend/app/api/routes/cases.py: the insurer reviewer reads only /api/reviewer/cases.
+const REVIEWER_DENIED = 'Revizní lékař má k dispozici jen omezený přehled pro pojišťovnu'
 
 const received = (doc: string) => DOCUMENTS.find((d) => d.id === doc)?.received.slice(0, 10)
-const requestId = (doc: string) => `req-${doc}`
+
+/** Audit, timeline and messages are the KOC team's view, like the backend: the GP and the reviewer get 403. */
+const kocOnly = (request: Request) => {
+  const role = roleOf(request)
+  return role === 'coordinator' || role === 'physician' ? null : roleDenied('Průběh případu je dostupný jen týmu KOC, který případ vede')
+}
+
+const intParam = (request: Request, name: string, fallback: number) => {
+  const params = new URL(request.url).searchParams
+  const value = Number(params.get(name))
+  return params.has(name) && Number.isInteger(value) && value >= 0 ? value : fallback
+}
 
 function proposals(today: string): Schemas['ProposalsOut'] {
   return {
@@ -95,12 +97,14 @@ const roleDenied = (detail: string) => {
 
 export const handlers = [
   http.get('/api/cases', ({ request }) => {
+    if (roleOf(request) === 'reviewer') return problem(403, REVIEWER_DENIED)
     const today = todayOf(request)
     // The GP portal lists only the demo GP's own cases; the queue lists every case that is not closed.
     const list = roleOf(request) === 'gp' ? allCases(today, store).filter((c) => c.gp === GP) : inboxCases(today, store)
     return HttpResponse.json(list.map((c) => toApiCase(c, today)))
   }),
   http.get('/api/cases/:id', ({ params, request }) => {
+    if (roleOf(request) === 'reviewer') return problem(403, REVIEWER_DENIED)
     const c = caseById(String(params.id), todayOf(request), store)
     if (!c) return problem(404, 'Případ nebyl nalezen')
     // Like the backend: the GP and the reviewer get no waivers (internal KOC detail).
@@ -111,15 +115,26 @@ export const handlers = [
   http.get('/api/cases/:id/findings', ({ params, request }) =>
     HttpResponse.json(isAlena(params.id) ? activeFindings(todayOf(request)) : []),
   ),
-  http.get('/api/cases/:id/timeline', ({ params, request }) =>
-    HttpResponse.json(isAlena(params.id) ? timelineAt(todayOf(request)) : []),
-  ),
-  http.get('/api/cases/:id/messages', ({ params, request }) =>
-    HttpResponse.json(isAlena(params.id) ? MESSAGES.filter((m) => m.at.slice(0, 10) <= todayOf(request)) : []),
-  ),
-  http.get('/api/cases/:id/audit', ({ params, request }) =>
-    HttpResponse.json(isAlena(params.id) ? AUDIT.filter((a) => a.at.slice(0, 10) <= todayOf(request)) : []),
-  ),
+  http.get('/api/cases/:id/timeline', ({ params, request }) => {
+    const denied = kocOnly(request)
+    if (denied) return denied
+    const today = todayOf(request)
+    const empty: Schemas['CaseTimeline'] = { case_id: String(params.id), as_of: null, now: `${today}T12:00:00+02:00`, events: [] }
+    return HttpResponse.json(isAlena(params.id) ? timelineFor(today, store) : empty)
+  }),
+  http.get('/api/cases/:id/messages', ({ params, request }) => {
+    const denied = kocOnly(request)
+    if (denied) return denied
+    return HttpResponse.json(isAlena(params.id) ? messagesFor(todayOf(request), store) : [])
+  }),
+  http.get('/api/cases/:id/audit', ({ params, request }) => {
+    const denied = kocOnly(request)
+    if (denied) return denied
+    const offset = intParam(request, 'offset', 0)
+    const limit = Math.min(intParam(request, 'limit', 100) || 100, 500)
+    const empty: Schemas['CaseAuditTrail'] = { case_id: String(params.id), items: [], total: 0, offset, limit, truncated: false }
+    return HttpResponse.json(isAlena(params.id) ? auditFor(todayOf(request), store, offset, limit) : empty)
+  }),
   http.get('/api/cases/:id/document-requests/proposals', ({ params, request }) =>
     HttpResponse.json(isAlena(params.id) ? proposals(todayOf(request)) : { source_doc_id: null, proposals: [] }),
   ),

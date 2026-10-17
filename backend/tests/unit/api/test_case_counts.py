@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from app.api.deps import (
     LlmClients,
     get_case_reader,
+    get_directory_provider,
     get_fhir_client,
     get_handover_store,
     get_iris_pool,
@@ -24,7 +25,7 @@ from app.fhir.cases import CaseContentsView, CaseDetailView, CaseOverview
 from app.main import create_app
 from app.settings import PRAGUE, Settings
 from tests.unit.api.fake_handover_store import FakeStore
-from tests.unit.api.test_api import CASE, DOCUMENT, FakeFhir, FakeLlm, FakePool, FakeReader
+from tests.unit.api.test_api import CASE, DOCUMENT, DemoDirectory, FakeFhir, FakeLlm, FakePool, FakeReader
 
 CASE_URL = f"/api/cases/{CASE.id}"
 
@@ -51,6 +52,7 @@ def make_client(settings: Settings) -> Iterator[Callable[[FakeReader], TestClien
     def make(reader: FakeReader) -> TestClient:
         app: FastAPI = create_app(settings)
         app.dependency_overrides[get_case_reader] = lambda: reader
+        app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
         app.dependency_overrides[get_fhir_client] = lambda: FakeFhir()
         app.dependency_overrides[get_iris_pool] = lambda: FakePool()
         llm = LlmClients(FakeLlm('{"facts": []}'), FakeLlm(None))
@@ -135,6 +137,7 @@ def test_counts_are_null_when_no_document_is_usable_at_the_cut_off(
 def test_a_failing_llm_cache_is_null_counts_not_an_error(settings: Settings) -> None:
     app = create_app(settings)
     app.dependency_overrides[get_case_reader] = lambda: FakeReader()
+    app.dependency_overrides[get_directory_provider] = DemoDirectory  # the shared current_actor
     app.dependency_overrides[get_llm_clients] = lambda: LlmClients(FakeLlm(None), FakeLlm(None))
     app.dependency_overrides[get_handover_store] = FakeStore
     with TestClient(app) as client:

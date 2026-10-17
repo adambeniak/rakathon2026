@@ -6,9 +6,10 @@ from datetime import date
 
 from fastapi import APIRouter, Path
 
-from app.api.deps import CaseReaderDep, HandoverStoreDep, LlmClientsDep, SettingsDep
+from app.api.deps import ActorDep, CaseReaderDep, HandoverStoreDep, LlmClientsDep, SettingsDep
 from app.api.schemas.cases import (
     BatonHolder,
+    CaseBaton,
     CaseCounts,
     CaseDetail,
     CaseSummary,
@@ -20,10 +21,13 @@ from app.api.schemas.cases import (
     SuspectedDiagnosis,
 )
 from app.api.schemas.common import problem_responses
+from app.api.schemas.intervals import TimeToTreatmentIntervals
 from app.api.services.case_counts import case_counts, counts_for
+from app.api.services.reviewer import deny_reviewer
 from app.domain.case import Case
 from app.domain.common import BUSINESS_ID_PATTERN
 from app.fhir.cases import CaseExtras
+from app.timeline.intervals import case_intervals
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -44,6 +48,7 @@ def summary_fields(
         ),
         "state": case.state,
         "baton_holder": BatonHolder(**case.baton_holder.model_dump()) if case.baton_holder else None,
+        "baton": CaseBaton(role=case.current_baton_role, action=case.next_action),
         "next_deadline": case.next_deadline,
         "opened_at": case.opened_at,
         "postponed": case.odlozeny,
@@ -69,11 +74,13 @@ def summary_fields(
     "",
     response_model=list[CaseSummary],
     summary="List cases",
-    responses=problem_responses(500, 502, 503),
+    description="Not for the insurer's reviewer (403): see `GET /api/reviewer/cases`.",
+    responses=problem_responses(401, 403, 500, 502, 503),
 )
 async def list_cases(
-    reader: CaseReaderDep, settings: SettingsDep, store: HandoverStoreDep, llm: LlmClientsDep
+    reader: CaseReaderDep, settings: SettingsDep, store: HandoverStoreDep, llm: LlmClientsDep, actor: ActorDep
 ) -> list[CaseSummary]:
+    deny_reviewer(actor)
     today = settings.now().date()
     overviews = await reader.list_cases()
     counts = await counts_for([o.case for o in overviews], reader=reader, store=store, settings=settings, llm=llm)
@@ -87,15 +94,18 @@ async def list_cases(
     "/{case_id}",
     response_model=CaseDetail,
     summary="Case detail with its documents",
-    responses=problem_responses(404, 422, 500, 502, 503),
+    description="Not for the insurer's reviewer (403): see `GET /api/reviewer/cases/{ref}`.",
+    responses=problem_responses(401, 403, 404, 422, 500, 502, 503),
 )
 async def get_case(
     reader: CaseReaderDep,
     settings: SettingsDep,
     store: HandoverStoreDep,
     llm: LlmClientsDep,
+    actor: ActorDep,
     case_id: str = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2026-prochazkova"]),
 ) -> CaseDetail:
+    deny_reviewer(actor)
     view = await reader.get_case(case_id)
     documents = [
         DocumentSummary.model_validate(d.model_dump(exclude={"file_name", "content_type"})) for d in view.documents
@@ -110,5 +120,6 @@ async def get_case(
                 RecordedReadinessWaiver(item=w.item, reason=w.reason, waived_by=w.by_display, waived_at=w.at)
                 for w in view.readiness_waivers
             ],
+            "intervals": TimeToTreatmentIntervals.of(case_intervals(view.case)),
         }
     )

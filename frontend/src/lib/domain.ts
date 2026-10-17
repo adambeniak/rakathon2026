@@ -111,11 +111,24 @@ export interface ReadinessWaiverInfo {
   at: string // ISO timestamp
 }
 
+/** One time-to-treatment proxy as the API computes it; `days` is null unless `status` is `measured`. */
+export interface TreatmentInterval {
+  days: number | null
+  status: 'measured' | 'running' | 'not_started' | 'not_recorded' | 'inconsistent'
+}
+
+/** T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT, T3 = MDT → onkologické konzilium (proxies). */
+export interface CaseIntervals {
+  t1: TreatmentInterval
+  t2: TreatmentInterval
+  t3: TreatmentInterval
+}
+
 export interface CaseDetail extends CaseSummary {
   /** Waivers in force; empty before the case is marked ready, and always for the GP and reviewer roles. */
   readinessWaivers: ReadinessWaiverInfo[]
   birthNumber?: string
-  t?: { t1: number | null; t2: number | null; t3: number | null }
+  intervals?: CaseIntervals
 }
 
 export interface DocumentInfo {
@@ -170,24 +183,4 @@ export interface DocumentRequest {
   evidence: Evidence
 }
 
-export interface TimelineEvent {
-  date: string
-  label: string
-  note?: string
-  excluded?: boolean
-}
-
-export interface Message {
-  id: string
-  at: string
-  from: string
-  to: string
-  subject: string
-  body: string
-}
-
-export interface AuditEntry {
-  at: string
-  who: string
-  action: string
-}
+// Timeline, messages and audit entries are contract types: features/cases/schemas.ts.

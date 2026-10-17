@@ -1,9 +1,11 @@
 # Demo script: click-by-click runbook, 6 steps
 
-Status: **not yet dry-run on a live stack.** Everything below is derived from the code on `main` (UI strings in
-`frontend/src/i18n/cs/`, routes, backend guards), not from a recorded run. The first full rehearsal on a fresh
-`demo-start` is open (board #24, "Needs a human"). Where the code and the story disagree, the runbook says so and gives
-the workaround. Labels in **bold** are the exact on-screen texts.
+Status: **dress-rehearsed on a live local stack** (`make up-local`, demo-start, 2026-10-17, `main` @ 212950b): all six
+steps passed over the API with `X-Demo-Role` (the curl path below), and the live Playwright project
+(`E2E_BASE_URL=http://localhost:5173 make e2e`) passed steps 1–2 and the step 3 uploads; its later steps were not
+completed in that session (machine under heavy load, see #175 follow-up). A human presenter run is still open (board
+#24). Where the code and the story disagree, the runbook says so and gives the workaround. Labels in **bold** are the
+exact on-screen texts.
 
 Presenter lines are Czech (spoken); everything else is English. All data is fictitious (Alena Procházková, MDT
 21. 10. 2026 08:00). Due dates in the app are demo assumptions, not clinical guidance.
@@ -14,6 +16,7 @@ Presenter lines are Czech (spoken); everything else is English. All data is fict
 | --- | --- |
 | **Návrh AI – čeká na potvrzení** | every handover section until a physician acts |
 | **Potvrzeno lékařem** | section confirmed unchanged; summary line **Potvrzeno lékařem: n z 15** |
+| **Potvrzeno lékařem – závěr zapsal(a) a v systému potvrdil(a) …** | section 6 of the MDT record after the conclusion was entered (text written by the physician, not by AI; no electronic signature) |
 | **Upraveno lékařem** | section saved with the physician's own value (no source quote) |
 | **Ponecháno jako chybějící** | physician accepted a missing value as missing (button **Ponechat jako chybějící**) |
 | **Doplněno lékařem** | a missing value filled in by the physician (button **Upravit**) |
@@ -82,10 +85,11 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
 | --- | --- | --- |
 | `GET /handover` does not persist; only a section confirmation does; the readiness gate needs a handover persisted for `mdt_start` | **Označit jako připravený k MDT** is refused until a section has been confirmed after the launch | Step 5: confirm one section first |
 | Confirmations are stored per (case, `as_of`); step 3 (`as_of` = 20. 10. 09:00) and step 5 (`as_of` = 21. 10. 08:00) are different snapshots (#122) | Step 3 confirmations do not appear in step 5 | Say so; confirm again in step 5 |
-| Audit, Časová osa and Komunikace tabs use provisional endpoints that are not in the contract (#47) | They can fail against the real backend | Do not show them; use the proofs named in each step |
-| Reviewer screen uses the provisional `/api/reviewer/cases` (#104, #105); the reviewer is not notified (#74) | **Přehled pro pojišťovnu** can fail; no automatic reviewer message exists | Skip the reviewer live; see step 6 |
+| Audit, Časová osa and Komunikace tabs read the contract endpoints `/audit`, `/timeline`, `/messages` (KOC team only); not yet run against IRIS (AuditEvent `entity` OR-search unverified) | A search IRIS rejects shows the error state of the tab | Rehearse them on `make up-local` first; if a tab errors, use the proofs named in each step |
+| The reviewer is not notified (#74); the first GP visit (T1 start, #188) and the oncology consult (T3 end, #189) are not recorded | No automatic reviewer message; the reviewer screen shows T1 **nezaznamenáno** and T3 **běží** | Optional in step 6: role **Revizní lékař** shows initials, birth year, state, T2 and the delivery status |
 | HL7 v2 ingestion is not implemented (no production under `iris/`, #126) | The older "or send the HL7 lab" option does not exist | Upload DOCX only |
-| `make e2e` drives the six steps against the MSW mocks only, with mock deviations (readiness at 20. 10., no 3b, no Mailpit; #172, #175) | The video in `frontend/test-results/demo-flow-demo-flow-mock/video.webm` is the mock story, not the live stack | Use it as the last fallback; `E2E_SLOWMO=400 make e2e` records a watchable pace |
+| `make e2e` drives the six steps against the MSW mocks (readiness at 20. 10., no 3b, no Mailpit; #172). The `live` project (`E2E_BASE_URL=http://localhost:5173`, fresh `make up-local` + `pnpm dev`) follows this runbook (3b, advance, 21. 10., Mailpit) and needs a fresh stack per run | The mock video `frontend/test-results/demo-flow-demo-flow-mock/video.webm` is the mock story | Use it as the last fallback; `E2E_SLOWMO=400 make e2e` records a watchable pace |
+| On a loaded machine one FHIR write took 155 s (`POST /document-requests`, IRIS CPU warning) and the 10-file upload ~30 s (files go up one by one) | A button stays on **Odesílám…** / **Nahrávám…** | Close other heavy processes before going on stage; upload the reports off stage (step 3 already says so) |
 
 ## 1 · Referral without a form
 
@@ -119,7 +123,7 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      from document 07). All requestable proposals (with a known **Adresát**) come preselected, so the panel has no **Vybrat vše** button (untick what
      should not go); press **Vyžádat vybrané**.
 - **Must be visible:** the reports the letter lists as proposals with **Adresát** and the quote (five: `01`, `02`,
-  `03`, `05`, `06`; expected from the letter, confirm in the rehearsal); after sending **Vyžádáno: 5.**; state
+  `03`, `05`, `06`; confirmed in the live rehearsal); after sending **Vyžádáno: 5.**; state
   **Čeká na podklady** (shown in the header badge).
 - **Say:** „Koordinátorka případ převezme. Aplikace v žádosti najde odkazy na výsledky, které nejsou přiložené,
   a nabídne je k vyžádání. Nic se nepošle bez jejího potvrzení.“
@@ -168,7 +172,8 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   **Role:** Koordinátorka
 - **Click:**
   1. Open the case, tab **Úkoly**, **Spustit sadu: Karcinom pankreatu – diagnostika**.
-  2. Form: **Indikující lékař KOC** (default doc. MUDr. Pavel Hrubý, Ph.D.), **Začátek sady** 2. 10. 2026
+  2. Form: **Indikující lékař KOC** (default doc. MUDr. Pavel Hrubý, Ph.D.; over curl `indicated_by` is required:
+     `hruby-pavel@koc2-nemocnice-lipova`), **Začátek sady** 2. 10. 2026
      (defaults to the simulated date), **Plánovaný začátek MDT** 21. 10. 2026 08:00 (default) → **Spustit sadu**.
   3. The board **Kdo je na tahu** shows the lanes (PL, Koordinátor, Lékař KOC, Externí pracoviště, Pacient) with
      the tasks, each with **Místo**, **Termín** and **Čeká na: …**.
@@ -207,14 +212,18 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   4. **Označit jako připravený k MDT**. The server answers with the missing item **Stav výkonnosti (PS/ECOG)**; enter
      a reason in **Důvod prominutí: Stav výkonnosti (PS/ECOG)** and press **Prominout a označit jako připravený**. Result: **Případ je označen jako
      připravený k MDT.** and state **Připraveno k rozhodnutí/MDT**.
-  5. **Stáhnout zápis (DOCX)** (file in the MDT_zapis layout; marked as a draft while not every section is confirmed).
+  5. **Stáhnout zápis (DOCX)** or **Stáhnout zápis (PDF)** (same content; file in the MDT_zapis layout; marked as a
+     draft while not every section is confirmed, the PDF on every page). Sections 6 and 7 say **Vyplní lékař na
+     jednání MDT. Systém závěr ani doporučení nevytváří.**; section 2 says **Chybí – prezence členů MDT není v systému
+     zaznamenána.**
 - **Histology task:** report 11 is in the case since step 3, so once the clock is 21. 10. the histology step turns
   **Výsledek doručen** (no longer **Po termínu**, no alert) at the next watchdog round (≤ 1 minute after the switch,
   #132). If it must show at once: `curl -s -X POST "$BACKEND/api/demo/advance?case_id=$CASE&to=2026-10-21T09:00:00%2B02:00" -H 'X-Demo-Role: coordinator'`
   and reload.
 - **Must be visible:** reports 12 and 13 only under **Po MDT – nezahrnuto** and as **Po MDT** in tab **Dokumenty**; the
   two date conflicts still listed; the waiver asks for a reason (recorded as who, when, why); the DOCX downloads under
-  `MDT_zapis_<case id>_2026-10-21_NAVRH.docx` (the app names the file; `_NAVRH` drops once every section is confirmed).
+  `MDT_zapis_<case id>_2026-10-21_NAVRH.docx` (the PDF as `….pdf`; the app names the file; `_NAVRH` drops once every
+  section is confirmed).
 - **Say:** „K MDT použijeme jen to, co bylo známo k 21. 10. v 8:00. Zprávy 12 a 13 vznikly později, proto jsou označeny
   Po MDT a nejsou v podkladu. Server hlídá připravenost: stav výkonnosti v dokumentaci chybí. Lékař může položku pro
   připravenost k MDT prominout s odůvodněním; údaj zůstává v podkladu jako chybějící a zaznamená se kdo, kdy a proč.
@@ -232,6 +241,12 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
   1. Role **Lékař KOC 2** → case → **Připravit MDT** → **Závěr MDT**: paste the text from the fictitious
      `data/raw/MDT_zaver.docx` into **Text závěru MDT** → **Zapsat závěr MDT**. The signed block shows
      **Podepsaný závěr MDT**, **Podepsal(a) <name> · <time>**; state **Závěr KOC/MDT**, baton Koordinátor.
+     Paste from the heading **ZÁVĚR MDT** to the end (not the header with the patient's basic data). Optional: on the
+     same page **Stáhnout zápis (PDF)**. Section 6 now holds the text as written under **Potvrzeno lékařem – závěr
+     zapsal(a) a v systému potvrdil(a) <name>, 21. 10. 2026 <time>** and the note **… Nejde o elektronický podpis.**;
+     a birth number, if the pasted text contains one, shows as **[RČ vynecháno]**; section 7 points to section 6;
+     sections 1–5 are still the basis as of 08:00 (reports 12 and 13 still **po MDT**). Section 2 still says the
+     attendance is not recorded.
   2. Role **Koordinátorka KOC 2** → case → link **Odeslat závěr** → button **Odeslat závěr PL**. Shows **Závěr je předán k
      doručení praktickému lékaři.** and state **Zpětná vazba odeslána**.
   3. Mailpit (http://localhost:8025): message **Štafeta: zpětná vazba z MDT je k dispozici**. The mail has no clinical
@@ -243,14 +258,14 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      MDT page once the case is in **Zpětná vazba odeslána**) → **Uzavřít případ** → warning **Zda praktický lékař závěr otevřel, tato obrazovka
      nezjišťuje…** → **Uzavřít přesto** → **Případ je uzavřen.** State **Uzavřeno**.
 - **Must be visible:** the e-mail in Mailpit; the GP reading the conclusion signed by the physician (**Podepsal(a)
-  <name> dne <date>**); state **Uzavřeno**; the case header **Časové intervaly** (T1, T2, T3) as returned by the API or
-  **zatím neběží**; they are proxies (T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT, T3 = MDT →
+  <name> dne <date>**); state **Uzavřeno**; the case header **Časové intervaly**: T1 **nezaznamenáno**, T2 **19 dní**, T3 **běží**; they are proxies (T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT, T3 = MDT →
   onkologické konzilium) and must be called so.
 - **Say:** „Závěr MDT zapíše a potvrdí lékař (v ukázce bez skutečného elektronického podpisu), koordinátorka ho odešle a
-  praktickému lékaři se předá k doručení e-mail bez klinického textu (v ukázce Mailpit). Otevření závěru se zapíše do auditní stopy. Případ je uzavřen. Intervaly T1, T2, T3 jsou zástupné hodnoty.“
+  praktickému lékaři se předá k doručení e-mail bez klinického textu (v ukázce Mailpit). Otevření závěru se zapíše do auditní stopy. Případ je uzavřen. Intervaly T1, T2, T3 jsou orientační ukazatele (proxy).“
 - **Do not claim:** that the e-mail was *read* (the screen says „předáno k doručení“, the relay accepted it); that the
-  insurer's reviewer is informed automatically (#74) or sees a scoped summary (#104, #105); that the app knows whether
-  the GP opened the conclusion on the coordinator screen (#113).
+  insurer's reviewer is informed automatically (#74); that T1 or T3 are measured (#188, #189); that the app knows whether
+  the GP opened the conclusion on the coordinator screen (#113); that the record lists the MDT members or a separate
+  recommendation, or that the system wrote any part of sections 6–7 (it prints only what the physician signed).
 - **Fallback:** a screenshot of the Mailpit message; if the send answers 503 (**E-mail se teď nepodařilo odeslat…**),
   the state did not change, so press **Odeslat závěr PL** again.
 

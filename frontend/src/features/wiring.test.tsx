@@ -29,16 +29,28 @@ describe('contract adapter', () => {
     expect(adaptCase({ ...base, bucket: 'odlozeny', postponed: true }).column).toBe('snoozed')
   })
 
-  it('derives baton action and queue column from the state code', () => {
+  it('names the baton action the API sends and takes the queue column from the bucket', () => {
     const c = adaptCase({
       ...base,
       state: 'kompletni',
       bucket: 'aktivni',
       baton_holder: { display: 'MUDr. Havelka', id: 'h', role: 'koc_physician' },
+      baton: { role: 'koc_physician', action: 'review_handover' },
       next_deadline: '2026-10-21T08:00:00+02:00',
     })
     expect(c.column).toBe('active')
     expect(c.baton).toEqual({ name: 'MUDr. Havelka', action: 'Zkontrolovat a potvrdit předání', due: '2026-10-21T08:00:00+02:00' })
+  })
+
+  it('shows the coordinator closing a case whose feedback delivery is confirmed (#180)', () => {
+    const c = adaptCase({
+      ...base,
+      state: 'zpetna_vazba_odeslana',
+      bucket: 'aktivni',
+      baton_holder: { display: 'Lucie Dvořáková', id: 'd', role: 'coordinator' },
+      baton: { role: 'coordinator', action: 'close_case' },
+    })
+    expect(c.baton?.action).toBe('Uzavřít případ')
   })
 })
 

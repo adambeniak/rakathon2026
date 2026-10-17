@@ -41,15 +41,18 @@ export const common = {
     uzavreno: 'Uzavřeno',
   },
   // What the baton holder does next in each state (contracts/case-states.md, "Baton role after entering").
-  batonActions: {
-    odeslano: 'Převzít případ',
+  /** Labels of `CaseSummary.baton.action` (the backend decides the action; the UI only names it). */
+  caseActions: {
+    accept_case: 'Převzít případ',
     triage: 'Posoudit žádost a vyžádat podklady',
-    ceka_na_podklady: 'Doplnit chybějící podklady',
-    kompletni: 'Zkontrolovat a potvrdit předání',
-    pripraveno_mdt: 'Projednat případ na MDT',
-    zaver_mdt: 'Odeslat závěr praktickému lékaři',
-    zpetna_vazba_odeslana: 'Potvrdit přijetí závěru',
-    uzavreno: 'Bez další akce (případ uzavřen)',
+    complete_documents: 'Doplnit chybějící podklady',
+    review_handover: 'Zkontrolovat a potvrdit předání',
+    hold_mdt: 'Projednat případ na MDT',
+    send_feedback: 'Odeslat závěr praktickému lékaři',
+    confirm_receipt: 'Potvrdit přijetí závěru',
+    close_case: 'Uzavřít případ',
+    await_external: 'Čeká na externí pracoviště',
+    none: 'Bez další akce (případ uzavřen)',
   },
   unknown: '—',
   baton: { nobody: 'nikdo', label: 'Na tahu', deadline: 'do', none: 'bez termínu', overdue: 'po termínu' },

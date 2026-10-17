@@ -453,6 +453,99 @@
         "title": "AskStatus",
         "type": "string"
       },
+      "AuditEntry": {
+        "description": "One audit record. Codes only: the UI names them in Czech; no free text or clinical content is returned.",
+        "properties": {
+          "action": {
+            "description": "FHIR AuditEventAction: C create, R read, U update, D delete, E execute (search, transaction).",
+            "enum": [
+              "C",
+              "R",
+              "U",
+              "D",
+              "E"
+            ],
+            "title": "Action",
+            "type": "string"
+          },
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Display name of who acted (person or 'Štafeta (systém)').",
+            "title": "Actor"
+          },
+          "actor_role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "entity_types": {
+            "description": "Kinds of record touched, e.g. ['Task', 'DocumentReference'].",
+            "items": {
+              "type": "string"
+            },
+            "title": "Entity Types",
+            "type": "array"
+          },
+          "on_behalf_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Workplace the coordinator recorded a step for.",
+            "title": "On Behalf Of"
+          },
+          "operation": {
+            "description": "Workflow event code (`accept`, `send_feedback`, `gp_opened`, `request_report`, ...) or the interaction (`read`, `search-type`, `create`, `update`, `transaction`, `export`, `index`, `extract`, `launch_pathway`).",
+            "title": "Operation",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "success",
+              "failure"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "recorded": {
+            "description": "When it happened (AuditEvent.recorded).",
+            "format": "date-time",
+            "title": "Recorded",
+            "type": "string"
+          },
+          "workflow_event": {
+            "description": "A business event of the case or task state machine.",
+            "title": "Workflow Event",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "recorded",
+          "action",
+          "operation",
+          "workflow_event",
+          "entity_types",
+          "outcome"
+        ],
+        "title": "AuditEntry",
+        "type": "object"
+      },
       "BatonBasis": {
         "enum": [
           "required_for_mdt",
@@ -707,6 +800,116 @@
         "title": "Body_referrals-prefill_referral",
         "type": "object"
       },
+      "CaseAction": {
+        "description": "Next step on the case as a whole, for the queue card (\"Na tahu: … – <action>\"). Labels live in the UI i18n.",
+        "enum": [
+          "accept_case",
+          "triage",
+          "complete_documents",
+          "review_handover",
+          "hold_mdt",
+          "send_feedback",
+          "confirm_receipt",
+          "close_case",
+          "await_external",
+          "none"
+        ],
+        "title": "CaseAction",
+        "type": "string"
+      },
+      "CaseAuditTrail": {
+        "examples": [
+          {
+            "case_id": "rakathon-2026-prochazkova",
+            "items": [
+              {
+                "action": "U",
+                "actor": "doc. MUDr. Pavel Hrubý, Ph.D.",
+                "actor_role": "koc_physician",
+                "entity_types": [
+                  "Task"
+                ],
+                "operation": "record_mdt_conclusion",
+                "outcome": "success",
+                "recorded": "2026-10-21T09:30:00+02:00",
+                "workflow_event": true
+              }
+            ],
+            "limit": 100,
+            "offset": 0,
+            "total": 42,
+            "truncated": false
+          }
+        ],
+        "properties": {
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "items": {
+            "description": "Newest first.",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Records in the trail of the case (before offset/limit).",
+            "title": "Total",
+            "type": "integer"
+          },
+          "truncated": {
+            "description": "More records exist after this page.",
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "case_id",
+          "items",
+          "total",
+          "offset",
+          "limit",
+          "truncated"
+        ],
+        "title": "CaseAuditTrail",
+        "type": "object"
+      },
+      "CaseBaton": {
+        "description": "Who must act next on the case as a whole and what that step is; computed by the backend from the case state,\nthe machine's baton role and the postponed flag (contracts/case-states.md).",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/CaseAction",
+            "description": "Next step: accept_case | triage | complete_documents | review_handover | hold_mdt | send_feedback | confirm_receipt (GP, feedback not yet confirmed as delivered) | close_case (coordinator, after delivery_confirmed) | await_external (postponed) | none (closed)."
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Role"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Role holding the baton; null when the case is closed."
+          }
+        },
+        "required": [
+          "role",
+          "action"
+        ],
+        "title": "CaseBaton",
+        "type": "object"
+      },
       "CaseCounts": {
         "description": "Handover counters as the handover screen shows them (sections marked Chybí / Nesouhlasí / Zastaralé).",
         "properties": {
@@ -750,6 +953,10 @@
       "CaseDetail": {
         "examples": [
           {
+            "baton": {
+              "action": "hold_mdt",
+              "role": "koc_physician"
+            },
             "baton_holder": {
               "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
               "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -774,6 +981,19 @@
               }
             ],
             "id": "rakathon-2026-prochazkova",
+            "intervals": {
+              "t1": {
+                "end": "2026-10-02",
+                "status": "not_recorded"
+              },
+              "t2": {
+                "start": "2026-10-02",
+                "status": "running"
+              },
+              "t3": {
+                "status": "not_started"
+              }
+            },
             "missing_count": 3,
             "next_deadline": "2026-10-21T08:00:00+02:00",
             "opened_at": "2026-10-02T09:30:00+02:00",
@@ -788,6 +1008,17 @@
           }
         ],
         "properties": {
+          "baton": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseBaton"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Baton role and next action of the case; the UI renders `action`, it never derives it."
+          },
           "baton_holder": {
             "anyOf": [
               {
@@ -858,6 +1089,10 @@
             "description": "Case business id, e.g. 'rakathon-2026-prochazkova'.",
             "title": "Id",
             "type": "string"
+          },
+          "intervals": {
+            "$ref": "#/components/schemas/TimeToTreatmentIntervals",
+            "description": "Time-to-treatment proxies T1-T3 (header 'Časové intervaly'); a value is null when an end point is not recorded, never estimated."
           },
           "koc": {
             "anyOf": [
@@ -955,9 +1190,116 @@
           "patient",
           "state",
           "document_count",
-          "documents"
+          "documents",
+          "intervals"
         ],
         "title": "CaseDetail",
+        "type": "object"
+      },
+      "CaseMessage": {
+        "examples": [
+          {
+            "id": "rakathon-2026-prochazkova-req-1",
+            "kind": "document_request",
+            "recipient": "Laboratoř LabJih",
+            "request": {
+              "due": "2026-10-06T23:59:00+02:00",
+              "request_id": "rakathon-2026-prochazkova-req-1",
+              "result_doc_id": "03_RTG_plic_2026-09-03",
+              "status": "completed"
+            },
+            "sender": "Bc. Jana Nováková",
+            "sent_at": "2026-10-02T11:30:00+02:00",
+            "status": "fulfilled",
+            "text": "Žádost o zaslání výsledku vyšetření: RTG plic 3. 9. 2026 (3. 9. 2026)"
+          }
+        ],
+        "properties": {
+          "delivery": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageDelivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MessageKind"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient"
+          },
+          "request": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRequestInfo"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sender"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          },
+          "status": {
+            "description": "`open` request awaiting the report, `fulfilled` report received, `cancelled` request withdrawn, `sent` feedback e-mail accepted by the relay.",
+            "enum": [
+              "open",
+              "fulfilled",
+              "cancelled",
+              "sent"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "text": {
+            "description": "The message as sent (fixed template; the feedback e-mail holds no clinical content).",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "text"
+        ],
+        "title": "CaseMessage",
         "type": "object"
       },
       "CaseState": {
@@ -978,6 +1320,10 @@
       "CaseSummary": {
         "examples": [
           {
+            "baton": {
+              "action": "hold_mdt",
+              "role": "koc_physician"
+            },
             "baton_holder": {
               "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
               "id": "hruby-pavel@koc2-nemocnice-lipova",
@@ -1005,6 +1351,17 @@
           }
         ],
         "properties": {
+          "baton": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CaseBaton"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Baton role and next action of the case; the UI renders `action`, it never derives it."
+          },
           "baton_holder": {
             "anyOf": [
               {
@@ -1160,6 +1517,71 @@
         "title": "CaseSummary",
         "type": "object"
       },
+      "CaseTimeline": {
+        "examples": [
+          {
+            "as_of": "2026-10-21T08:00:00+02:00",
+            "case_id": "rakathon-2026-prochazkova",
+            "events": [
+              {
+                "at": "2026-10-19T12:10:00+02:00",
+                "doc_id": "11_Histologie_KOC2_2026-10-19",
+                "excluded_from_handover": false,
+                "id": "doc-received:11_Histologie_KOC2_2026-10-19",
+                "kind": "document_received",
+                "place": "Nemocnice Lipová – patologie",
+                "title": "Histologie"
+              },
+              {
+                "at": "2026-10-21T08:00:00+02:00",
+                "id": "mdt-meeting",
+                "kind": "mdt_meeting"
+              }
+            ],
+            "now": "2026-10-21T10:00:00+02:00"
+          }
+        ],
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MDT start the handover flag is computed against.",
+            "title": "As Of"
+          },
+          "case_id": {
+            "title": "Case Id",
+            "type": "string"
+          },
+          "events": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntry"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "now": {
+            "description": "Current (demo) time `planned` is computed against.",
+            "format": "date-time",
+            "title": "Now",
+            "type": "string"
+          }
+        },
+        "required": [
+          "case_id",
+          "now",
+          "events"
+        ],
+        "title": "CaseTimeline",
+        "type": "object"
+      },
       "CheckResult": {
         "properties": {
           "detail": {
@@ -1238,6 +1660,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -1457,6 +1887,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -1821,6 +2259,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -2212,6 +2658,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -2702,6 +3156,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -2804,6 +3266,16 @@
         ],
         "title": "ExcludedDocument",
         "type": "object"
+      },
+      "FeedbackDelivery": {
+        "enum": [
+          "not_sent",
+          "handed_over",
+          "opened_by_gp",
+          "unconfirmed"
+        ],
+        "title": "FeedbackDelivery",
+        "type": "string"
       },
       "FieldStatus": {
         "description": "Subset of the shared handover field status enum.",
@@ -3314,6 +3786,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -3391,6 +3871,17 @@
         ],
         "title": "HistologyField",
         "type": "object"
+      },
+      "IntervalStatus": {
+        "enum": [
+          "measured",
+          "running",
+          "not_started",
+          "not_recorded",
+          "inconsistent"
+        ],
+        "title": "IntervalStatus",
+        "type": "string"
       },
       "ItemEvidence": {
         "additionalProperties": false,
@@ -3579,6 +4070,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -3810,6 +4309,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -3890,6 +4397,105 @@
           "status"
         ],
         "title": "MedicationsField",
+        "type": "object"
+      },
+      "MessageDelivery": {
+        "properties": {
+          "channel": {
+            "const": "email",
+            "default": "email",
+            "title": "Channel",
+            "type": "string"
+          },
+          "gp_opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "First time the referring GP opened the feedback in the portal; null = not recorded.",
+            "title": "Gp Opened At"
+          },
+          "receipt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "SMTP Message-ID: the relay accepted the e-mail (handed over, not proof it was read).",
+            "title": "Receipt Id"
+          }
+        },
+        "title": "MessageDelivery",
+        "type": "object"
+      },
+      "MessageKind": {
+        "enum": [
+          "document_request",
+          "mdt_feedback"
+        ],
+        "title": "MessageKind",
+        "type": "string"
+      },
+      "MessageRequestInfo": {
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "exam_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exam Date"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "result_doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The report that fulfilled the request.",
+            "title": "Result Doc Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Status of the request's tracking task."
+          }
+        },
+        "required": [
+          "request_id",
+          "status"
+        ],
+        "title": "MessageRequestInfo",
         "type": "object"
       },
       "MissingItem": {
@@ -4005,6 +4611,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -4263,6 +4877,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -4853,6 +5475,133 @@
         "title": "ReviewState",
         "type": "string"
       },
+      "ReviewerCase": {
+        "examples": [
+          {
+            "birth_year": 1963,
+            "delivery": {
+              "status": "handed_over"
+            },
+            "diagnosis_category": "C25",
+            "initials": "A. P.",
+            "insurer_code": "211",
+            "intervals": {
+              "t1": {
+                "end": "2026-10-02",
+                "status": "not_recorded"
+              },
+              "t2": {
+                "days": 19,
+                "end": "2026-10-21",
+                "start": "2026-10-02",
+                "status": "measured"
+              },
+              "t3": {
+                "start": "2026-10-21",
+                "status": "running"
+              }
+            },
+            "ref": "RV-3F9A2C1B7D40",
+            "referred_on": "2026-10-02",
+            "state": "zpetna_vazba_odeslana"
+          }
+        ],
+        "properties": {
+          "birth_year": {
+            "description": "Year of birth only.",
+            "title": "Birth Year",
+            "type": "integer"
+          },
+          "delivery": {
+            "$ref": "#/components/schemas/ReviewerDelivery"
+          },
+          "diagnosis_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "MKN-10 category (three characters, e.g. 'C25') of the suspected diagnosis in the referral, as written by the GP; no text. Null when the referral has no code.",
+            "title": "Diagnosis Category"
+          },
+          "initials": {
+            "description": "Initials of the patient, e.g. 'A. P.'.",
+            "title": "Initials",
+            "type": "string"
+          },
+          "insurer_code": {
+            "description": "Always the reviewer's own insurer.",
+            "pattern": "^\\d{3}$",
+            "title": "Insurer Code",
+            "type": "string"
+          },
+          "intervals": {
+            "$ref": "#/components/schemas/TimeToTreatmentIntervals"
+          },
+          "ref": {
+            "description": "Stable pseudonym of the case for the reviewer (keyed hash of the case id; the case id itself contains the surname and is not returned).",
+            "pattern": "^RV-[0-9A-F]{12}$",
+            "title": "Ref",
+            "type": "string"
+          },
+          "referred_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date the referral reached the KOC (Europe/Prague).",
+            "title": "Referred On"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CaseState"
+          }
+        },
+        "required": [
+          "ref",
+          "initials",
+          "birth_year",
+          "insurer_code",
+          "state",
+          "intervals",
+          "delivery"
+        ],
+        "title": "ReviewerCase",
+        "type": "object"
+      },
+      "ReviewerDelivery": {
+        "properties": {
+          "gp_opened_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date (Europe/Prague) the referring GP first opened the conclusion; null when no opening is recorded.",
+            "title": "Gp Opened On"
+          },
+          "status": {
+            "$ref": "#/components/schemas/FeedbackDelivery",
+            "description": "not_sent | handed_over (the relay accepted the e-mail; not proof of reading) | opened_by_gp (the GP opened the conclusion) | unconfirmed (past the feedback, no receipt recorded)."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "ReviewerDelivery",
+        "type": "object"
+      },
       "Role": {
         "description": "Workflow role of a party: decides who may act and in which board lane a task appears.",
         "enum": [
@@ -5061,6 +5810,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -5419,6 +6176,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -5517,6 +6282,14 @@
             "title": "Evidence",
             "type": "array"
           },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
+            "type": "array"
+          },
           "items": {
             "description": "Displayed values, each with its evidence.",
             "items": {
@@ -5597,6 +6370,274 @@
           "status"
         ],
         "title": "TextListField",
+        "type": "object"
+      },
+      "TimeToTreatmentIntervals": {
+        "description": "Proxies, to be labelled so: T1 = první návštěva PL → žádost do KOC, T2 = žádost do KOC → MDT,\nT3 = MDT → onkologické konzilium. Unknown values are null, never estimated.",
+        "examples": [
+          {
+            "t1": {
+              "end": "2026-10-02",
+              "status": "not_recorded"
+            },
+            "t2": {
+              "days": 19,
+              "end": "2026-10-21",
+              "start": "2026-10-02",
+              "status": "measured"
+            },
+            "t3": {
+              "start": "2026-10-21",
+              "status": "running"
+            }
+          }
+        ],
+        "properties": {
+          "t1": {
+            "$ref": "#/components/schemas/TreatmentInterval",
+            "description": "První návštěva PL → žádost do KOC (proxy)."
+          },
+          "t2": {
+            "$ref": "#/components/schemas/TreatmentInterval",
+            "description": "Žádost do KOC → MDT (proxy; the MDT counts once it has been held)."
+          },
+          "t3": {
+            "$ref": "#/components/schemas/TreatmentInterval",
+            "description": "MDT → onkologické konzilium (proxy)."
+          }
+        },
+        "required": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "title": "TimeToTreatmentIntervals",
+        "type": "object"
+      },
+      "TimelineEntry": {
+        "properties": {
+          "actor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor"
+          },
+          "at": {
+            "description": "Business time; for `date_only` the start of that day in Europe/Prague.",
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "date_only": {
+            "default": false,
+            "description": "Only the day is known (authored date of a report).",
+            "title": "Date Only",
+            "type": "boolean"
+          },
+          "doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Id"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Workflow event code of a case event (`accept`, `reopen`, ...).",
+            "title": "Event"
+          },
+          "excluded_from_handover": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Documents only: authored or received after the MDT start, so not part of the MDT handover (as-of rule, decided by the backend). Null when the case has no MDT start or for other kinds.",
+            "title": "Excluded From Handover"
+          },
+          "from_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Case state before a case event.",
+            "title": "From State"
+          },
+          "id": {
+            "description": "Stable within one response; use it as a list key.",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TimelineKind"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Issuing or receiving workplace.",
+            "title": "Place"
+          },
+          "planned": {
+            "default": false,
+            "description": "After the current (demo) time: a scheduled step or the MDT meeting.",
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "receipt_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`feedback_delivered`: SMTP Message-ID accepted by the relay.",
+            "title": "Receipt Id"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Document title, step title or request label, as stored.",
+            "title": "Title"
+          },
+          "to_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Case state after a case event; null when it did not change.",
+            "title": "To State"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "at"
+        ],
+        "title": "TimelineEntry",
+        "type": "object"
+      },
+      "TimelineKind": {
+        "enum": [
+          "document_authored",
+          "document_received",
+          "case_event",
+          "request_sent",
+          "request_fulfilled",
+          "step_scheduled",
+          "step_result_delivered",
+          "step_escalated",
+          "step_cancelled",
+          "mdt_meeting",
+          "mdt_conclusion",
+          "feedback_sent",
+          "feedback_delivered",
+          "gp_opened"
+        ],
+        "title": "TimelineKind",
+        "type": "string"
+      },
+      "TreatmentInterval": {
+        "properties": {
+          "days": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whole calendar days (Europe/Prague); null unless `measured`.",
+            "title": "Days"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date of the end point, when recorded.",
+            "title": "End"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Date of the start point, when recorded.",
+            "title": "Start"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IntervalStatus",
+            "description": "measured = both end points recorded (`days` set); running = started, end not recorded yet; not_started = neither end point recorded yet; not_recorded = the start was never recorded; inconsistent = the recorded end lies before the start."
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "TreatmentInterval",
         "type": "object"
       },
       "ValidationError": {
@@ -5726,6 +6767,14 @@
               "$ref": "#/components/schemas/Evidence"
             },
             "title": "Evidence",
+            "type": "array"
+          },
+          "finding_ids": {
+            "description": "Ids of every finding about this section, of any kind (missing, stale, needs_clarification, conflicts, …); a superset of `conflicts`. The UI labels each one by the finding's `kind`.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Finding Ids",
             "type": "array"
           },
           "items": {
@@ -6147,6 +7196,7 @@
   "paths": {
     "/api/cases": {
       "get": {
+        "description": "Not for the insurer's reviewer (403): see `GET /api/reviewer/cases`.",
         "operationId": "cases-list_cases",
         "parameters": [
           {
@@ -6181,6 +7231,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "422": {
             "content": {
@@ -6231,6 +7301,7 @@
     },
     "/api/cases/{case_id}": {
       "get": {
+        "description": "Not for the insurer's reviewer (403): see `GET /api/reviewer/cases/{ref}`.",
         "operationId": "cases-get_case",
         "parameters": [
           {
@@ -6275,6 +7346,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -6581,6 +7672,147 @@
           }
         },
         "summary": "Ask the case (AI draft with citations, no advice)",
+        "tags": [
+          "cases"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/audit": {
+      "get": {
+        "description": "AuditEvents naming the case's coordinating Task, EpisodeOfCare, steps, report requests, documents and messages, newest first, paged by `offset`/`limit`. Codes only (workflow event or interaction, record types, outcome) — no free-text reasons or clinical content. KOC team of the case only; the read is audited.",
+        "operationId": "cases-get_case_audit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "description": "Page size.",
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 100000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseAuditTrail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "Audit trail of the case (who, when, what kind of action)",
         "tags": [
           "cases"
         ]
@@ -7279,6 +8511,26 @@
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
           "404": {
             "content": {
               "application/problem+json": {
@@ -7404,6 +8656,26 @@
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7549,6 +8821,26 @@
               }
             },
             "description": "Markdown"
+          },
+          "401": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
           },
           "404": {
             "content": {
@@ -7895,7 +9187,7 @@
     },
     "/api/cases/{case_id}/mdt-record": {
       "get": {
-        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.",
+        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Once a KOC physician has signed the MDT conclusion (at or after `mdt_start`), section 6 prints its text as signed, labelled 'Potvrzeno lékařem' with who and when, and section 7 points to it; before that sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. The system never writes a conclusion or a recommendation. `format=pdf` renders the same content as a PDF (fonts embedded). KOC team of the case only; every export is audited (with the conclusion's Composition when it is printed).",
         "operationId": "handover-get_mdt_record",
         "parameters": [
           {
@@ -7913,14 +9205,17 @@
             }
           },
           {
-            "description": "Only DOCX for now.",
+            "description": "File format: DOCX (default) or PDF.",
             "in": "query",
             "name": "format",
             "required": false,
             "schema": {
-              "const": "docx",
               "default": "docx",
-              "description": "Only DOCX for now.",
+              "description": "File format: DOCX (default) or PDF.",
+              "enum": [
+                "docx",
+                "pdf"
+              ],
               "title": "Format",
               "type": "string"
             }
@@ -7946,6 +9241,12 @@
         "responses": {
           "200": {
             "content": {
+              "application/pdf": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              },
               "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
                 "schema": {
                   "format": "binary",
@@ -7953,7 +9254,7 @@
                 }
               }
             },
-            "description": "DOCX document"
+            "description": "DOCX or PDF document (by `format`)"
           },
           "401": {
             "content": {
@@ -8026,9 +9327,128 @@
             "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
           }
         },
-        "summary": "MDT record in the MDT_zapis layout (DOCX), as of the MDT start",
+        "summary": "MDT record in the MDT_zapis layout (DOCX or PDF), as of the MDT start",
         "tags": [
           "handover"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/messages": {
+      "get": {
+        "description": "Report requests sent to workplaces (CommunicationRequest, with the state of their tracking task) and the MDT feedback e-mail to the referring GP (Communication, with the relay's receipt id and when the GP opened it), oldest first. KOC team of the case only; the read is audited.",
+        "operationId": "cases-get_case_messages",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CaseMessage"
+                  },
+                  "title": "Response Cases-Get Case Messages",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "Messages of the case",
+        "tags": [
+          "cases"
         ]
       }
     },
@@ -8168,6 +9588,7 @@
     },
     "/api/cases/{case_id}/tasks": {
       "post": {
+        "description": "Coordinator only (403 otherwise). A closed case (`uzavreno`) takes no new tasks: 409 `conflict`.",
         "operationId": "coordination-create_task",
         "parameters": [
           {
@@ -8243,6 +9664,16 @@
             },
             "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
           },
+          "409": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Požadavek je v konfliktu se stavem záznamu (not allowed in the current state; `code` names a refused transition) (application/problem+json)"
+          },
           "422": {
             "content": {
               "application/problem+json": {
@@ -8287,6 +9718,121 @@
         "summary": "Create a single (ad-hoc) task",
         "tags": [
           "coordination"
+        ]
+      }
+    },
+    "/api/cases/{case_id}/timeline": {
+      "get": {
+        "description": "Documents (authored and received), case events and state changes, report requests and their fulfilment, step dates (scheduled, result delivered, escalated, cancelled), the MDT meeting and conclusion, and the feedback to the GP (sent, accepted by the relay, opened by the GP), oldest first, in business time. `excluded_from_handover` is the backend's as-of decision against the MDT start. KOC team of the case only; the read is audited.",
+        "operationId": "cases-get_case_timeline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "case_id",
+            "required": true,
+            "schema": {
+              "examples": [
+                "rakathon-2026-prochazkova"
+              ],
+              "maxLength": 100,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.@-]*$",
+              "title": "Case Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaseTimeline"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "Timeline of the case",
+        "tags": [
+          "cases"
         ]
       }
     },
@@ -9087,6 +10633,235 @@
         "summary": "Prefill the referral from the GP letter (DOCX/PDF); nothing is stored",
         "tags": [
           "referrals"
+        ]
+      }
+    },
+    "/api/reviewer/cases": {
+      "get": {
+        "description": "Only for the `reviewer` role (others 403). Only cases of the reviewer's own insurer. No name, birth date, birth number or clinical text; T1-T3 are proxies and null when an end point is not recorded. Audited.",
+        "operationId": "reviewer-list_reviewer_cases",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewerCase"
+                  },
+                  "title": "Response Reviewer-List Reviewer Cases",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "Cases of the reviewer's insured persons (minimal, pseudonymous)",
+        "tags": [
+          "reviewer"
+        ]
+      }
+    },
+    "/api/reviewer/cases/{ref}": {
+      "get": {
+        "description": "404 also for a case of another insurer, so its existence is not confirmed. Audited.",
+        "operationId": "reviewer-get_reviewer_case",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "examples": [
+                "RV-3F9A2C1B7D40"
+              ],
+              "pattern": "^RV-[0-9A-F]{12}$",
+              "title": "Ref",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Demo-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Demo-Role"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewerCase"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Uživatel není přihlášen (actor not identified) (application/problem+json)"
+          },
+          "403": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Přístup byl odepřen (role not allowed) (application/problem+json)"
+          },
+          "404": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Záznam nebyl nalezen (not found) (application/problem+json)"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json)"
+          },
+          "500": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Neočekávaná chyba serveru (unexpected server error) (application/problem+json)"
+          },
+          "502": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json)"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            },
+            "description": "Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json)"
+          }
+        },
+        "summary": "One case of the reviewer's insured persons (minimal, pseudonymous)",
+        "tags": [
+          "reviewer"
         ]
       }
     },

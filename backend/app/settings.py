@@ -7,6 +7,7 @@ Every field has a safe default so the app can be built without any environment (
 
 from __future__ import annotations
 
+import hmac
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -88,6 +89,11 @@ class Settings(BaseSettings):
         10 * 1024 * 1024, ge=1024, description="Largest accepted uploaded file; checked before the body is parsed."
     )
     jwt_secret: SecretStr = SecretStr(DEFAULT_JWT_SECRET)
+    reviewer_ref_key: SecretStr | None = Field(
+        None,
+        description="HMAC key of the insurer reviewer's case pseudonyms (`RV-…`); rotating it changes every ref. "
+        "Unset: derived from JWT_SECRET (itself refused at its default outside local development).",
+    )
     smtp_host: str = "localhost"
     smtp_port: int = 1025
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
@@ -109,6 +115,14 @@ class Settings(BaseSettings):
         if "*" in self.cors_origins:
             raise ValueError("CORS_ORIGINS must list explicit origins outside local development")
         return self
+
+    @property
+    def reviewer_pseudonym_key(self) -> SecretStr:
+        """`REVIEWER_REF_KEY`, or a key derived from `JWT_SECRET` for this one purpose when it is not set."""
+        if self.reviewer_ref_key is not None:
+            return self.reviewer_ref_key
+        derived = hmac.new(self.jwt_secret.get_secret_value().encode(), b"stafeta/reviewer-ref-key/v1", "sha256")
+        return SecretStr(derived.hexdigest())
 
     @property
     def watchdog_enabled(self) -> bool:

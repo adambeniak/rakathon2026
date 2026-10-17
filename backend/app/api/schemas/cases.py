@@ -7,7 +7,8 @@ from datetime import date
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from pydantic.config import JsonDict
 
-from app.domain.case import CaseState, QueueBucket
+from app.api.schemas.intervals import TimeToTreatmentIntervals
+from app.domain.case import CaseAction, CaseState, QueueBucket
 from app.domain.common import Role
 from app.domain.patient import Sex
 
@@ -27,6 +28,7 @@ _SUMMARY_EXAMPLE: JsonDict = {
         "display": "MDT GIT – doc. MUDr. Pavel Hrubý, Ph.D.",
         "role": "koc_physician",
     },
+    "baton": {"role": "koc_physician", "action": "hold_mdt"},
     "next_deadline": "2026-10-21T08:00:00+02:00",
     "opened_at": "2026-10-02T09:30:00+02:00",
     "document_count": 13,
@@ -48,6 +50,18 @@ class BatonHolder(BaseModel):
     id: str = Field(description="Business id of the PractitionerRole.")
     display: str
     role: Role
+
+
+class CaseBaton(BaseModel):
+    """Who must act next on the case as a whole and what that step is; computed by the backend from the case state,
+    the machine's baton role and the postponed flag (contracts/case-states.md)."""
+
+    role: Role | None = Field(description="Role holding the baton; null when the case is closed.")
+    action: CaseAction = Field(
+        description="Next step: accept_case | triage | complete_documents | review_handover | hold_mdt | "
+        "send_feedback | confirm_receipt (GP, feedback not yet confirmed as delivered) | close_case (coordinator, "
+        "after delivery_confirmed) | await_external (postponed) | none (closed)."
+    )
 
 
 class EvidenceRef(BaseModel):
@@ -83,6 +97,9 @@ class CaseSummary(BaseModel):
     patient: PatientSummary
     state: CaseState
     baton_holder: BatonHolder | None = Field(None, description="'Na tahu' — who must act next on the case.")
+    baton: CaseBaton | None = Field(
+        None, description="Baton role and next action of the case; the UI renders `action`, it never derives it."
+    )
     next_deadline: AwareDatetime | None = None
     opened_at: AwareDatetime | None = Field(None, description="When the referral reached the KOC.")
     postponed: bool = Field(False, description="Postponed (waiting for an external step): queue column Odložený.")
@@ -150,6 +167,11 @@ class CaseDetail(CaseSummary):
                             "author": "MUDr. Tomáš Řezníček",
                         }
                     ],
+                    "intervals": {
+                        "t1": {"days": None, "status": "not_recorded", "start": None, "end": "2026-10-02"},
+                        "t2": {"days": None, "status": "running", "start": "2026-10-02", "end": None},
+                        "t3": {"days": None, "status": "not_started", "start": None, "end": None},
+                    },
                 }
             ]
         }
@@ -160,4 +182,8 @@ class CaseDetail(CaseSummary):
         default_factory=list,
         description="Waivers in force for the MDT readiness (the latest per item; none before the last `reopen`). "
         "Empty while the case is not marked ready for the MDT.",
+    )
+    intervals: TimeToTreatmentIntervals = Field(
+        description="Time-to-treatment proxies T1-T3 (header 'Časové intervaly'); a value is null when an end point "
+        "is not recorded, never estimated.",
     )

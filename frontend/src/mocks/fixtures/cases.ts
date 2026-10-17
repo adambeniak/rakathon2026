@@ -18,6 +18,8 @@ export interface MockCase {
   subStatus: string
   column: 'new' | 'active' | 'snoozed'
   baton: { name: string; action: string; due: string | null }
+  /** Baton role when it differs from the role after entering the state (e.g. coordinator after `delivery_confirmed`). */
+  batonRole?: 'coordinator' | 'gp'
   counts: { missing: number; conflict: number; stale: number }
   koc: string
   gp: string
@@ -99,14 +101,17 @@ function alena(today: string, s: MockStore): MockCase | null {
   let state: CaseState
   let subStatus: string
   let baton: MockCase['baton']
+  let batonRole: MockCase['batonRole']
   if (s.closed || (s.feedbackSent && s.acknowledged.includes(ALENA_ID))) {
     state = 'uzavreno'
     subStatus = 'Uzavřeno – převzetí potvrzeno PL'
     baton = { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null }
   } else if (s.feedbackSent) {
     state = 'zpetna_vazba_odeslana'
-    subStatus = 'Závěr MDT odeslán PL, čeká na potvrzení přijetí'
-    baton = { name: `${DEMO_USERS.gp.name} (PL)`, action: 'Potvrdit přijetí závěru MDT', due: '2026-10-23' }
+    subStatus = 'Závěr MDT odeslán PL, doručení potvrzeno – čeká na uzavření'
+    // Like the API: delivery is confirmed when the mail is handed over, so the coordinator holds the baton to close.
+    baton = { name: `${COORD} (koordinátorka KOC 2)`, action: 'Uzavřít případ', due: '2026-10-23' }
+    batonRole = 'coordinator'
   } else if (s.conclusion) {
     state = 'zaver_mdt'
     subStatus = 'Závěr MDT zapsán – čeká na odeslání PL'
@@ -149,6 +154,7 @@ function alena(today: string, s: MockStore): MockCase | null {
     subStatus,
     column: state === 'odeslano' || state === 'triage' ? 'new' : 'active',
     baton,
+    batonRole,
     counts: countFindings(today),
     koc: 'KOC 2 – Nemocnice Lipová',
     gp: DEMO_USERS.gp.name,

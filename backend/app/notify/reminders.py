@@ -1,8 +1,9 @@
 """SMS texts for the patient: appointment confirmation and the day-before reminder (pure functions, no I/O).
 
-Minimisation and safety: the text says only what, when and where — the step title as shown on the board, the confirmed
-date/time and the workplace. No diagnosis, no clinical advice, no preparation instructions. The step title is still
-health data (e.g. "EUS-FNB (biopsie)"); this is the accepted trade-off of an appointment reminder.
+Minimisation and safety: the text says only what, when and where — a plain patient-facing label of the step (not the
+clinical board title, which may name tumour markers or "psychoonkologie"), the confirmed date/time and the workplace.
+No diagnosis, no clinical advice, no preparation instructions. The label and the workplace are still health data; this
+is the accepted trade-off of an appointment reminder.
 Times are always shown in Europe/Prague, whatever offset the stored instant carries; `now` is the demo-aware clock.
 """
 
@@ -23,7 +24,15 @@ ELLIPSIS: Final = "…"
 
 # Pathway steps the patient attends in person. Histology works on a sample and the MDT meets without the patient;
 # ad-hoc tasks may be anything, so they are not announced to the patient.
-PATIENT_ATTENDED_CODES: Final = frozenset({"ct-thorax-abdomen", "eus-fnb", "labs-dx", "algesiology", "psychooncology"})
+# Only these get an SMS, under these plain labels (never the clinical title).
+PATIENT_LABELS: Final = {
+    "ct-thorax-abdomen": "CT vyšetření",
+    "eus-fnb": "endoskopické vyšetření",
+    "labs-dx": "odběr krve",
+    "algesiology": "vyšetření v ambulanci léčby bolesti",
+    "psychooncology": "konzultace s psychologem",
+}
+PATIENT_ATTENDED_CODES: Final = frozenset(PATIENT_LABELS)
 
 CONFIRMATION: Final = "Štafeta: Dobrý den, máte termín: {title}, {date}{time}{place}. {contact}"
 CONTACT_WITH_PHONE: Final = "Změnu termínu řešte s koordinátorem KOC, tel. {phone}."
@@ -53,7 +62,8 @@ def is_patient_appointment(task: Task) -> bool:
 
 
 def confirmation_due(task: Task, at: datetime) -> bool:
-    """Announce a confirmed appointment only while it still lies ahead (a replayed past date is not announced)."""
+    """Announce a confirmed appointment only if it lies ahead of the confirmation moment `at` (the demo replay passes
+    the story's confirmation time, so it announces the story's appointments as of then)."""
     return is_patient_appointment(task) and task.scheduled_at is not None and task.scheduled_at > at
 
 
@@ -75,7 +85,7 @@ def confirmation_text(task: Task, koc_phone: str | None) -> str:
         lambda title: CONFIRMATION.format(
             title=title, date=czech_date(when), time=_at_time(when), place=_place(task), contact=contact
         ),
-        task.title,
+        PATIENT_LABELS.get(task.code, task.title),
     )
 
 
@@ -89,7 +99,7 @@ def reminder_text(task: Task, now: datetime) -> str:
             title=title,
             place=_place(task),
         ),
-        task.title,
+        PATIENT_LABELS.get(task.code, task.title),
     )
 
 

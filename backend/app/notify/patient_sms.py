@@ -8,7 +8,8 @@ Rules:
   conditional create still keeps one record. Acceptable for the demo.)
 - Each sent SMS is recorded as `Communication` through the repository (-> AuditEvent). Gateway failure: a warning, no
   record, the reminder is tried again next round. No phone: an info log. Logs carry ids only (no number, no text).
-- SMS contact consent is not modelled: the demo relies on the referral consent (see the PR / issue).
+- SMS contact consent is not modelled (TODO(#205)): the demo relies on the referral consent.
+- No SMS to a patient recorded as deceased or inactive.
 """
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ class SmsContacts:
     episode_reference: str | None
     koc_reference: str | None  # the managing KOC Organization: the sender
     koc_phone: str | None  # structured phone of the managing KOC, if the directory has one
+    inactive: bool = False  # Patient deceased or `active: false`
 
 
 class PatientSmsNotifier:
@@ -46,6 +48,9 @@ class PatientSmsNotifier:
         self._repo = repository
         self._gateway = gateway
         self._directory = directory
+        # (task id, kind) this notifier will not try again: sent but unrecorded, or no usable phone. Per instance: the
+        # watchdog's notifier lives as long as the loop, a request's only for the request.
+        self._skip: set[tuple[str, SmsKind]] = set()
 
     async def appointment_confirmed(self, step: Resource, task: Task, at: datetime) -> bool:
         """After `order_confirmed` was saved: announce the appointment if it is a patient visit still ahead of `at`."""
@@ -69,45 +74,59 @@ class PatientSmsNotifier:
     ) -> bool:
         """`render` is the text, or builds it from the contacts (the confirmation names the KOC phone)."""
         business_id = sms_business_id(task.id, kind)
+        if (task.id, kind) in self._skip:
+            return False  # sent but not recorded, or no usable phone: this notifier does not try again
         try:
-            if await self._repo.find_by_identifier("Communication", SID_SMS_NOTIFICATION, business_id):
+            # A count fetches no content (the stored SMS text is not read just to check for it).
+            if await self._repo.count("Communication", {"identifier": f"{SID_SMS_NOTIFICATION}|{business_id}"}):
                 return False  # already sent (replay, repeated round)
             contacts = await self._contacts(step)
+            if contacts.inactive:
+                self._skip.add((task.id, kind))
+                log.info("sms_skipped_inactive_patient", task_id=task.id, kind=kind)
+                return False
             if not contacts.phone:
+                self._skip.add((task.id, kind))
                 log.info("sms_skipped_no_phone", task_id=task.id, kind=kind)
                 return False
             body = render if isinstance(render, str) else render(contacts)
-            try:
-                message_id = await self._gateway.send(SmsMessage(phone=contacts.phone, body=body))
-            except InvalidPhoneError:
-                log.warning("sms_skipped_invalid_phone", task_id=task.id, kind=kind)
-                return False
-            except SmsDeliveryError:
-                log.warning("sms_failed", task_id=task.id, kind=kind)
-                return False
-            communication = sms_communication_to_fhir(
-                task_id=task.id,
-                kind=kind,
-                patient_reference=contacts.patient_reference,
-                task_reference=f"Task/{step['id']}",
-                episode_reference=contacts.episode_reference,
-                sender_reference=contacts.koc_reference,
-                sent_at=at,
-                message_id=message_id,
-                body=body,
-            )
-            await self._repo.create(communication, if_none_exist=f"identifier={SID_SMS_NOTIFICATION}|{business_id}")
-        except Exception:  # the task change is committed already: report, never undo it or answer 5xx for it
-            log.exception("sms_notification_failed", task_id=task.id, kind=kind)
+            await self._repo.audit_read([contacts.patient_reference], subtype="read")  # contact data used to send
+            message_id = await self._gateway.send(SmsMessage(phone=contacts.phone, body=body))
+        except InvalidPhoneError:
+            self._skip.add((task.id, kind))
+            log.warning("sms_skipped_invalid_phone", task_id=task.id, kind=kind)
             return False
+        except SmsDeliveryError:
+            log.warning("sms_failed", task_id=task.id, kind=kind)  # not recorded: the next round tries again
+            return False
+        except Exception as exc:  # the task change is committed already: report, never undo it or answer 5xx for it
+            log.exception("sms_notification_failed", task_id=task.id, kind=kind, error=type(exc).__name__)
+            return False
+        communication = sms_communication_to_fhir(
+            task_id=task.id,
+            kind=kind,
+            patient_reference=contacts.patient_reference,
+            task_reference=f"Task/{step['id']}",
+            episode_reference=contacts.episode_reference,
+            sender_reference=contacts.koc_reference,
+            sent_at=at,
+            message_id=message_id,
+            body=body,
+        )
+        try:
+            await self._repo.create(communication, if_none_exist=f"identifier={SID_SMS_NOTIFICATION}|{business_id}")
+        except Exception as exc:  # the SMS is out: never send it again from here, and say loudly it is unrecorded
+            self._skip.add((task.id, kind))
+            log.exception("sms_sent_not_recorded", task_id=task.id, kind=kind, error=type(exc).__name__)
+            return True
         log.info("sms_sent", task_id=task.id, kind=kind)
         return True
 
     async def _contacts(self, step: Resource) -> SmsContacts:
-        """Patient phone (mobile first) and the managing KOC, from the step's `for` and `partOf` (ids only logged)."""
+        """Patient phone (mobile first) and the managing KOC, from the step's `for` and `partOf` (ids only logged).
+        The patient read is audited by `_send` once the SMS is actually going out (one AuditEvent per send)."""
         patient_reference = str(step["for"]["reference"])
         patient = await self._repo.read(*patient_reference.split("/", 1))
-        await self._repo.audit_read([patient_reference], subtype="read")  # contact data read to send the SMS
         case_task = await self._repo.read(*str(step["partOf"][0]["reference"]).split("/", 1))
         episode_reference = (case_task.get("focus") or {}).get("reference")
         koc_reference = koc_phone = None
@@ -124,6 +143,8 @@ class PatientSmsNotifier:
             episode_reference=str(episode_reference) if episode_reference else None,
             koc_reference=str(koc_reference) if koc_reference else None,
             koc_phone=koc_phone,
+            inactive=bool(patient.get("deceasedBoolean") or patient.get("deceasedDateTime"))
+            or patient.get("active") is False,
         )
 
 

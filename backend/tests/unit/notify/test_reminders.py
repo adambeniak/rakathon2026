@@ -38,9 +38,17 @@ def ct(**update: Any) -> Task:
 
 def test_confirmation_text_for_the_ct() -> None:
     assert confirmation_text(ct(), "+420 311 000 287") == (
-        "Štafeta: Dobrý den, máte termín: CT hrudníku a břicha (pankreatický protokol), 8. 10. 2026 v 08:00, "
+        "Štafeta: Dobrý den, máte termín: CT vyšetření, 8. 10. 2026 v 08:00, "
         "KOC 1 – Nemocnice Severní, radiologie. Změnu termínu řešte s koordinátorem KOC, tel. +420 311 000 287."
     )
+
+
+def test_patient_label_replaces_the_clinical_title() -> None:
+    labs = confirmation_text(ct(code="labs-dx", title="Kontrolní odběry (KO, biochemie, CA 19-9)"), None)
+    psycho = reminder_text(ct(code="psychooncology", title="Klinický psycholog (psychoonkologie)"), CT_AT)
+    assert "máte termín: odběr krve, 8. 10. 2026" in labs
+    assert "CA 19-9" not in labs
+    assert ": konzultace s psychologem," in psycho
 
 
 def test_confirmation_without_a_structured_phone_omits_the_number() -> None:
@@ -50,8 +58,7 @@ def test_confirmation_without_a_structured_phone_omits_the_number() -> None:
 def test_reminder_text_for_the_ct() -> None:
     now = datetime(2026, 10, 7, 9, 0, tzinfo=PRAGUE)
     assert reminder_text(ct(), now) == (
-        "Štafeta: Připomínka – zítra 8. 10. v 08:00: CT hrudníku a břicha (pankreatický protokol), "
-        "KOC 1 – Nemocnice Severní, radiologie."
+        "Štafeta: Připomínka – zítra 8. 10. v 08:00: CT vyšetření, KOC 1 – Nemocnice Severní, radiologie."
     )
 
 
@@ -79,13 +86,13 @@ def test_texts_fit_the_cap_and_carry_no_diagnosis_code() -> None:
     for text in (
         confirmation_text(ct(), "+420 311 000 287"),
         reminder_text(ct(), CT_AT - timedelta(hours=10)),
-        confirmation_text(ct(title=long_title), "+420 311 000 287"),
-        reminder_text(ct(title=long_title), CT_AT - timedelta(hours=10)),
+        confirmation_text(ct(code="ad-hoc", title=long_title), "+420 311 000 287"),
+        reminder_text(ct(code="ad-hoc", title=long_title), CT_AT - timedelta(hours=10)),
     ):
         assert len(text) <= SMS_MAX_CHARS
         assert not re.search(r"\b[A-Z]\d{2}(\.\d)?\b", text)  # no MKN-10 code such as C25
         assert "Traceback" not in text
-    shortened = confirmation_text(ct(title=long_title), "+420 311 000 287")
+    shortened = confirmation_text(ct(code="ad-hoc", title=long_title), "+420 311 000 287")
     assert "…" in shortened
     assert shortened.endswith("tel. +420 311 000 287.")
 

@@ -396,7 +396,11 @@ class CoordinationService:
         header = await self._header(case_id, actor)
         if self._notifier is None or header.case.state is CaseState.UZAVRENO:
             return []
-        return await self._notifier.remind_upcoming(await self._store.list_for_case(header.task_reference), now)
+        try:  # the clock has already moved: a failure here is logged, the background watchdog tries again
+            return await self._notifier.remind_upcoming(await self._store.list_for_case(header.task_reference), now)
+        except Exception as exc:
+            log.exception("reminders_not_sent", case_id=case_id, error=type(exc).__name__)
+            return []
 
     async def deliver_received_results(self, case_id: str, actor: PartyRef) -> list[AdvancedStep]:
         """Complete the steps of this case whose result report is already in the case at the (demo) clock (#132)."""

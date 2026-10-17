@@ -29,13 +29,10 @@ from tests.unit.api.test_demo_clock import FakeRepository as AuditSink
 
 PHONE = "+420 777 000 541"
 CT_CONFIRMATION = (
-    "Štafeta: Dobrý den, máte termín: CT hrudníku a břicha (pankreatický protokol), 8. 10. 2026 v 08:00, "
+    "Štafeta: Dobrý den, máte termín: CT vyšetření, 8. 10. 2026 v 08:00, "
     "KOC 1 – Nemocnice Severní, radiologie. Změnu termínu řešte s koordinátorem KOC."
 )
-CT_REMINDER = (
-    "Štafeta: Připomínka – zítra 8. 10. v 08:00: CT hrudníku a břicha (pankreatický protokol), "
-    "KOC 1 – Nemocnice Severní, radiologie."
-)
+CT_REMINDER = "Štafeta: Připomínka – zítra 8. 10. v 08:00: CT vyšetření, KOC 1 – Nemocnice Severní, radiologie."
 
 
 class FakeGateway:
@@ -70,6 +67,7 @@ class FakeFhir:
         self.koc_ref = koc.ref
         self.communications: list[dict[str, Any]] = []
         self.audited_reads: list[str] = []
+        self.fail_create = False
 
     async def read(self, resource_type: str, resource_id: str) -> dict[str, Any]:
         return self.resources[f"{resource_type}/{resource_id}"]
@@ -77,14 +75,14 @@ class FakeFhir:
     async def audit_read(self, entities: list[str], *, subtype: str = "read") -> None:
         self.audited_reads += entities
 
-    async def find_by_identifier(self, resource_type: str, system: str, value: str) -> dict[str, Any] | None:
+    async def count(self, resource_type: str, params: dict[str, str]) -> int:
         assert resource_type == "Communication"
-        return next(
-            (c for c in self.communications if {"system": system, "value": value} in c["identifier"]),
-            None,
-        )
+        system, value = params["identifier"].split("|", 1)
+        return sum({"system": system, "value": value} in c["identifier"] for c in self.communications)
 
     async def create(self, resource: dict[str, Any], *, if_none_exist: str | None = None) -> None:
+        if self.fail_create:
+            raise RuntimeError("IRIS down")
         self.communications.append(resource)
 
     def kinds(self) -> list[str]:
@@ -258,3 +256,27 @@ def test_demo_advance_sends_the_day_before_reminder(harness: Harness) -> None:
     assert response.status_code == 200
     assert harness.fhir.kinds() == [f"{CASE_ID}.ct:confirmation", f"{CASE_ID}.ct:reminder"]
     assert harness.gateway.sent[1].body == CT_REMINDER
+
+
+def test_sent_but_unrecorded_sms_is_not_sent_again(harness: Harness) -> None:
+    harness.confirm("ct", "2026-10-08T08:00:00+02:00")
+    harness.fhir.fail_create = True
+
+    def round_at(moment: datetime) -> None:
+        asyncio.run(run_once(harness.store, moment, reminders=harness.notifier))  # type: ignore[arg-type]
+
+    with capture_logs() as logs:
+        round_at(at("2026-10-07T09:00:00"))
+        round_at(at("2026-10-07T09:01:00"))
+
+    assert [m.body for m in harness.gateway.sent] == [CT_CONFIRMATION, CT_REMINDER]  # the reminder went out once
+    assert [e["event"] for e in logs if e["event"].startswith("sms_")] == ["sms_sent_not_recorded"]
+
+
+def test_no_sms_to_a_deceased_patient(settings: Settings) -> None:
+    fhir = FakeFhir()
+    fhir.resources["Patient/3"]["deceasedBoolean"] = True
+    for harness in make(settings, fhir):
+        assert harness.confirm("ct", "2026-10-08T08:00:00+02:00").status_code == 200
+        assert harness.gateway.sent == []
+        assert harness.fhir.communications == []

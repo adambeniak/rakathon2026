@@ -15,7 +15,7 @@
 - `ProblemDetails` gains an optional `blocking_items: list[str] | None`. It is present only on a `guard_failed`
   problem whose guard can name the blocking items structurally — today only `mark_ready_mdt` with an unmet gate. It
   holds the readiness item keys that block and are not waived (English identifiers, e.g. `performance_status`, the
-  same keys as the waiver `item` and `GET /cases/{id}/readiness`). It is omitted (never `[]`) on every other problem,
+  same keys as the waiver `item`, which the UI labels via `mdt.items`). It is omitted (never `[]`) on every other problem,
   including `guard_failed` refusals where readiness cannot be established at all.
 - Plumbing: `case_machine._g_ready` returns a `GuardFailure(detail, blocking_items)` instead of a bare string;
   `TransitionError` carries the optional `blocking_items`; the API error handler copies it into the problem body.

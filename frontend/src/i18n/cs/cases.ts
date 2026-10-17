@@ -22,8 +22,18 @@ export const cases = {
     t1: 'T1 · první návštěva PL → žádost do KOC',
     t2: 'T2 · žádost do KOC → MDT',
     t3: 'T3 · MDT → onkologické konzilium',
-    days: (n: number) => `${n} ${n === 1 ? 'den' : n < 5 ? 'dny' : 'dní'}`,
+    days: (n: number) => `${n} ${n === 1 ? 'den' : n >= 2 && n <= 4 ? 'dny' : 'dní'}`,
     pending: 'zatím neběží',
+    // Why an interval has no value; the backend decides (`intervals.*.status`), the UI never estimates days.
+    intervalStatus: {
+      running: 'běží',
+      not_started: 'zatím neběží',
+      not_recorded: 'nezaznamenáno',
+      inconsistent: 'nesoulad dat (konec před začátkem)',
+    },
+    clocksHint:
+      'Orientační ukazatele (proxy). „Nezaznamenáno“: výchozí bod není v systému zapsán. „Běží“: koncový bod zatím není zapsán.',
+    unknown: '—',
   },
   actions: {
     claim: 'Převzít',

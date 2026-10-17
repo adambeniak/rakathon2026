@@ -20,6 +20,9 @@ const GP = DEMO_USERS.gp.name // the demo GP of the mock cases (`MockCase.gp`)
 
 const LETTER = '07_PL_zadost_KOC2_2026-10-02'
 
+// Like backend/app/api/routes/cases.py: the insurer reviewer reads only /api/reviewer/cases.
+const REVIEWER_DENIED = 'Revizní lékař má k dispozici jen omezený přehled pro pojišťovnu'
+
 // The five reports the GP's letter lists (numbered lines of report 07), in the backend's order; the GP's own epicrisis
 // (04) is not among them. The evidence quote is the verbatim numbered line, `label` the same without its number.
 const LISTED = [
@@ -95,12 +98,14 @@ const roleDenied = (detail: string) => {
 
 export const handlers = [
   http.get('/api/cases', ({ request }) => {
+    if (roleOf(request) === 'reviewer') return problem(403, REVIEWER_DENIED)
     const today = todayOf(request)
     // The GP portal lists only the demo GP's own cases; the queue lists every case that is not closed.
     const list = roleOf(request) === 'gp' ? allCases(today, store).filter((c) => c.gp === GP) : inboxCases(today, store)
     return HttpResponse.json(list.map((c) => toApiCase(c, today)))
   }),
   http.get('/api/cases/:id', ({ params, request }) => {
+    if (roleOf(request) === 'reviewer') return problem(403, REVIEWER_DENIED)
     const c = caseById(String(params.id), todayOf(request), store)
     if (!c) return problem(404, 'Případ nebyl nalezen')
     // Like the backend: the GP and the reviewer get no waivers (internal KOC detail).

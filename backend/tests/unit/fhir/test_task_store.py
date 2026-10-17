@@ -266,16 +266,21 @@ async def test_result_documents_of_a_patient_by_loinc_type(store: TaskStore) -> 
         author_reference=None,
     )
     generated = {"resourceType": "DocumentReference", "id": "9", "type": histology["type"]}  # not a source document
+    lab = {
+        **histology,
+        "id": "10",
+        "identifier": [{**histology["identifier"][0], "value": "10_Lab"}],
+        "type": {"coding": [{"system": "http://loinc.org", "code": "11502-2"}]},
+    }
     route = respx.get(f"{FHIR_BASE}/DocumentReference").mock(
-        return_value=httpx.Response(200, json=bundle({**histology, "id": "8"}, generated))
+        return_value=httpx.Response(200, json=bundle({**histology, "id": "8"}, generated, lab))
     )
     audit = respx.post(f"{FHIR_BASE}/AuditEvent").mock(return_value=audit_ok())
 
     [found] = await store.patient_result_documents("Patient/3", "11526-1")
 
     assert (found.doc_id, found.authored_at) == ("11_Histologie_KOC2_2026-10-19", date(2026, 10, 19))
-    params = route.calls.last.request.url.params
-    assert (params["patient"], params["type"]) == ("Patient/3", "http://loinc.org|11526-1")
+    assert route.calls.last.request.url.params["patient"] == "Patient/3"
     assert audit.call_count == 1
     await store.patient_result_documents("Patient/3", "11526-1", audit=False)  # the watchdog
     assert audit.call_count == 1

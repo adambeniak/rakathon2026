@@ -31,7 +31,6 @@ from app.fhir.repository import FhirRepository
 from app.fhir.systems import (
     CS_TASK_CODE,
     EXT_MDT_START,
-    LOINC,
     SID_CASE_STEP,
     SID_SOURCE_DOCUMENT,
     SID_STEP_ORDER,
@@ -140,13 +139,15 @@ class TaskStore:
         `audit=False` only for the watchdog, for the same reason as `list_open_everywhere`; the step it completes is
         written (and audited) as usual.
         """
-        found = await self._repo.search(
-            "DocumentReference", {"patient": patient_reference, "type": f"{LOINC}|{type_code}", "_count": "100"}
-        )
-        if found and audit:
-            await self._repo.audit_read([f"DocumentReference/{r['id']}" for r in found], subtype="search-type")
-        sources = (r for r in found if any(i.get("system") == SID_SOURCE_DOCUMENT for i in r.get("identifier", [])))
-        return [d for d in map(document_from_fhir, sources) if d.type_code == type_code]
+        # Filtered by type here, not with `type=`: the patient search is the one proven on IRIS; demo-scale volume.
+        found = await self._repo.search("DocumentReference", {"patient": patient_reference, "_count": "100"})
+        sources = [r for r in found if any(i.get("system") == SID_SOURCE_DOCUMENT for i in r.get("identifier", []))]
+        matching = [
+            (r, d) for r, d in zip(sources, map(document_from_fhir, sources), strict=True) if d.type_code == type_code
+        ]
+        if matching and audit:
+            await self._repo.audit_read([f"DocumentReference/{r['id']}" for r, _ in matching], subtype="search-type")
+        return [d for _, d in matching]
 
     # --- writes ---
 

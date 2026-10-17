@@ -19,12 +19,13 @@
   golden dates: GP contact 2 Oct, CT done 8 Oct, biopsy done 12 Oct, MDT 21 Oct. No document states when CT and
   biopsy were ordered: both order dates are set to the GP request date (2 Oct) as a labelled demo assumption, stated in
   the API disclaimer shown on the screen.
-  Its acceptance date, coordinator minutes and treatment start are **null** (not recorded; the 4 Nov oncology consult
-  is planned, not a treatment start). Case codes are pseudonymous (`SIM-2026-014`); no names, RČ or birth dates.
+  Its acceptance date (2 Oct) and coordinator minutes (210) are not recorded anywhere and are filled in fictitiously
+  for the demo, disclosed in the API disclaimer; the treatment start stays **null** (the 4 Nov oncology consult is
+  planned, not a treatment start; a clinical fact is never invented). Case codes are pseudonymous (`SIM-2026-014`); no names, RČ or birth dates.
 - **Illustrative price list** in the same file (CZK, labelled "Ilustrativní ceník pro demo"), cost per case = sum of the
   recorded steps' prices.
 - **Pure computation** in `app/timeline/insurer_analytics.py` (frozen dataclasses, mypy strict). Intervals are whole
-  Europe/Prague calendar days between the anchors' Prague dates (the convention of `intervals.py`; same status values
+  Europe/Prague calendar days computed by the shared `app.timeline.intervals.interval()` (same status values
   `measured | running | not_started | not_recorded | inconsistent`). A missing anchor gives `days = null`; an end before
   its start is `inconsistent`; nothing is estimated. Medians skip nulls.
 - **Utilisation** = recorded coordinator minutes / (coordinators × assumed capacity per week × weeks of the cohort
@@ -47,6 +48,6 @@
 - The demo case appears with honest gaps ("nezaznamenáno") instead of invented dates.
 - Follow-ups: live data from FHIR (`ServiceRequest` authoredOn → `DiagnosticReport`/`Procedure` dates for order →
   exam, `Task` history and `AuditEvent` for coordinator time and acceptance, `EpisodeOfCare` for the hospital), then an
-  AuditEvent per read; reuse `app.timeline.intervals.interval()` once it is on main (#191); a real price list
+  AuditEvent per read;  a real price list
   (VZP sazebník / DRG) instead of the illustrative one; a validated indicator agreed with the insurer instead of
   the demo weights.

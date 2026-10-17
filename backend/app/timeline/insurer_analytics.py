@@ -5,9 +5,8 @@ not a measure of quality of care (ADR `docs/adr/XXXX-insurer-analytics.md`).
 Pure: `load_cohort` parses the fixture `app/seed/data/insurer_cohort.json`, `compute` derives everything from it.
 Nothing is read from FHIR and nothing is estimated: an interval whose end (or start) was not recorded has `days=None`.
 
-Days are whole calendar days between the Europe/Prague dates of the two anchors, the same convention as the
-time-to-treatment proxies (`app.timeline.intervals`, P1). TODO(#191) reuse `intervals.interval()` once it
-is on main.
+Days are whole calendar days between the Europe/Prague dates of the two anchors, computed by the shared
+`app.timeline.intervals.interval()` (the time-to-treatment proxies use the same function and statuses).
 
 Operational indicator 0-100, not a measure of quality of care (a demo assumption, returned so the UI can show it):
     50 % speed  = inverted min-max of the hospital's median "contact -> MDT" days (fastest = 1, slowest = 0)
@@ -28,6 +27,8 @@ from statistics import median
 from typing import Any
 
 from app.domain.clock import TZ
+from app.timeline.intervals import IntervalStatus
+from app.timeline.intervals import interval as shared_interval
 
 COHORT_PATH = Path(__file__).resolve().parent.parent / "seed" / "data" / "insurer_cohort.json"
 
@@ -36,16 +37,6 @@ WEIGHT_COST = 0.3
 WEIGHT_TARGET = 0.2
 TARGET_CT_DAYS = 7
 TARGET_BIOPSY_DAYS = 10
-
-
-class IntervalStatus(StrEnum):
-    """Same values as `app.timeline.intervals.IntervalStatus` (P1), so the UI can share labels."""
-
-    MEASURED = "measured"
-    RUNNING = "running"  # start known, end not recorded
-    NOT_STARTED = "not_started"  # neither anchor recorded
-    NOT_RECORDED = "not_recorded"  # end known, start never recorded
-    INCONSISTENT = "inconsistent"  # end before start: shown as a mismatch, never "fixed"
 
 
 class IntervalKey(StrEnum):
@@ -338,16 +329,9 @@ def load_cohort(path: Path = COHORT_PATH) -> Cohort:
 
 
 def interval(key: IntervalKey, start: date | None, end: date | None) -> Interval:
-    if start is None and end is None:
-        return Interval(key, None, None, None, IntervalStatus.NOT_STARTED)
-    if end is None:
-        return Interval(key, start, None, None, IntervalStatus.RUNNING)
-    if start is None:
-        return Interval(key, None, end, None, IntervalStatus.NOT_RECORDED)
-    days = (end - start).days
-    if days < 0:
-        return Interval(key, start, end, None, IntervalStatus.INCONSISTENT)
-    return Interval(key, start, end, days, IntervalStatus.MEASURED)
+    """The shared Prague calendar-day interval of `app.timeline.intervals`, tagged with its key."""
+    base = shared_interval(start, end)
+    return Interval(key, base.start, base.end, base.days, base.status)
 
 
 def journey_intervals(journey: Journey) -> tuple[Interval, ...]:

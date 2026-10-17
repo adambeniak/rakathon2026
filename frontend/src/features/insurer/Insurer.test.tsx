@@ -62,7 +62,8 @@ describe('Insurer analytics (ZP 211, simulated cohort)', () => {
     expect(card.getByText('21. 10. 2026')).toBeInTheDocument() // MDT
     expect(card.getByText('+4 dny')).toBeInTheDocument() // CT -> biopsy
     expect(card.getByText('+9 dní')).toBeInTheDocument() // biopsy -> MDT
-    expect(card.getAllByText('nezaznamenáno')).toHaveLength(2) // acceptance and treatment start
+    expect(card.getAllByText('nezaznamenáno')).toHaveLength(1) // treatment start is never invented
+    expect(card.getByText('+6 dní')).toBeInTheDocument() // acceptance -> CT
     const firstArticle = screen.getAllByRole('article')[0]
     expect(firstArticle).toBe(demo)
   })

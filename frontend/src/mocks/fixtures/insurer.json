@@ -1,6 +1,6 @@
 {
   "simulated": true,
-  "disclaimer": "Simulovaná data – fiktivní kohorta pro demo, ilustrativní ceník. Nejde o skutečné úhrady ani hodnocení kvality péče. Všechny nemocnice, koordinátoři a cesty jsou smyšlené; KOC 1 a KOC 2 jsou fiktivní pracoviště demo případu, jejich údaje jsou převážně simulované. U demo případu je datum objednání CT a biopsie převzato z data žádosti praktického lékaře (předpoklad pro demo).",
+  "disclaimer": "Simulovaná data – fiktivní kohorta pro demo, ilustrativní ceník. Nejde o skutečné úhrady ani hodnocení kvality péče. Všechny nemocnice, koordinátoři a cesty jsou smyšlené; KOC 1 a KOC 2 jsou fiktivní pracoviště demo případu, jejich údaje jsou převážně simulované. U demo případu jsou datum objednání CT a biopsie (= datum žádosti praktického lékaře), datum převzetí a minuty koordinátora doplněné fiktivně pro demo; zahájení léčby zaznamenáno není.",
   "as_of": "2026-10-21T08:00:00+02:00",
   "assumptions": {
     "capacity": {
@@ -139,10 +139,10 @@
         "contact_to_treatment": 36.5
       },
       "median_cost_czk": 29450.0,
-      "median_coordinator_minutes": 230.0,
+      "median_coordinator_minutes": 227.5,
       "coordinators": 2,
-      "coordinator_minutes_total": 1170,
-      "utilisation_pct": 24.0,
+      "coordinator_minutes_total": 1380,
+      "utilisation_pct": 28.3,
       "within_target_share": 0.833,
       "speed_score": 0.636,
       "cost_score": 0.95,
@@ -220,10 +220,10 @@
       "hospital_id": "koc2-nemocnice-lipova",
       "hospital_name": "KOC 2 – Nemocnice Lipová",
       "cases": 4,
-      "median_minutes_per_patient": 225.0,
+      "median_minutes_per_patient": 217.5,
       "median_days_contact_to_accepted": 1.0,
-      "minutes_total": 665,
-      "utilisation_pct": 27.3
+      "minutes_total": 875,
+      "utilisation_pct": 35.9
     },
     {
       "id": "fiktivni-tomas@koc2-nemocnice-lipova",
@@ -277,13 +277,13 @@
         },
         {
           "key": "accepted",
-          "date": null,
-          "days_since_previous": null
+          "date": "2026-10-02",
+          "days_since_previous": 0
         },
         {
           "key": "ct_done",
           "date": "2026-10-08",
-          "days_since_previous": null
+          "days_since_previous": 6
         },
         {
           "key": "biopsy_done",
@@ -305,9 +305,9 @@
         {
           "key": "contact_to_accepted",
           "start": "2026-10-02",
-          "end": null,
-          "days": null,
-          "status": "running"
+          "end": "2026-10-02",
+          "days": 0,
+          "status": "measured"
         },
         {
           "key": "ct_order_to_ct",
@@ -346,7 +346,7 @@
         }
       ],
       "cost_czk": 27850,
-      "coordinator_minutes": null,
+      "coordinator_minutes": 210,
       "within_target": true
     },
     {

@@ -9,7 +9,8 @@ from datetime import date
 import pytest
 
 from app.timeline import insurer_analytics as ia
-from app.timeline.insurer_analytics import IntervalKey, IntervalStatus, MilestoneKey
+from app.timeline.insurer_analytics import IntervalKey, MilestoneKey
+from app.timeline.intervals import IntervalStatus
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +100,7 @@ def test_demo_journey_follows_the_golden_dates_and_has_no_treatment_start(analyt
     milestones = {m.key: m.date for m in demo.milestones}
     assert milestones == {
         MilestoneKey.GP_CONTACTED_COORDINATOR: date(2026, 10, 2),
-        MilestoneKey.ACCEPTED: None,
+        MilestoneKey.ACCEPTED: date(2026, 10, 2),  # fictitious for the demo, disclosed in the disclaimer
         MilestoneKey.CT_DONE: date(2026, 10, 8),
         MilestoneKey.BIOPSY_DONE: date(2026, 10, 12),
         MilestoneKey.MDT: date(2026, 10, 21),
@@ -110,13 +111,13 @@ def test_demo_journey_follows_the_golden_dates_and_has_no_treatment_start(analyt
     assert demo.days(IntervalKey.CONTACT_TO_MDT) == 19
     assert demo.days(IntervalKey.MDT_TO_TREATMENT) is None
     assert demo.days(IntervalKey.CONTACT_TO_TREATMENT) is None
-    assert demo.journey.coordinator_minutes is None  # not recorded, never estimated
+    assert demo.journey.coordinator_minutes == 210  # fictitious for the demo, disclosed in the disclaimer
 
 
 def test_milestone_gaps_only_between_two_recorded_neighbours(analytics: ia.Analytics) -> None:
     gaps = [m.days_since_previous for m in analytics.journeys[0].milestones]
-    # contact (first) | accepted missing | CT after a missing one | biopsy +4 | MDT +9 | start missing
-    assert gaps == [None, None, None, 4, 9, None]
+    # contact (first) | accepted +0 | CT +6 | biopsy +4 | MDT +9 | start not recorded
+    assert gaps == [None, 0, 6, 4, 9, None]
 
 
 # ------------------------------------------------------------------------------------------- aggregation helpers

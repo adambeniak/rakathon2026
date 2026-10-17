@@ -40,8 +40,9 @@ router = APIRouter(prefix="/insurer", tags=["insurer"])
 DISCLAIMER = (
     "Simulovaná data – fiktivní kohorta pro demo, ilustrativní ceník. Nejde o skutečné úhrady ani hodnocení "
     "kvality péče. Všechny nemocnice, koordinátoři a cesty jsou smyšlené; KOC 1 a KOC 2 jsou fiktivní pracoviště "
-    "demo případu, jejich údaje jsou převážně simulované. U demo případu je datum objednání CT a biopsie převzato "
-    "z data žádosti praktického lékaře (předpoklad pro demo)."
+    "demo případu, jejich údaje jsou převážně simulované. U demo případu jsou datum objednání CT a biopsie (= datum "
+    "žádosti praktického lékaře), datum převzetí a minuty koordinátora doplněné fiktivně pro demo; zahájení léčby "
+    "zaznamenáno není."
 )
 DEMO_ASSUMPTION = "Předpoklad pro demo, ne klinický ani smluvní standard."
 FORMULA = (

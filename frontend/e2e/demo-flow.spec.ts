@@ -293,13 +293,10 @@ test('demo flow', async ({ page }) => {
     for (let i = 0; i < 5 && !page.url().endsWith(`/cases/${CASE_ID}/mdt`); i++) await page.goBack()
     await expect(page).toHaveURL(new RegExp(`/cases/${CASE_ID}/mdt$`))
     await expect(caseState(page)).toContainText('Zpětná vazba odeslána')
+    // The GP opened the conclusion above, so the screen shows when (gp_opened_at) and no read warning (#161).
+    await expect(page.getByText('Závěr MDT otevřen praktickým lékařem: 21. 10. 2026', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Uzavřít případ' }).click()
-    await expect(
-      page.getByText('Zda praktický lékař závěr otevřel, tato obrazovka nezjišťuje', {
-        exact: false,
-      }),
-    ).toBeVisible()
-    await page.getByRole('button', { name: 'Uzavřít přesto' }).click()
+    await page.getByRole('button', { name: 'Potvrdit uzavření' }).click()
     await expect(page.getByText('Případ je uzavřen.')).toBeVisible()
     await expect(caseState(page)).toContainText('Uzavřeno')
     const clocks = page.getByRole('group', { name: 'Časové intervaly' })

@@ -91,6 +91,8 @@ export interface CaseSummary {
   counts: FindingCounts
   documentCount: number
   openedAt: string | null
+  /** When the referring GP first opened the MDT conclusion; `null` = no opening recorded (not proof of unread). */
+  gpOpenedAt: string | null
   // --- not in the contract (mock / portal endpoints only) ---
   insurer?: string
   diagnosis?: string
@@ -101,7 +103,17 @@ export interface CaseSummary {
   referredAt?: string
 }
 
+/** A blocking MDT readiness item a KOC physician waived at `mark_ready_mdt` (`readiness_waivers`). */
+export interface ReadinessWaiverInfo {
+  item: string
+  reason: string
+  by: string | null
+  at: string // ISO timestamp
+}
+
 export interface CaseDetail extends CaseSummary {
+  /** Waivers in force; empty before the case is marked ready, and always for the GP and reviewer roles. */
+  readinessWaivers: ReadinessWaiverInfo[]
   birthNumber?: string
   t?: { t1: number | null; t2: number | null; t3: number | null }
 }

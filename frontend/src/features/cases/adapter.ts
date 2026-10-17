@@ -34,6 +34,7 @@ export function adaptCase(c: ApiCase): CaseSummary {
     gp: c.referring_gp?.name,
     documentCount: c.document_count,
     openedAt: c.opened_at ?? null,
+    gpOpenedAt: c.gp_opened_at ?? null,
   }
 }
 
@@ -50,4 +51,10 @@ export function adaptDocument(d: ApiDocument): DocumentInfo {
 export const adaptDetail = (c: ApiDetail): CaseDetail & { documents: DocumentInfo[] } => ({
   ...adaptCase(c),
   documents: c.documents.map(adaptDocument),
+  readinessWaivers: (c.readiness_waivers ?? []).map((w) => ({
+    item: w.item,
+    reason: w.reason,
+    by: w.waived_by ?? null,
+    at: w.waived_at,
+  })),
 })

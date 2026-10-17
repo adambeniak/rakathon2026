@@ -2,11 +2,25 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { mdt as t } from '@/i18n/cs/mdt'
 import { ApiProblem } from '@/lib/api/problem'
+import { formatDateTime } from '@/lib/date'
 import type { Role } from '@/lib/domain'
 import { problemText, useLoopEvent } from './api'
 
-/** Coordinator steps after the MDT: hand the signed conclusion to the GP, then close the case. */
-export function LoopActions({ caseId, state, role }: { caseId: string; state: string | undefined; role: Role }) {
+/**
+ * Coordinator steps after the MDT: hand the signed conclusion to the GP, then close the case. `gpOpenedAt` is the
+ * API's recorded opening by the GP; `null` means no opening is recorded, which is not proof the GP has not read it.
+ */
+export function LoopActions({
+  caseId,
+  state,
+  role,
+  gpOpenedAt,
+}: {
+  caseId: string
+  state: string | undefined
+  role: Role
+  gpOpenedAt: string | null
+}) {
   const send = useLoopEvent(caseId)
   const close = useLoopEvent(caseId)
   const [confirming, setConfirming] = useState(false)
@@ -40,16 +54,17 @@ export function LoopActions({ caseId, state, role }: { caseId: string; state: st
           <p role="status" className="font-medium text-verified">
             {t.loop.handedOver}
           </p>
+          <p className="text-sm">{gpOpenedAt ? t.loop.gpOpened(formatDateTime(gpOpenedAt)) : t.loop.gpNotOpened}</p>
           {!confirming ? (
             <Button variant="secondary" onClick={() => setConfirming(true)}>
               {t.loop.close}
             </Button>
           ) : (
             <div role="group" aria-label={t.loop.close} className="space-y-2 rounded border border-conflict/40 bg-conflict-bg p-3">
-              <p className="text-sm">{t.loop.closeWarning}</p>
+              {!gpOpenedAt && <p className="text-sm">{t.loop.closeWarning}</p>}
               <div className="flex gap-2">
                 <Button variant="primary" className="min-h-9 px-3 text-sm" disabled={close.isPending} onClick={() => close.mutate({ event: 'close' })}>
-                  {close.isPending ? t.loop.closing : t.loop.closeConfirm}
+                  {close.isPending ? t.loop.closing : gpOpenedAt ? t.loop.closeConfirmOpened : t.loop.closeConfirm}
                 </Button>
                 <Button variant="ghost" onClick={() => setConfirming(false)}>
                   {t.loop.closeCancel}

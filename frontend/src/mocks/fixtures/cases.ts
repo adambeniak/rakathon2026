@@ -24,6 +24,18 @@ export interface MockCase {
   urgent: boolean
   referredAt: string
   t: { t1: number | null; t2: number | null; t3: number | null }
+  /** `gp_opened_at`: when the GP first opened the MDT conclusion (`gp_opened`); null = not recorded. */
+  gpOpenedAt?: string | null
+  /** `readiness_waivers`: waivers in force once the case is marked ready for the MDT. */
+  readinessWaivers?: MockWaiver[]
+}
+
+/** A waiver recorded at `mark_ready_mdt`, in the contract's `RecordedReadinessWaiver` shape. */
+export interface MockWaiver {
+  item: string
+  reason: string
+  waived_by: string
+  waived_at: string
 }
 
 export const ALENA_ID = 'rakathon-2026-prochazkova'
@@ -46,6 +58,10 @@ export interface MockStore {
   closed: boolean
   /** The physician marked the case ready for the MDT (`mark_ready_mdt`). */
   markedReady: boolean
+  /** Waivers the physician gave with `mark_ready_mdt`. */
+  waivers: MockWaiver[]
+  /** First `gp_opened` per case id (ISO timestamp). */
+  gpOpened: Record<string, string>
   confirmed: Record<string, string>
   extraCases: MockCase[]
   /** ids of document requests the coordinator has sent. */
@@ -65,6 +81,8 @@ export function newStore(): MockStore {
     conclusion: null,
     closed: false,
     markedReady: false,
+    waivers: [],
+    gpOpened: {},
     confirmed: {},
     extraCases: [],
     requested: [],
@@ -137,8 +155,12 @@ function alena(today: string, s: MockStore): MockCase | null {
     urgent: true,
     referredAt: '2026-10-02',
     t: { t1: INTERVALS.t1, t2, t3: s.feedbackSent ? INTERVALS.t3 : null },
+    readinessWaivers: AFTER_READY.includes(state) ? s.waivers : [],
   }
 }
+
+/** States in which the readiness waivers are in force (the case was marked ready for the MDT). */
+const AFTER_READY: CaseState[] = ['pripraveno_mdt', 'zaver_mdt', 'zpetna_vazba_odeslana', 'uzavreno']
 
 const OTHERS: MockCase[] = [
   { id: 'c-kralova', patientName: 'Marie Králová', birthDate: '1971-03-09', birthNumber: '715309/2204', insurer: '111 – VZP ČR', diagnosis: 'C18.9 – suspektní tumor tlustého střeva', state: 'odeslano', subStatus: 'Nová žádost od PL – čeká na převzetí', column: 'new', baton: { name: 'Koordinátorka KOC 2', action: 'Převzít případ', due: '2026-10-19' }, counts: { missing: 2, conflict: 0, stale: 0 }, koc: 'KOC 2 – Nemocnice Lipová', gp: DEMO_USERS.gp.name, urgent: false, referredAt: '2026-10-16', t: { t1: 12, t2: 0, t3: null } },
@@ -158,7 +180,7 @@ export function allCases(today: string, s: MockStore): MockCase[] {
       ? { ...c, state: 'uzavreno' as const, subStatus: 'Uzavřeno – převzetí potvrzeno PL', baton: { name: 'Nikdo – případ uzavřen', action: 'Archivováno s auditní stopou', due: null } }
       : c,
   )
-  return [...(a ? [a] : []), ...s.extraCases, ...others]
+  return [...(a ? [a] : []), ...s.extraCases, ...others].map((c) => ({ ...c, gpOpenedAt: s.gpOpened[c.id] ?? null }))
 }
 
 export function caseById(id: string, today: string, s: MockStore): MockCase | undefined {

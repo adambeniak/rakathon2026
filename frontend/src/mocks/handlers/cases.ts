@@ -102,7 +102,11 @@ export const handlers = [
   }),
   http.get('/api/cases/:id', ({ params, request }) => {
     const c = caseById(String(params.id), todayOf(request), store)
-    return c ? HttpResponse.json(toApiDetail(c, todayOf(request))) : problem(404, 'Případ nebyl nalezen')
+    if (!c) return problem(404, 'Případ nebyl nalezen')
+    // Like the backend: the GP and the reviewer get no waivers (internal KOC detail).
+    const internal = roleOf(request) === 'coordinator' || roleOf(request) === 'physician'
+    const detail = toApiDetail(c, todayOf(request))
+    return HttpResponse.json(internal ? detail : { ...detail, readiness_waivers: [] })
   }),
   http.get('/api/cases/:id/findings', ({ params, request }) =>
     HttpResponse.json(isAlena(params.id) ? activeFindings(todayOf(request)) : []),
@@ -143,7 +147,8 @@ export const handlers = [
       // The GP's read receipt: no state change, only while the feedback is out and not yet closed.
       if (roleOf(request) !== 'gp') return roleDenied('Otevření závěru potvrzuje pouze praktický lékař')
       if (c.state !== 'zpetna_vazba_odeslana') return problem(409, 'Zpětná vazba není ve stavu k otevření')
-      return HttpResponse.json(toApiCase(c, today))
+      store.gpOpened[id] ??= `${today}T10:05:00+02:00` // the first opening is kept
+      return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     // Demo step 5-6 loop; the guards mirror the state machine (case_machine.py), the texts are the mock's.
     if (event === 'mark_ready_mdt') {
@@ -153,6 +158,9 @@ export const handlers = [
       const open = MOCK_BLOCKING.filter((item) => !(waivers ?? []).some((w) => w.item === item && w.reason.trim()))
       if (open.length > 0) return guardFailed(`Připravenost k MDT není splněna, chybí: ${open.join(', ')}`, open)
       store.markedReady = true
+      store.waivers = (waivers ?? [])
+        .filter((w) => MOCK_BLOCKING.includes(w.item))
+        .map((w) => ({ item: w.item, reason: w.reason.trim(), waived_by: DEMO_USERS.physician.name, waived_at: `${today}T14:00:00+02:00` }))
       return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
     }
     if (event === 'record_mdt_conclusion') {

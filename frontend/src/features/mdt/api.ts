@@ -5,7 +5,6 @@ import { caseSummary } from '@/features/cases/schemas'
 import { mdtConclusion } from '@/features/gp/api'
 import { adaptHandover } from '@/features/handover/adapter'
 import { client, unwrap } from '@/lib/api/client'
-import { mdt } from '@/i18n/cs/mdt'
 import { ApiProblem, problemTitle } from '@/lib/api/problem'
 import { queryKey, useApiMutation, useApiQuery } from '@/lib/api/query'
 
@@ -100,16 +99,14 @@ export function loopBody(v: LoopEvent) {
   return { event: v.event }
 }
 
-const GATE_FAILED = /^Připravenost k MDT není splněna, chybí: (.+)$/
-
 /**
- * The blocking items of a refused `mark_ready_mdt`: the state machine's `guard_failed` names them in the problem's
- * `detail`. `null` for any other refusal (wrong role or state, handover not assembled yet, …).
+ * The blocking items of a refused `mark_ready_mdt`: the `guard_failed` problem lists the readiness item keys in
+ * `blocking_items`. `null` for any other refusal (wrong role or state, readiness check missing, …), and when the
+ * list is absent or empty, so the waiver form is never shown without an item to waive.
  */
 export function blockingItems(error: unknown): string[] | null {
-  if (!(error instanceof ApiProblem) || error.status !== 409) return null
-  const match = GATE_FAILED.exec(error.detail ?? '')
-  return match?.[1] ? match[1].split(',').map((i) => i.trim()).filter(Boolean) : null
+  if (!(error instanceof ApiProblem) || error.status !== 409 || error.code !== 'guard_failed') return null
+  return error.blockingItems?.length ? error.blockingItems : null
 }
 
 export function useLoopEvent(caseId: string) {
@@ -120,14 +117,10 @@ export function useLoopEvent(caseId: string) {
   })
 }
 
-/** The state machine answers a refused event with the generic RFC 7807 title "Conflict" (the reason is in `detail`). */
-const GENERIC_CONFLICT = 'Conflict'
-
-/** Text for a refused event: the API's title (Czech for the generic conflict), plus the guard's detail when it sent one. */
+/** Text for a refused event: the API's Czech title, plus the detail when it sent one. */
 export function problemText(error: unknown): string {
   if (!(error instanceof ApiProblem)) return problemTitle(error)
-  const title = error.status === 409 && error.title === GENERIC_CONFLICT ? mdt.refused : error.title
-  return error.detail ? `${title} (${error.detail})` : title
+  return error.detail ? `${error.title} (${error.detail})` : error.title
 }
 
 export { problemTitle }

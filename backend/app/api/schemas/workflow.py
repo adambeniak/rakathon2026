@@ -14,16 +14,30 @@ from app.domain.triage import RequestProposal
 class TransitionRequest(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
-        json_schema_extra={"examples": [{"event": "accept"}, {"event": "missing_found", "reason": "chybí CT"}]},
+        json_schema_extra={
+            "examples": [
+                {"event": "accept"},
+                {"event": "missing_found", "reason": "chybí CT"},
+                {"event": "record_mdt_conclusion", "conclusion": "Závěr MDT dle zápisu."},
+            ]
+        },
     )
 
     event: str = Field(
         max_length=40,
-        description="accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume. "
-        "Other machine events are refused (422) until their endpoints exist.",
+        description="accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | "
+        "record_mdt_conclusion (koc_physician) | send_feedback (coordinator) | delivery_confirmed (system only: "
+        "refused for every demo role) | gp_opened (the referring GP) | close (coordinator). "
+        "Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.",
     )
     reason: str | None = Field(None, max_length=500, description="Required by missing_found and postpone.")
     resume_on: str | None = Field(None, max_length=200, description="Required by postpone: date or external step.")
+    conclusion: str | None = Field(
+        None,
+        max_length=4000,
+        description="Required by record_mdt_conclusion. The signing clinician is the acting user (`confirmed_by`).",
+    )
+    receipt_id: str | None = Field(None, max_length=200, description="Required by delivery_confirmed.")
 
 
 class DocumentRequestItem(BaseModel):

@@ -36,8 +36,10 @@ CaseId = Path(pattern=BUSINESS_ID_PATTERN, max_length=100, examples=["rakathon-2
     response_model=CaseSummary,
     summary="Apply a case event (state machine)",
     description="Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | "
-    "guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode).",
-    responses=problem_responses(401, 404, 409, 422, 502, 503),
+    "guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). "
+    "`record_mdt_conclusion` is signed by the acting KOC physician; the GP recipient of `send_feedback` is the "
+    "referring GP of the case. Every event writes one AuditEvent.",
+    responses=problem_responses(401, 403, 404, 409, 422, 502, 503),
 )
 async def transition_case(
     body: TransitionRequest,
@@ -57,6 +59,8 @@ async def transition_case(
         now=settings.now(),
         reason=body.reason,
         resume_on=body.resume_on,
+        conclusion=body.conclusion,
+        receipt_id=body.receipt_id,
     )
     overview = await reader.overview(case_id)
     return CaseSummary.model_validate(

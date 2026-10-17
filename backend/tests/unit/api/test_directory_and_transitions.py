@@ -32,12 +32,14 @@ class FakeProvider:
 class FakeWorkflow:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, Role, str | None]] = []
+        self.extras: list[dict[str, object]] = []
         self.error: Exception | None = None
 
     async def transition(
-        self, case_id: str, event: str, *, actor: PartyRef, reason: str | None = None, **_: object
+        self, case_id: str, event: str, *, actor: PartyRef, reason: str | None = None, **rest: object
     ) -> TransitionOutcome:
         self.calls.append((case_id, event, actor.role, reason))
+        self.extras.append(rest)
         if self.error:
             raise self.error
         return TransitionOutcome(_case(CaseState.TRIAGE), ())
@@ -186,3 +188,22 @@ def test_directory_needs_an_identified_actor(settings: Settings) -> None:
         response = test_client.get("/api/directory/kocs")
 
     assert response.status_code == 401
+
+
+def test_conclusion_and_receipt_reach_the_workflow_but_the_signer_is_never_in_the_body(
+    client: TestClient, workflow: FakeWorkflow
+) -> None:
+    url = "/api/cases/rakathon-2026-prochazkova/transitions"
+    headers = {"X-Demo-Role": "koc_physician"}
+
+    ok = client.post(url, json={"event": "record_mdt_conclusion", "conclusion": "Závěr MDT."}, headers=headers)
+    forged = client.post(
+        url, json={"event": "record_mdt_conclusion", "conclusion": "x", "confirmed_by": "someone"}, headers=headers
+    )
+
+    assert ok.status_code == 200
+    assert workflow.extras[0]["conclusion"] == "Závěr MDT."
+    assert forged.status_code == 422  # extra="forbid": the clinician id comes from the actor only
+    receipt = client.post(url, json={"event": "delivery_confirmed", "receipt_id": "r-1"}, headers=headers)
+    assert receipt.status_code == 200
+    assert workflow.extras[1]["receipt_id"] == "r-1"

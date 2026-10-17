@@ -11,9 +11,11 @@ result; `tests/unit/outputs` renders the committed template.
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from docx import Document
+from docx.document import Document as DocumentType
 from docx.oxml import OxmlElement
 from docx.shared import Pt
 from docx.table import Table
@@ -74,11 +76,11 @@ def build(source: Path = SOURCE, target: Path = TARGET) -> Path:
         run.bold = True
         run.font.size = HEADING_SIZE
 
-    add_heading("Příloha A – Nesrovnalosti a chybějící údaje (stav k MDT)")
+    add_heading("Příloha A – Nesrovnalosti v dokumentaci (stav k MDT)")
     document.add_paragraph("{%p for line in findings %}")
     document.add_paragraph("– {{ line }}")
     document.add_paragraph("{%p endfor %}")
-    add_heading("Příloha B – Dokumenty nezahrnuté do podkladu (po MDT)")
+    add_heading("Příloha B – Dokumenty nezahrnuté do podkladu")
     document.add_paragraph("{%p for line in excluded %}")
     document.add_paragraph("– {{ line }}")
     document.add_paragraph("{%p endfor %}")
@@ -93,9 +95,34 @@ def build(source: Path = SOURCE, target: Path = TARGET) -> Path:
     footer.italic = True
     footer.font.size = Pt(8)
 
+    # The draft banner repeats on every page (a printed page 3 or a forwarded file must still say "NÁVRH").
+    header = document.sections[0].header
+    header.is_linked_to_previous = False
+    header.paragraphs[0].text = "{{r page_banner }}"
+
+    _neutralise_metadata(document)
     target.parent.mkdir(parents=True, exist_ok=True)
     document.save(str(target))
     return target
+
+
+def _neutralise_metadata(document: DocumentType) -> None:
+    """The sample form carries its author's name and a tenant's sensitivity-label ids; neither belongs in an export."""
+    properties = document.core_properties
+    fixed = datetime(2026, 10, 1, 0, 0, 0)  # noqa: DTZ001 - a fixed, timezone-less document timestamp
+    properties.author = "Štafeta"
+    properties.last_modified_by = "Štafeta"
+    properties.title = "Zápis z jednání MDT"
+    properties.subject = ""
+    properties.comments = ""
+    properties.keywords = ""
+    properties.category = ""
+    properties.created = fixed
+    properties.modified = fixed
+    package = document.part.package
+    for rel_id, rel in list(package.rels.items()):
+        if rel.reltype.endswith("/custom-properties"):
+            del package.rels[rel_id]
 
 
 if __name__ == "__main__":

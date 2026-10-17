@@ -15,6 +15,7 @@ from app.domain.handover import Handover, HandoverFields, HandoverStatus, Review
 from app.extraction.handover.review import overlay_review
 from app.outputs.build_template import SOURCE
 from app.outputs.mdt_record import (
+    BANNER_FINAL,
     LABEL_ACCEPTED_MISSING,
     LABEL_CONFIRMED,
     LABEL_CONFIRMED_EDITED,
@@ -29,6 +30,11 @@ from app.settings import PRAGUE
 PHYSICIAN = PartyRef(id="markova-lenka@koc2-nemocnice-lipova", display="MUDr. Lenka Marková", role=Role.KOC_PHYSICIAN)
 GP = ReferringDoctor(name="MUDr. Tomáš Řezníček", phone="+420 311 000 287")
 CONFIRMED_AT = datetime(2026, 10, 20, 15, 0, tzinfo=PRAGUE)
+EXPORTED_AT = datetime(2026, 10, 21, 7, 30, tzinfo=PRAGUE)
+
+
+def render(handover: Handover, referring: ReferringDoctor | None = GP) -> bytes:
+    return render_mdt_record(handover, referring, EXPORTED_AT)
 
 
 def _lines(data: bytes) -> list[str]:
@@ -62,14 +68,14 @@ def _confirmed(handover: Handover, *, edited: bool = False) -> Handover:
 def test_the_template_keeps_the_layout_of_the_sample_form(story_handover: Handover) -> None:
     sample = [p.text for p in Document(str(SOURCE)).paragraphs if p.text[:1].isdigit()]
 
-    rendered = [line for line in _lines(render_mdt_record(story_handover, GP)) if line[:1].isdigit()]
+    rendered = [line for line in _lines(render(story_handover)) if line[:1].isdigit()]
 
     assert [h for h in rendered if h in sample] == sample  # the seven headings, same text, same order
     assert [h.split()[0] for h in sample] == ["1", "2", "3", "4", "5", "6", "7"]
 
 
 def test_basic_data_diagnosis_and_results_come_from_the_handover(story_handover: Handover) -> None:
-    text = _text(render_mdt_record(story_handover, GP))
+    text = _text(render(story_handover))
 
     assert "21. 10. 2026 08:00" in text
     assert "Alena Procházková" in text
@@ -84,7 +90,7 @@ def test_basic_data_diagnosis_and_results_come_from_the_handover(story_handover:
 
 
 def test_without_confirmation_it_is_a_draft_with_labelled_sections(story_handover: Handover) -> None:
-    lines = _lines(render_mdt_record(story_handover, GP))
+    lines = _lines(render(story_handover))
     text = "\n".join(lines)
 
     assert any(line.startswith("NÁVRH – zápis obsahuje oddíly, které lékař dosud nepotvrdil") for line in lines)
@@ -92,14 +98,14 @@ def test_without_confirmation_it_is_a_draft_with_labelled_sections(story_handove
     assert LABEL_CONFIRMED not in text
     # Missing performance status is shown as missing, never inferred.
     assert "PS / Karnofsky – Chybí" in text
-    assert "Chybí: ecog – ECOG/Karnofsky v dokumentaci neuvedeno" in text
+    assert "Chybí: ECOG / Karnofsky – ECOG/Karnofsky v dokumentaci neuvedeno" in text
 
 
 def test_confirmed_sections_are_labelled_and_the_banner_drops_the_draft_warning(story_handover: Handover) -> None:
-    lines = _lines(render_mdt_record(_confirmed(story_handover), GP))
+    lines = _lines(render(_confirmed(story_handover)))
     text = "\n".join(lines)
 
-    assert "Všechny oddíly předávky potvrdil lékař." in lines
+    assert BANNER_FINAL in lines
     assert not any(line.startswith("NÁVRH") for line in lines)
     assert LABEL_CONFIRMED in text
     assert LABEL_ACCEPTED_MISSING in text  # the missing performance status was accepted as missing
@@ -120,10 +126,10 @@ def test_a_section_edited_by_the_physician_says_so() -> None:
 
 
 def test_reports_after_the_mdt_are_listed_as_excluded_and_never_used(story_handover: Handover) -> None:
-    lines = _lines(render_mdt_record(story_handover, GP))
+    lines = _lines(render(story_handover))
     excluded = {"12_Algeziologie_2026-10-26", "13_Psychologie_KOC2_2026-10-27"}
 
-    appendix_b = lines.index("Příloha B – Dokumenty nezahrnuté do podkladu (po MDT)")
+    appendix_b = lines.index("Příloha B – Dokumenty nezahrnuté do podkladu")
     appendix_c = lines.index("Příloha C – Další oddíly předávky (mimo formulář MDT zápisu)")
     listed = lines[appendix_b + 1 : appendix_c]
     assert {doc for doc in excluded if any(line.startswith(f"– {doc} – po MDT") for line in listed)} == excluded
@@ -134,17 +140,17 @@ def test_reports_after_the_mdt_are_listed_as_excluded_and_never_used(story_hando
 
 
 def test_findings_are_listed_with_their_documents(story_handover: Handover) -> None:
-    lines = _lines(render_mdt_record(story_handover, GP))
+    lines = _lines(render(story_handover))
 
-    start = lines.index("Příloha A – Nesrovnalosti a chybějící údaje (stav k MDT)")
-    end = lines.index("Příloha B – Dokumenty nezahrnuté do podkladu (po MDT)")
+    start = lines.index("Příloha A – Nesrovnalosti v dokumentaci (stav k MDT)")
+    end = lines.index("Příloha B – Dokumenty nezahrnuté do podkladu")
     findings = lines[start + 1 : end]
     assert {f.split(" ")[1] for f in findings} == {"C1", "C2"}
     assert any("09_Biopsie_vykon_KOC2_2026-10-12" in f for f in findings)
 
 
 def test_conclusion_and_recommendation_are_left_to_the_physicians(story_handover: Handover) -> None:
-    lines = _lines(render_mdt_record(story_handover, GP))
+    lines = _lines(render(story_handover))
 
     for heading in ("6  Závěr MDT", "7  Doporučení MDT"):
         at = lines.index(heading)
@@ -153,7 +159,7 @@ def test_conclusion_and_recommendation_are_left_to_the_physicians(story_handover
 
 
 def test_minimisation_no_birth_number_in_the_record(story_handover: Handover) -> None:
-    text = _text(render_mdt_record(story_handover, GP))
+    text = _text(render(story_handover))
 
     assert "635722" not in text
     assert "rakathon" not in text.lower()  # the case id embeds the surname
@@ -167,7 +173,7 @@ def test_special_characters_are_escaped_not_interpreted(story_handover: Handover
         update={"fields": story_handover.fields.model_copy(update={"diagnosis": hostile})}
     )
 
-    text = _text(render_mdt_record(handover, GP))
+    text = _text(render(handover))
 
     assert 'Název diagnózy | A & <B> "c" {{x}}' in text
 
@@ -176,7 +182,7 @@ def test_special_characters_are_escaped_not_interpreted(story_handover: Handover
 def test_an_unknown_referring_doctor_is_shown_as_missing(
     story_handover: Handover, referring: ReferringDoctor | None
 ) -> None:
-    text = _text(render_mdt_record(story_handover, referring))
+    text = _text(render(story_handover, referring))
 
     assert "Referující lékař:" in text
     assert "Telefon: chybí · e-mail: chybí" in text

@@ -29,7 +29,7 @@ from app.domain.errors import ForbiddenError, InvalidInputError
 from app.fhir.cases import LoadedCase
 from app.fhir.directory import Directory
 from app.fhir.workflow import authorize_case
-from app.outputs.mdt_record import DOCX_MEDIA_TYPE, ReferringDoctor, render_mdt_record
+from app.outputs.mdt_record import DOCX_MEDIA_TYPE, ReferringDoctor, is_draft, render_mdt_record
 from app.settings import PRAGUE
 
 router = APIRouter(prefix="/cases", tags=["handover"])
@@ -44,9 +44,10 @@ KOC_ROLES = frozenset({Role.COORDINATOR, Role.KOC_PHYSICIAN, Role.KOC_STAFF})
     response_class=Response,
     summary="MDT record in the MDT_zapis layout (DOCX), as of the MDT start",
     description="Content only from the handover as of `mdt_start` and its findings; reports created or received after "
-    "it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem', 'Návrh AI – čeká na "
-    "potvrzení' or 'Chybí'; a banner marks the document as a draft while any section is unconfirmed. Sections 6 and "
-    "7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. "
+    "it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká "
+    "na potvrzení lékařem' or 'Chybí', with its notes and missing items; a banner and a page header mark the "
+    "document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 "
+    "(Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. "
     "PDF is not available yet.",
     responses={
         200: {
@@ -67,23 +68,33 @@ async def get_mdt_record(
     case_id: str = CASE_ID,
     format: Literal["docx"] = Query("docx", description="Only DOCX for now."),
 ) -> Response:
+    if actor.role not in KOC_ROLES:  # checked first: a refused caller causes no audited read of clinical content
+        raise ForbiddenError("the MDT record is available to the KOC team of the case only")
     loaded = await reader.load(case_id)  # audited read
     directory = await provider.get()
     authorize_case(loaded, actor, directory)
-    if actor.role not in KOC_ROLES:
-        raise ForbiddenError("the MDT record is available to the KOC team of the case only")
     mdt_start = loaded.case.mdt_start
     if mdt_start is None:
         raise InvalidInputError("the MDT start of the case is not set")
 
     handover = await _reviewed(reader, settings, llm, store, case_id, mdt_start.isoformat())
-    content = await asyncio.to_thread(render_mdt_record, handover, _referring_doctor(loaded, directory))
-    await repository.audit_derived_write([f"Task/{loaded.task['id']}"], description="MDT record exported as DOCX")
-    filename = f"mdt-zapis-{mdt_start.astimezone(PRAGUE).date().isoformat()}.docx"
+    content = await asyncio.to_thread(render_mdt_record, handover, _referring_doctor(loaded, directory), settings.now())
+    # An export is a disclosure of the case: name the same entities as a read, so a search by patient finds it.
+    entities = [
+        f"Task/{loaded.task['id']}",
+        *(str(loaded.task[k]["reference"]) for k in ("for", "focus") if k in loaded.task),
+    ]
+    await repository.audit_derived_write(entities, description="MDT record exported as DOCX")
+    day = mdt_start.astimezone(PRAGUE).date().isoformat()
+    filename = f"mdt-zapis-{'NAVRH-' if is_draft(handover) else ''}{day}.docx"
     return Response(
         content,
         media_type=DOCX_MEDIA_TYPE,
-        headers={"Content-Disposition": f'attachment; filename="{filename}"', "Cache-Control": "no-store"},
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 

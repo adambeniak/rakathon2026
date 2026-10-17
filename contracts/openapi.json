@@ -7722,7 +7722,7 @@
     },
     "/api/cases/{case_id}/mdt-record": {
       "get": {
-        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem', 'Návrh AI – čeká na potvrzení' or 'Chybí'; a banner marks the document as a draft while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.",
+        "description": "Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items; a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.",
         "operationId": "handover-get_mdt_record",
         "parameters": [
           {

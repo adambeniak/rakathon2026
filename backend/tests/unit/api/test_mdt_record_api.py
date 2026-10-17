@@ -42,9 +42,17 @@ assert KOC2
 class CaseReader(FakeReader):
     """The test_api reader, but `load` knows the referring GP and the managing KOC (authorize_case is real)."""
 
+    loads = 0
+
     async def load(self, case_id: str) -> LoadedCase:
+        type(self).loads += 1
         base = await super().load(case_id)
-        task = {"id": "5", "requester": {"reference": GP.ref}}  # type: ignore[union-attr]
+        task = {
+            "id": "5",
+            "requester": {"reference": GP.ref},  # type: ignore[union-attr]
+            "for": {"reference": "Patient/2"},
+            "focus": {"reference": "EpisodeOfCare/1"},
+        }
         episode = {"managingOrganization": {"reference": KOC2.ref}}  # type: ignore[union-attr]
         return LoadedCase(task=task, episode=episode, case=base.case)
 
@@ -79,6 +87,7 @@ def _client(settings: Settings, reader: CaseReader, repository: FakeRepository) 
 
 @pytest.fixture
 def repository() -> FakeRepository:
+    CaseReader.loads = 0
     return FakeRepository()
 
 
@@ -98,14 +107,16 @@ def test_the_koc_team_downloads_the_record_as_a_docx(client: TestClient, reposit
 
     assert response.status_code == 200
     assert response.headers["content-type"] == DOCX_MEDIA_TYPE
-    assert response.headers["content-disposition"] == 'attachment; filename="mdt-zapis-2026-10-21.docx"'
+    assert response.headers["content-disposition"] == 'attachment; filename="mdt-zapis-NAVRH-2026-10-21.docx"'
     assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
     assert "rakathon" not in response.headers["content-disposition"]  # the case id embeds the surname
     paragraphs = [p.text for p in Document(io.BytesIO(response.content)).paragraphs]
     assert "Zápis k jednání multidisciplinárního týmu (MDT)" in paragraphs
     assert "Stav podkladů k 21. 10. 2026 08:00. Zahrnuto dokumentů: 1, nezahrnuto: 1." in paragraphs
     assert any(p.startswith("– 12_Algeziologie_2026-10-26 – po MDT") for p in paragraphs)  # authored after the MDT
-    assert repository.exports[-1] == (["Task/5"], "MDT record exported as DOCX")  # every export is audited
+    # every export is audited, naming the patient and the case like a read does
+    assert repository.exports[-1] == (["Task/5", "Patient/2", "EpisodeOfCare/1"], "MDT record exported as DOCX")
 
 
 @pytest.mark.parametrize(("role", "status"), [("gp", 403), ("reviewer", 403)])
@@ -115,6 +126,7 @@ def test_only_the_koc_team_may_export(client: TestClient, repository: FakeReposi
     assert response.status_code == status
     assert response.headers["content-type"].startswith("application/problem+json")
     assert repository.exports == []
+    assert CaseReader.loads == 0  # refused by role before any audited read of clinical content
 
 
 def test_the_record_is_always_as_of_the_mdt_start(client: TestClient) -> None:

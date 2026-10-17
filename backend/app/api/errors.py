@@ -102,13 +102,13 @@ STATUS_DETAILS: Mapping[int, str] = {
 # A type not listed here keeps Pydantic's English message.
 _DATE = "Hodnota musí být datum ve formátu RRRR-MM-DD."
 _DATETIME = "Hodnota musí být datum a čas ve formátu ISO 8601 (např. 2026-10-21T08:00:00+02:00)."
-_CHOICE = "Hodnota není mezi povolenými možnostmi: {expected}."
+_CHOICE = "Hodnota musí být jedna z možností: {expected}."
 VALIDATION_MESSAGES: Mapping[str, str] = {
     "missing": "Povinná hodnota chybí.",
     "extra_forbidden": "Tato položka není v požadavku povolena.",
     "string_type": "Hodnota musí být text.",
-    "string_too_short": "Text je příliš krátký (minimální délka: {min_length}).",
-    "string_too_long": "Text je příliš dlouhý (maximální délka: {max_length}).",
+    "string_too_short": "Text je příliš krátký (minimální počet znaků: {min_length}).",
+    "string_too_long": "Text je příliš dlouhý (maximální počet znaků: {max_length}).",
     "string_pattern_mismatch": "Hodnota nemá povolený formát.",
     "too_short": "Příliš málo položek (minimum: {min_length}).",
     "too_long": "Příliš mnoho položek (maximum: {max_length}).",
@@ -122,7 +122,7 @@ VALIDATION_MESSAGES: Mapping[str, str] = {
     "greater_than": "Hodnota musí být větší než {gt}.",
     "greater_than_equal": "Hodnota musí být alespoň {ge}.",
     "less_than": "Hodnota musí být menší než {lt}.",
-    "less_than_equal": "Hodnota může být nejvýše {le}.",
+    "less_than_equal": "Hodnota musí být nejvýše {le}.",
     "enum": _CHOICE,
     "literal_error": _CHOICE,
     "date_type": _DATE,

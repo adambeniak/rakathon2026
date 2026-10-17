@@ -128,3 +128,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: merge #160 first, then this PR (base fix/extraction-exams-histology -> retarget to main after #160 merges); C1 still depends on model-extracted "Datum výkonu"/dose facts
   Risks: header C2 only for pathology reports (metadata type or anchored "Bioptický/Histologický nález" title), specimen only from "Materiál:"/"Odběr:" lines; the fact rule now skips documents typed as non-pathology; the eval does not score `conflicts`
   Issues: #159 (closes)
+- 2026-10-17 · claude (P1/P4) · fix/problem-json-blocking-items · #140 backend: `guard_failed` of `mark_ready_mdt` carries `blocking_items` (readiness keys from the structured gate result via `GuardFailure`/`TransitionError`; `detail` unchanged; ADR problem-json-blocking-items); #116 Czech contract example/descriptions + drift test; #117 one FhirConflictError branch; #115 Czech 422 `errors[].msg` (common Pydantic types, validator texts) + more Czech Starlette details
+  Next: #154 frontend reads `blocking_items` in `features/mdt/api.ts` and drops the regex (after #122 lands); merge captain assigns the ADR number
+  Risks: unknown Pydantic types keep English msg (some quote input, e.g. uuid_parsing — none used today); MSW guard_failed now has the Czech title like the backend, so mock mode shows the API title instead of `mdt.refused`
+  Issues: #154 (new), closes #115 #116 #117, refs #140

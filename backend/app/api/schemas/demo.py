@@ -36,7 +36,7 @@ class SetDemoClock(BaseModel):
     @classmethod
     def _plausible(cls, value: datetime | None) -> datetime | None:
         if value is not None and not MIN_YEAR <= value.year <= MAX_YEAR:
-            raise ValueError(f"Čas musí ležet mezi roky {MIN_YEAR} a {MAX_YEAR}.")
+            raise ValueError(f"Hodnota now musí být v letech {MIN_YEAR} až {MAX_YEAR}.")
         return value
 
 

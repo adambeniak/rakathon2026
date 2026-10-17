@@ -171,7 +171,7 @@ class TransitionRequest(BaseModel):
         if self.event == "deliver_result" and not self.document_id:
             raise ValueError("Pro doručení výsledku je nutné zadat document_id.")
         if self.event in {"fail", "cancel"} and not (self.note and self.note.strip()):
-            raise ValueError("Pro neúspěšné ukončení nebo zrušení úkolu je nutná poznámka (note).")
+            raise ValueError("Pro neúspěšné ukončení nebo zrušení úkolu je nutné zadat poznámku (note).")
         return self
 
 
@@ -193,5 +193,5 @@ class CreateTaskRequest(BaseModel):
     def _owner_role_is_assignable(self) -> Self:
         if self.owner_role not in ALLOWED_OWNER_ROLES:
             allowed = ", ".join(sorted(r.value for r in ALLOWED_OWNER_ROLES))
-            raise ValueError(f"owner_role musí být jedna z hodnot: {allowed}.")
+            raise ValueError(f"Hodnota owner_role musí být jedna z: {allowed}.")
         return self

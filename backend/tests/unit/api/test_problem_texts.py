@@ -218,9 +218,9 @@ def test_common_validation_errors_get_czech_messages() -> None:
     )
 
     assert messages == {
-        "name": "Text je příliš krátký (minimální délka: 2).",
-        "colour": "Hodnota není mezi povolenými možnostmi: 'red' nebo 'blue'.",
-        "kind": "Hodnota není mezi povolenými možnostmi: 'a' nebo 'b'.",
+        "name": "Text je příliš krátký (minimální počet znaků: 2).",
+        "colour": "Hodnota musí být jedna z možností: 'red' nebo 'blue'.",
+        "kind": "Hodnota musí být jedna z možností: 'a' nebo 'b'.",
         "count": "Hodnota musí být celé číslo.",
         "day": "Hodnota musí být datum ve formátu RRRR-MM-DD.",
         "at": "Datum a čas musí obsahovat časové pásmo (např. +02:00).",
@@ -230,7 +230,7 @@ def test_common_validation_errors_get_czech_messages() -> None:
 
 
 def test_more_validation_errors_get_czech_messages() -> None:
-    assert _messages({"name": "abcd", "count": 0})["name"] == "Text je příliš dlouhý (maximální délka: 3)."
+    assert _messages({"name": "abcd", "count": 0})["name"] == "Text je příliš dlouhý (maximální počet znaků: 3)."
     assert _messages({"name": "AB"})["name"] == "Hodnota nemá povolený formát."
     assert _messages({"count": 0})["count"] == "Hodnota musí být alespoň 1."
     assert _messages({})["colour"] == "Povinná hodnota chybí."

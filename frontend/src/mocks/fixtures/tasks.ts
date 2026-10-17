@@ -1,18 +1,19 @@
 // MOCK copy – replaced by API in F2/F3
 import type { components } from '@/lib/api/schema'
 import type { TaskItem, TaskPhase } from '@/lib/domain'
+import { DEMO_USERS } from './people'
 
 type Board = components['schemas']['Board']
 type TaskOut = components['schemas']['TaskOut']
 type Role = components['schemas']['Role']
 
 const BASE: Array<Omit<TaskItem, 'state' | 'phase'>> = [
-  { id: 't-req', title: 'Vyžádat výsledky 01–06', owner: 'Bc. Dvořáková', place: 'KOC 2 – koordinace', due: '2026-10-06', doneOn: '2026-10-08', dependsOn: [], lane: 'coordinator' },
+  { id: 't-req', title: 'Vyžádat výsledky 01–06', owner: DEMO_USERS.coordinator.name, place: 'KOC 2 – koordinace', due: '2026-10-06', doneOn: '2026-10-08', dependsOn: [], lane: 'coordinator' },
   { id: 't-ct', title: 'CT hrudníku a břicha (pankreatický protokol)', owner: 'KOC 1 – radiologie', place: 'KOC 1 – Nemocnice Severní', due: '2026-10-08', doneOn: '2026-10-08', dependsOn: [], lane: 'external' },
   { id: 't-eus', title: 'EUS-FNB', owner: 'KOC 2 – endoskopie', place: 'KOC 2 – Nemocnice Lipová', due: '2026-10-12', doneOn: '2026-10-12', dependsOn: ['t-ct'], lane: 'koc_physician' },
   { id: 't-lab', title: 'Odběry vč. nádorových markerů', owner: 'KOC 2 – laboratoř', place: 'KOC 2 – Nemocnice Lipová', due: '2026-10-15', doneOn: '2026-10-15', dependsOn: [], lane: 'external' },
   { id: 't-hist', title: 'Histologie', owner: 'KOC 2 – patologie', place: 'KOC 2 – Nemocnice Lipová', due: '2026-10-15', doneOn: '2026-10-19', dependsOn: ['t-eus'], lane: 'external' },
-  { id: 't-verify', title: 'Ověřit rozpor v datech (apixaban, datum odběru)', owner: 'Bc. Dvořáková', place: 'KOC 2 – koordinace', due: '2026-10-21', dependsOn: ['t-hist'], lane: 'coordinator' },
+  { id: 't-verify', title: 'Ověřit rozpor v datech (apixaban, datum odběru)', owner: DEMO_USERS.coordinator.name, place: 'KOC 2 – koordinace', due: '2026-10-21', dependsOn: ['t-hist'], lane: 'coordinator' },
   { id: 't-algo', title: 'Algeziologické vyšetření', owner: 'KOC 2 – algeziologie', place: 'KOC 2 – Nemocnice Lipová', due: '2026-10-26', doneOn: '2026-10-26', dependsOn: [], lane: 'koc_physician' },
   { id: 't-psy', title: 'Psychologické vyšetření', owner: 'KOC 2 – psychologie', place: 'KOC 2 – Nemocnice Lipová', due: '2026-10-27', doneOn: '2026-10-27', dependsOn: [], lane: 'koc_physician' },
 ]
@@ -51,7 +52,7 @@ const LANE_ROLE: Record<TaskItem['lane'], Role> = {
   patient: 'patient',
 }
 const BOARD_ROLES: Role[] = ['gp', 'coordinator', 'koc_physician', 'external_workplace', 'patient']
-const COORDINATOR = { id: 'dvorakova-lucie@koc2-nemocnice-lipova', display: 'Bc. Dvořáková', role: 'coordinator' } as const
+const COORDINATOR = { id: 'dvorakova-lucie@koc2-nemocnice-lipova', display: DEMO_USERS.coordinator.name, role: 'coordinator' } as const
 const BUSINESS: Record<TaskPhase, NonNullable<TaskOut['business_status']>> = {
   to_order: 'objednano',
   ordered: 'potvrzeno',

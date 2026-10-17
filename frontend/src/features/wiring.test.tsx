@@ -178,7 +178,7 @@ describe('handover review', () => {
     await userEvent.click(within(section).getByRole('button', { name: 'Uložit a potvrdit' }))
     expect(await within(section).findByText('Bez známých alergií')).toBeInTheDocument()
     expect(within(section).getByText('Upraveno lékařem', { selector: 'span' })).toBeInTheDocument()
-    expect(within(section).getByText('Potvrdil(a) MUDr. Havelka')).toBeInTheDocument()
+    expect(within(section).getByText('Potvrdil(a) doc. MUDr. Pavel Hrubý, Ph.D.')).toBeInTheDocument()
   })
 
   it('evidence chip opens the source document in a side panel', async () => {

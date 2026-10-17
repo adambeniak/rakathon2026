@@ -56,6 +56,7 @@ export function toApiCase(c: MockCase, today: string): ApiCase {
     missing_count: c.counts.missing,
     conflict_count: c.counts.conflict,
     counts: { missing: c.counts.missing, conflict: c.counts.conflict, stale: c.counts.stale },
+    gp_opened_at: c.gpOpenedAt ?? null,
   }
 }
 
@@ -72,5 +73,6 @@ export function toApiDetail(c: MockCase, today: string): ApiDetail {
             received_at: d.received,
           }))
         : [],
+    readiness_waivers: c.readinessWaivers ?? [],
   }
 }

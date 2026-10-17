@@ -4,6 +4,7 @@ import { http } from 'msw'
 import { axe } from 'vitest-axe'
 import { blockingItems, loopBody } from '@/features/mdt/api'
 import { ApiProblem } from '@/lib/api/problem'
+import { DEMO_USERS } from '@/mocks/fixtures/people'
 import { resetStore } from '@/mocks/fixtures/store'
 import { problem } from '@/mocks/handlers/util'
 import { server } from '@/mocks/server'
@@ -99,6 +100,31 @@ describe('Označit jako připravený k MDT (Lékař KOC)', () => {
         waivers: [{ item: 'performance_status', reason: 'PS doplní lékař na jednání.' }],
       },
     ])
+  })
+
+  it('after the waiver, the case API lists who waived which item, when and why', async () => {
+    const { container } = renderRoute(MDT, { role: 'physician', today: TODAY })
+    expect(
+      screen.queryByRole('region', { name: 'Prominuté položky připravenosti' }),
+    ).not.toBeInTheDocument()
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Označit jako připravený k MDT' }),
+    )
+    const form = await screen.findByRole('form', { name: 'Prominout a označit jako připravený' })
+    await userEvent.type(
+      within(form).getByLabelText('Důvod prominutí: Stav výkonnosti (PS/ECOG)'),
+      'PS doplní lékař na jednání.',
+    )
+    await userEvent.click(
+      within(form).getByRole('button', { name: 'Prominout a označit jako připravený' }),
+    )
+
+    const list = await screen.findByRole('region', { name: 'Prominuté položky připravenosti' })
+    expect(list).toHaveTextContent('Stav výkonnosti (PS/ECOG)')
+    expect(list).toHaveTextContent(
+      `Prominuto lékařem: ${DEMO_USERS.physician.name}, 20. 10. 2026 14:00, důvod: PS doplní lékař na jednání.`,
+    )
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('cancelling the waiver form sends nothing more and offers the button again', async () => {

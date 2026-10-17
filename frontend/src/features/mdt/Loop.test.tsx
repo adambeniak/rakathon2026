@@ -175,16 +175,38 @@ describe('Uzavřít případ (koordinátorka)', () => {
     await asRole('coordinator', { event: 'send_feedback' })
   }
 
-  it('warns that the GP read receipt is not known here, but allows closing', async () => {
+  it('while no GP opening is recorded: says so neutrally, warns, and still allows closing', async () => {
     await handedOver()
     const bodies = recordBodies()
-    renderRoute(MDT, { role: 'coordinator', today: TODAY, keepStore: true })
+    const { container } = renderRoute(MDT, { role: 'coordinator', today: TODAY, keepStore: true })
+    const loop = await screen.findByRole('region', { name: 'Předání závěru a uzavření' })
+    expect(
+      await within(loop).findByText('Otevření praktickým lékařem nezaznamenáno'),
+    ).toBeInTheDocument()
+    expect(loop).not.toHaveTextContent(/Nepřečteno|Neotevřeno/)
     await userEvent.click(await screen.findByRole('button', { name: 'Uzavřít případ' }))
     const warning = await screen.findByRole('group', { name: 'Uzavřít případ' })
-    expect(warning).toHaveTextContent(
-      'Zda praktický lékař závěr otevřel, tato obrazovka nezjišťuje',
-    )
+    expect(warning).toHaveTextContent('PL zatím nepotvrdil přečtení. Případ lze přesto uzavřít.')
+    expect(await axe(container)).toHaveNoViolations()
     await userEvent.click(within(warning).getByRole('button', { name: 'Uzavřít přesto' }))
+    expect(await screen.findByText('Případ je uzavřen.')).toBeInTheDocument()
+    expect(bodies).toEqual([{ event: 'close' }])
+  })
+
+  it('once the GP opened the conclusion: shows when, and no read warning', async () => {
+    await handedOver()
+    await asRole('gp', { event: 'gp_opened' })
+    const bodies = recordBodies()
+    renderRoute(MDT, { role: 'coordinator', today: TODAY, keepStore: true })
+    const loop = await screen.findByRole('region', { name: 'Předání závěru a uzavření' })
+    expect(
+      await within(loop).findByText('Závěr MDT otevřen praktickým lékařem: 21. 10. 2026 10:05'),
+    ).toBeInTheDocument()
+    expect(loop).not.toHaveTextContent('Otevření praktickým lékařem nezaznamenáno')
+    await userEvent.click(within(loop).getByRole('button', { name: 'Uzavřít případ' }))
+    const confirm = await screen.findByRole('group', { name: 'Uzavřít případ' })
+    expect(confirm).not.toHaveTextContent('PL zatím nepotvrdil přečtení')
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Potvrdit uzavření' }))
     expect(await screen.findByText('Případ je uzavřen.')).toBeInTheDocument()
     expect(bodies).toEqual([{ event: 'close' }])
   })

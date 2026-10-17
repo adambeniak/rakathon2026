@@ -5,13 +5,15 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Final
 
+from app.documents.doc_type import infer_type_code
 from app.domain.document import SourceDocument
 from app.domain.evidence import Certainty, DatePrecision, Evidence, Fact, FactType
 from app.domain.handover import HandoverItem, ItemEvidence
+from app.extraction.handover.headers import DocumentHeader
 from app.extraction.values import (
     CodedValue,
     DateValue,
@@ -44,12 +46,16 @@ class HandoverRules:
 
 @dataclass(frozen=True)
 class Context:
-    """Included facts and documents of one assembly run (as-of filter already applied)."""
+    """Included facts and documents of one assembly run (as-of filter already applied).
+
+    `headers`: deterministic header lines of the included documents (`headers.parse_header`), keyed by doc_id.
+    """
 
     as_of: datetime
     facts: tuple[Fact, ...]
     docs: Mapping[str, SourceDocument]
     rules: HandoverRules
+    headers: Mapping[str, DocumentHeader] = field(default_factory=dict)
 
     def select(
         self,
@@ -70,7 +76,12 @@ class Context:
         ]
 
     def doc_type(self, fact: Fact) -> str | None:
-        return self.docs[fact.doc_id].type_code
+        return self.type_of(self.docs[fact.doc_id])
+
+    @staticmethod
+    def type_of(doc: SourceDocument) -> str | None:
+        """LOINC type from the metadata, else from the file name (a document stored before uploads were typed)."""
+        return doc.type_code or infer_type_code(doc.doc_id)
 
     def authored(self, fact: Fact) -> date:
         return self.docs[fact.doc_id].authored_at
@@ -146,15 +157,19 @@ def same_stem(a: str, b: str, *, min_prefix: int = 5) -> bool:
     return common >= min_prefix and common >= shorter - 3
 
 
-def union_evidence(facts: Iterable[Fact]) -> list[Evidence]:
+def union_evidence(facts: Iterable[Fact], extra: Iterable[Evidence] = ()) -> list[Evidence]:
+    """Evidence of the facts, then `extra` (header lines), each quote once."""
+    return dedupe_evidence([*(ev for fact in facts for ev in fact.evidence), *extra])
+
+
+def dedupe_evidence(evidence: Iterable[Evidence]) -> list[Evidence]:
     seen: set[tuple[str, str, int | None]] = set()
     out: list[Evidence] = []
-    for fact in facts:
-        for ev in fact.evidence:
-            key = (ev.doc_id, ev.quote, ev.char_start)
-            if key not in seen:
-                seen.add(key)
-                out.append(ev)
+    for ev in evidence:
+        key = (ev.doc_id, ev.quote, ev.char_start)
+        if key not in seen:
+            seen.add(key)
+            out.append(ev)
     return out
 
 
@@ -173,9 +188,13 @@ def item_evidence(
 
     `dedupe=False` keeps one entry per fact even when facts share a quote (epicrisis: parallel to the aliases).
     """
-    out: list[ItemEvidence] = []
     facts = list(facts)
-    for ev in union_evidence(facts) if dedupe else [f.evidence[0] for f in facts]:
+    return with_document_dates(docs, union_evidence(facts) if dedupe else [f.evidence[0] for f in facts])
+
+
+def with_document_dates(docs: Mapping[str, SourceDocument], evidence: Iterable[Evidence]) -> list[ItemEvidence]:
+    out: list[ItemEvidence] = []
+    for ev in evidence:
         doc = docs[ev.doc_id]
         out.append(ItemEvidence(**ev.model_dump(), authored_at=doc.authored_at, received_at=doc.received_at))
     return out
@@ -189,10 +208,11 @@ def make_item(
     label: str | None = None,
     unit: str | None = None,
     clinical_date: date | None = None,
+    extra: Iterable[Evidence] = (),
 ) -> HandoverItem:
-    return HandoverItem(
-        label=label, value=value, unit=unit, clinical_date=clinical_date, evidence=item_evidence(ctx.docs, facts)
-    )
+    """One displayed value; `extra` adds header-line evidence (`headers.parse_header`) after the facts' quotes."""
+    evidence = with_document_dates(ctx.docs, union_evidence(facts, extra))
+    return HandoverItem(label=label, value=value, unit=unit, clinical_date=clinical_date, evidence=evidence)
 
 
 def cz_date(day: date) -> str:

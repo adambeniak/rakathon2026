@@ -24,6 +24,7 @@ from app.extraction.handover.assemble import assemble_handover, included_facts, 
 from app.extraction.handover.epicrisis import check_sentences, generate_epicrisis, select_facts
 from app.extraction.handover.facts import fold_text
 from app.extraction.handover.fields import DOCUMENTED_PREFIX
+from app.extraction.handover.headers import parse_headers
 from app.extraction.lock import NEGATED_VALUE_REPAIRED, numbers_in
 from app.extraction.pipeline import CompletionClient, extract_facts
 from app.settings import PRAGUE
@@ -69,13 +70,21 @@ async def extract_all(client: CompletionClient) -> tuple[dict[str, NormalizedDoc
     return docs, facts
 
 
-async def build(facts: list[Fact], epicrisis_client: CompletionClient, as_of: datetime) -> tuple[Handover, list[Fact]]:
+async def build(
+    facts: list[Fact],
+    epicrisis_client: CompletionClient,
+    as_of: datetime,
+    docs: dict[str, NormalizedDoc] | None = None,
+) -> tuple[Handover, list[Fact]]:
     documents = handover_documents()
     included, _ = split_documents(documents, as_of)
     known = included_facts(facts, included)
     field4 = await generate_epicrisis(known, included, epicrisis_client, case_id=CASE_ID)
     findings = detect_findings(known)
-    handover = assemble_handover(CASE_ID, as_of, known, documents, patient=PATIENT, findings=findings, epicrisis=field4)
+    headers = parse_headers(docs) if docs is not None else None
+    handover = assemble_handover(
+        CASE_ID, as_of, known, documents, patient=PATIENT, findings=findings, epicrisis=field4, headers=headers
+    )
     return handover, known
 
 
@@ -211,6 +220,9 @@ def key_values(h: Handover, golden: dict[str, Any]) -> dict[str, bool]:
         "12.documents": {e.doc_id for e in f.examinations.value or []}
         == {e["doc"] for e in g["12_examinations"]["value"]},
         "14.report_id": bool(histology and histology.report_id == g["14_histology"]["value"]["report_id"]),
+        "14.issued": bool(
+            histology and histology.issued and histology.issued.isoformat() == g["14_histology"]["value"]["issued"]
+        ),
         "14.ihc": bool(histology and histology.ihc == g["14_histology"]["value"]["ihc"]),
         "14.grade": bool(histology and histology.grade == g["14_histology"]["value"]["grade"]),
     }
@@ -227,9 +239,9 @@ def key_values(h: Handover, golden: dict[str, Any]) -> dict[str, bool]:
 
 async def run(extraction: CompletionClient, epicrisis_client: CompletionClient) -> dict[str, Any]:
     golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
-    _, facts = await extract_all(extraction)
-    handover, known = await build(facts, epicrisis_client, AS_OF)
-    later, _ = await build(facts, epicrisis_client, LATER_AS_OF)
+    docs, facts = await extract_all(extraction)
+    handover, known = await build(facts, epicrisis_client, AS_OF, docs)
+    later, _ = await build(facts, epicrisis_client, LATER_AS_OF, docs)
     fresh = {p.stem: normalize(p) for p in sorted(DOCS_DIR.glob("*.docx"))}
 
     statuses = []

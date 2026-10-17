@@ -81,6 +81,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cases/{case_id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit trail of the case (who, when, what kind of action)
+         * @description AuditEvents naming the case's coordinating Task, EpisodeOfCare, steps, report requests, documents and messages, newest first, paged by `offset`/`limit`. Codes only (workflow event or interaction, record types, outcome) — no free-text reasons or clinical content. KOC team of the case only; the read is audited.
+         */
+        get: operations["cases-get_case_audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cases/{case_id}/board": {
         parameters: {
             query?: never;
@@ -260,6 +280,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cases/{case_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Messages of the case
+         * @description Report requests sent to workplaces (CommunicationRequest, with the state of their tracking task) and the MDT feedback e-mail to the referring GP (Communication, with the relay's receipt id and when the GP opened it), oldest first. KOC team of the case only; the read is audited.
+         */
+        get: operations["cases-get_case_messages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cases/{case_id}/pathways": {
         parameters: {
             query?: never;
@@ -291,6 +331,26 @@ export interface paths {
          * @description Coordinator only (403 otherwise). A closed case (`uzavreno`) takes no new tasks: 409 `conflict`.
          */
         post: operations["coordination-create_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Timeline of the case
+         * @description Documents (authored and received), case events and state changes, report requests and their fulfilment, step dates (scheduled, result delivered, escalated, cancelled), the MDT meeting and conclusion, and the feedback to the GP (sent, accepted by the relay, opened by the GP), oldest first, in business time. `excluded_from_handover` is the backend's as-of decision against the MDT start. KOC team of the case only; the read is audited.
+         */
+        get: operations["cases-get_case_timeline"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -764,6 +824,55 @@ export interface components {
          */
         AskStatus: "answered" | "not_documented" | "not_verified" | "advice_declined";
         /**
+         * AuditEntry
+         * @description One audit record. Codes only: the UI names them in Czech; no free text or clinical content is returned.
+         */
+        AuditEntry: {
+            /**
+             * Action
+             * @description FHIR AuditEventAction: C create, R read, U update, D delete, E execute (search, transaction).
+             * @enum {string}
+             */
+            action: "C" | "R" | "U" | "D" | "E";
+            /**
+             * Actor
+             * @description Display name of who acted (person or 'Štafeta (systém)').
+             */
+            actor?: string | null;
+            actor_role?: components["schemas"]["Role"] | null;
+            /**
+             * Entity Types
+             * @description Kinds of record touched, e.g. ['Task', 'DocumentReference'].
+             */
+            entity_types: string[];
+            /**
+             * On Behalf Of
+             * @description Workplace the coordinator recorded a step for.
+             */
+            on_behalf_of?: string | null;
+            /**
+             * Operation
+             * @description Workflow event code (`accept`, `send_feedback`, `gp_opened`, `request_report`, ...) or the interaction (`read`, `search-type`, `create`, `update`, `transaction`, `export`, `index`, `extract`, `launch_pathway`).
+             */
+            operation: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "success" | "failure";
+            /**
+             * Recorded
+             * Format: date-time
+             * @description When it happened (AuditEvent.recorded).
+             */
+            recorded: string;
+            /**
+             * Workflow Event
+             * @description A business event of the case or task state machine.
+             */
+            workflow_event: boolean;
+        };
+        /**
          * BatonBasis
          * @enum {string}
          */
@@ -870,6 +979,53 @@ export interface components {
          * @enum {string}
          */
         CaseAction: "accept_case" | "triage" | "complete_documents" | "review_handover" | "hold_mdt" | "send_feedback" | "confirm_receipt" | "close_case" | "await_external" | "none";
+        /**
+         * CaseAuditTrail
+         * @example {
+         *       "case_id": "rakathon-2026-prochazkova",
+         *       "items": [
+         *         {
+         *           "action": "U",
+         *           "actor": "doc. MUDr. Pavel Hrubý, Ph.D.",
+         *           "actor_role": "koc_physician",
+         *           "entity_types": [
+         *             "Task"
+         *           ],
+         *           "operation": "record_mdt_conclusion",
+         *           "outcome": "success",
+         *           "recorded": "2026-10-21T09:30:00+02:00",
+         *           "workflow_event": true
+         *         }
+         *       ],
+         *       "limit": 100,
+         *       "offset": 0,
+         *       "total": 42,
+         *       "truncated": false
+         *     }
+         */
+        CaseAuditTrail: {
+            /** Case Id */
+            case_id: string;
+            /**
+             * Items
+             * @description Newest first.
+             */
+            items: components["schemas"]["AuditEntry"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /**
+             * Total
+             * @description Records in the trail of the case (before offset/limit).
+             */
+            total: number;
+            /**
+             * Truncated
+             * @description More records exist after this page.
+             */
+            truncated: boolean;
+        };
         /**
          * CaseBaton
          * @description Who must act next on the case as a whole and what that step is; computed by the backend from the case state,
@@ -1024,6 +1180,48 @@ export interface components {
             suspected_diagnosis?: components["schemas"]["app__api__schemas__cases__SuspectedDiagnosis"] | null;
         };
         /**
+         * CaseMessage
+         * @example {
+         *       "id": "rakathon-2026-prochazkova-req-1",
+         *       "kind": "document_request",
+         *       "recipient": "Laboratoř LabJih",
+         *       "request": {
+         *         "due": "2026-10-06T23:59:00+02:00",
+         *         "request_id": "rakathon-2026-prochazkova-req-1",
+         *         "result_doc_id": "03_RTG_plic_2026-09-03",
+         *         "status": "completed"
+         *       },
+         *       "sender": "Bc. Jana Nováková",
+         *       "sent_at": "2026-10-02T11:30:00+02:00",
+         *       "status": "fulfilled",
+         *       "text": "Žádost o zaslání výsledku vyšetření: RTG plic 3. 9. 2026 (3. 9. 2026)"
+         *     }
+         */
+        CaseMessage: {
+            delivery?: components["schemas"]["MessageDelivery"] | null;
+            /** Id */
+            id: string;
+            kind: components["schemas"]["MessageKind"];
+            /** Recipient */
+            recipient?: string | null;
+            request?: components["schemas"]["MessageRequestInfo"] | null;
+            /** Sender */
+            sender?: string | null;
+            /** Sent At */
+            sent_at?: string | null;
+            /**
+             * Status
+             * @description `open` request awaiting the report, `fulfilled` report received, `cancelled` request withdrawn, `sent` feedback e-mail accepted by the relay.
+             * @enum {string}
+             */
+            status: "open" | "fulfilled" | "cancelled" | "sent";
+            /**
+             * Text
+             * @description The message as sent (fixed template; the feedback e-mail holds no clinical content).
+             */
+            text: string;
+        };
+        /**
          * CaseState
          * @description The 8 case states from the VZP brief (slide 10). Czech labels live in the UI i18n and the FHIR CodeSystem.
          * @enum {string}
@@ -1122,6 +1320,50 @@ export interface components {
             state: components["schemas"]["CaseState"];
             /** @description From the referral (suspected, as written); null when the case has no referral letter. */
             suspected_diagnosis?: components["schemas"]["app__api__schemas__cases__SuspectedDiagnosis"] | null;
+        };
+        /**
+         * CaseTimeline
+         * @example {
+         *       "as_of": "2026-10-21T08:00:00+02:00",
+         *       "case_id": "rakathon-2026-prochazkova",
+         *       "events": [
+         *         {
+         *           "at": "2026-10-19T12:10:00+02:00",
+         *           "doc_id": "11_Histologie_KOC2_2026-10-19",
+         *           "excluded_from_handover": false,
+         *           "id": "doc-received:11_Histologie_KOC2_2026-10-19",
+         *           "kind": "document_received",
+         *           "place": "Nemocnice Lipová – patologie",
+         *           "title": "Histologie"
+         *         },
+         *         {
+         *           "at": "2026-10-21T08:00:00+02:00",
+         *           "id": "mdt-meeting",
+         *           "kind": "mdt_meeting"
+         *         }
+         *       ],
+         *       "now": "2026-10-21T10:00:00+02:00"
+         *     }
+         */
+        CaseTimeline: {
+            /**
+             * As Of
+             * @description MDT start the handover flag is computed against.
+             */
+            as_of?: string | null;
+            /** Case Id */
+            case_id: string;
+            /**
+             * Events
+             * @description Oldest first.
+             */
+            events: components["schemas"]["TimelineEntry"][];
+            /**
+             * Now
+             * Format: date-time
+             * @description Current (demo) time `planned` is computed against.
+             */
+            now: string;
         };
         /** CheckResult */
         CheckResult: {
@@ -2898,6 +3140,46 @@ export interface components {
              */
             value_hash?: string | null;
         };
+        /** MessageDelivery */
+        MessageDelivery: {
+            /**
+             * Channel
+             * @default email
+             * @constant
+             */
+            channel: "email";
+            /**
+             * Gp Opened At
+             * @description First time the referring GP opened the feedback in the portal; null = not recorded.
+             */
+            gp_opened_at?: string | null;
+            /**
+             * Receipt Id
+             * @description SMTP Message-ID: the relay accepted the e-mail (handed over, not proof it was read).
+             */
+            receipt_id?: string | null;
+        };
+        /**
+         * MessageKind
+         * @enum {string}
+         */
+        MessageKind: "document_request" | "mdt_feedback";
+        /** MessageRequestInfo */
+        MessageRequestInfo: {
+            /** Due */
+            due?: string | null;
+            /** Exam Date */
+            exam_date?: string | null;
+            /** Request Id */
+            request_id: string;
+            /**
+             * Result Doc Id
+             * @description The report that fulfilled the request.
+             */
+            result_doc_id?: string | null;
+            /** @description Status of the request's tracking task. */
+            status: components["schemas"]["TaskStatus"];
+        };
         /**
          * MissingItem
          * @description A sub-item the sources do not state: never inferred, but routed to whoever can supply it.
@@ -3742,6 +4024,79 @@ export interface components {
             /** @description MDT → onkologické konzilium (proxy). */
             t3: components["schemas"]["TreatmentInterval"];
         };
+        /** TimelineEntry */
+        TimelineEntry: {
+            /** Actor */
+            actor?: string | null;
+            /**
+             * At
+             * Format: date-time
+             * @description Business time; for `date_only` the start of that day in Europe/Prague.
+             */
+            at: string;
+            /**
+             * Date Only
+             * @description Only the day is known (authored date of a report).
+             * @default false
+             */
+            date_only: boolean;
+            /** Doc Id */
+            doc_id?: string | null;
+            /**
+             * Event
+             * @description Workflow event code of a case event (`accept`, `reopen`, ...).
+             */
+            event?: string | null;
+            /**
+             * Excluded From Handover
+             * @description Documents only: authored or received after the MDT start, so not part of the MDT handover (as-of rule, decided by the backend). Null when the case has no MDT start or for other kinds.
+             */
+            excluded_from_handover?: boolean | null;
+            /**
+             * From State
+             * @description Case state before a case event.
+             */
+            from_state?: string | null;
+            /**
+             * Id
+             * @description Stable within one response; use it as a list key.
+             */
+            id: string;
+            kind: components["schemas"]["TimelineKind"];
+            /**
+             * Place
+             * @description Issuing or receiving workplace.
+             */
+            place?: string | null;
+            /**
+             * Planned
+             * @description After the current (demo) time: a scheduled step or the MDT meeting.
+             * @default false
+             */
+            planned: boolean;
+            /**
+             * Receipt Id
+             * @description `feedback_delivered`: SMTP Message-ID accepted by the relay.
+             */
+            receipt_id?: string | null;
+            /** Task Id */
+            task_id?: string | null;
+            /**
+             * Title
+             * @description Document title, step title or request label, as stored.
+             */
+            title?: string | null;
+            /**
+             * To State
+             * @description Case state after a case event; null when it did not change.
+             */
+            to_state?: string | null;
+        };
+        /**
+         * TimelineKind
+         * @enum {string}
+         */
+        TimelineKind: "document_authored" | "document_received" | "case_event" | "request_sent" | "request_fulfilled" | "step_scheduled" | "step_result_delivered" | "step_escalated" | "step_cancelled" | "mdt_meeting" | "mdt_conclusion" | "feedback_sent" | "feedback_delivered" | "gp_opened";
         /** TreatmentInterval */
         TreatmentInterval: {
             /**
@@ -4314,6 +4669,88 @@ export interface operations {
             };
             /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-get_case_audit": {
+        parameters: {
+            query?: {
+                /** @description Page size. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseAuditTrail"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5295,6 +5732,84 @@ export interface operations {
             };
         };
     };
+    "cases-get_case_messages": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseMessage"][];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
     "coordination-launch_pathway": {
         parameters: {
             query?: never;
@@ -5450,6 +5965,84 @@ export interface operations {
             };
             /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Chyba navazující služby (FHIR storage rejected the operation) (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Služba není dostupná (IRIS or the AI service unavailable) (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-get_case_timeline": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaseTimeline"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Záznam nebyl nalezen (not found) (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Neplatný požadavek (request validation failed; issues in `errors`) (application/problem+json) */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -175,3 +175,13 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: #188 (record first GP visit -> T1), #189 (oncology consult -> T3), #190 (reviewer list reads all cases), #35 (other case sub-routes)
   Risks: live mode untested (Docker off); live T1 always "nezaznamenáno", T3 "běží" after the MDT until #188/#189
   Issues: closes #104, #105; #188, #189, #190 new
+- 2026-10-17 · claude (P4) · feat/case-audit-timeline-messages · #47: GET /api/cases/{id}/audit|timeline|messages (KOC team only, audited reads, codes only, as-of flag from the backend); Audit / Časová osa / Komunikace tabs on the generated client + zod, MSW mocks in contract shapes; ADR XXXX-case-audit-timeline-messages
+  Verified: ruff, mypy app, backend pytest -m "not iris" 1169 passed (before rebase) + 20 targeted after rebase; frontend lint, typecheck, vitest 187 passed (before rebase) + targeted after rebase
+  Next: #199 (security/clinical review, make e2e, screenshot), #197 (verify AuditEvent entity OR-search on make up-local), #198 (repository clock = demo clock)
+  Risks: IRIS search patterns unverified; audit trail read whole per request; audit times mix wall/demo clock
+  Issues: refs #47; #197, #198, #199 new
+- 2026-10-17 · claude (P4/QA) · qa/live-dress-rehearsal · live dress rehearsal on a local IRIS (make up-local demo-start): all 6 demo steps PASS over the API with X-Demo-Role; live Playwright project rewritten to follow the runbook (case id from URL, 3b via clock PUT, advance, 21. 10. snapshot, Mailpit, queue path Aktivní) and passed steps 1–2 + step 3 uploads live; mock project still green
+  Verified: API driver run steps 1–6 (all 2xx as expected, 409 guard_failed then waiver 200); `make e2e` mock 1 passed; live run see PR; IRIS used 1.98/2 GiB, backend ~1 GiB
+  Next: finish live steps 3–6 on an idle machine and run make test-iris-local (#202); #163 discriminating iris test
+  Risks: under heavy machine load one FHIR transaction took 155 s; each live e2e run needs a fresh make up-local
+  Issues: #175 (closed by PR), #202 new; #99/#163/#61 commented with evidence, still open

@@ -214,6 +214,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cases/{case_id}/mdt-conclusion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed MDT conclusion of the case
+         * @description 404 until a KOC physician has signed the conclusion (`record_mdt_conclusion`). Participants of the case only; the referring GP can read it once the feedback has been sent. Every read is audited, but a read does not record `gp_opened`: the GP portal sends `POST /cases/{id}/transitions {event: gp_opened}` after showing it.
+         */
+        get: operations["cases-get_mdt_conclusion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cases/{case_id}/mdt-record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * MDT record in the MDT_zapis layout (DOCX), as of the MDT start
+         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items; a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.
+         */
+        get: operations["handover-get_mdt_record"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cases/{case_id}/pathways": {
         parameters: {
             query?: never;
@@ -259,7 +299,7 @@ export interface paths {
         put?: never;
         /**
          * Apply a case event (state machine)
-         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician; the GP recipient of `send_feedback` is the referring GP of the case. Every event writes one AuditEvent.
+         * @description Forbidden transitions answer 409 problem+json with `code` = invalid_transition | forbidden_role | guard_failed | case_postponed. The acting role comes from the `X-Demo-Role` header (demo mode). `record_mdt_conclusion` is signed by the acting KOC physician and stores the conclusion text (read it with `GET /cases/{id}/mdt-conclusion`) in the same transaction. `send_feedback` e-mails the referring GP of the case (no clinical text, link to the GP portal) and, once the mail relay accepted the message, the system records it as handed over for delivery (`delivery_confirmed`, receipt = SMTP Message-ID; the GP opening the feedback is recorded separately by `gp_opened`); a mail failure answers 503 `mail-unavailable` and changes nothing. Every event writes an AuditEvent.
          */
         post: operations["cases-transition_case"];
         delete?: never;
@@ -2027,6 +2067,31 @@ export interface components {
              */
             start_date: string;
         };
+        /**
+         * MdtConclusionOut
+         * @example {
+         *       "signed_at": "2026-10-21T09:30:00+02:00",
+         *       "signed_by": {
+         *         "display": "MUDr. Lenka Marková",
+         *         "id": "markova-lenka@koc2-nemocnice-lipova",
+         *         "role": "koc_physician"
+         *       },
+         *       "text": "Závěr MDT dle zápisu."
+         *     }
+         */
+        MdtConclusionOut: {
+            /**
+             * Signed At
+             * Format: date-time
+             */
+            signed_at: string;
+            signed_by: components["schemas"]["SignedBy"];
+            /**
+             * Text
+             * @description The conclusion as signed; stored in the MDT conclusion Composition.
+             */
+            text: string;
+        };
         /** Medication */
         Medication: {
             /** Dose */
@@ -2475,6 +2540,18 @@ export interface components {
          * @enum {string}
          */
         Sex: "female" | "male" | "other" | "unknown";
+        /** SignedBy */
+        SignedBy: {
+            /** Display */
+            display: string;
+            /**
+             * Id
+             * @description PractitionerRole business id of the signing physician.
+             */
+            id: string;
+            /** @description Role of the signer in the directory; null if unknown. */
+            role?: components["schemas"]["Role"] | null;
+        };
         /** SkippedStep */
         SkippedStep: {
             /**
@@ -2875,7 +2952,7 @@ export interface components {
             conclusion?: string | null;
             /**
              * Event
-             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician) | send_feedback (coordinator) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator). Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.
+             * @description accept | request_documents | mark_complete | docs_received | missing_found | postpone | resume | record_mdt_conclusion (koc_physician; stores the text) | send_feedback (coordinator; e-mails the GP and records the hand-over to the mail relay) | delivery_confirmed (system only: refused for every demo role) | gp_opened (the referring GP) | close (coordinator). Other machine events (mark_ready_mdt, reopen) are refused (422) until their endpoints exist.
              */
             event: string;
             /**
@@ -3919,6 +3996,174 @@ export interface operations {
             };
             /** @description Not allowed in the current state (application/problem+json) */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Request validation failed (application/problem+json) */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Unexpected server error (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "cases-get_mdt_conclusion": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MdtConclusionOut"];
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description FHIR storage rejected the operation (application/problem+json) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description IRIS or the AI service unavailable (application/problem+json) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    "handover-get_mdt_record": {
+        parameters: {
+            query?: {
+                /** @description Only DOCX for now. */
+                format?: "docx";
+            };
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path: {
+                case_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description DOCX document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": string;
+                };
+            };
+            /** @description Actor not identified (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Role not allowed (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Not found (application/problem+json) */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

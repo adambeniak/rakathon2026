@@ -1,7 +1,7 @@
-// Case list and detail, claim/acknowledge, and the triage document requests (demo steps 1–2).
-// The document requests are not in contracts/openapi.json yet: paths and payloads are provisional.
+// Case list and detail, the claim transition and the triage document requests (demo steps 1–2), on the contract paths.
+// Findings, timeline, messages and audit are not in contracts/openapi.json: their handlers keep the provisional paths.
 import { http, HttpResponse } from 'msw'
-import type { DocumentRequest } from '@/lib/domain'
+import type { components } from '@/lib/api/schema'
 import { toApiCase, toApiDetail } from '../fixtures/api'
 import { ALENA_ID, allCases, caseById, inboxCases, newStore } from '../fixtures/cases'
 import { DOCUMENTS } from '../fixtures/documents'
@@ -11,23 +11,53 @@ import { store } from '../fixtures/store'
 import { timelineAt } from '../fixtures/timeline'
 import { problem, roleOf, todayOf } from './util'
 
+type Schemas = components['schemas']
+
 const isAlena = (id: string | readonly string[] | undefined) => id === ALENA_ID
 
-// Verbatim line from report 07 (the list of examinations the GP refers to); the API returns it with each proposal.
-const REFERRAL_EVIDENCE = {
-  docId: '07_PL_zadost_KOC2_2026-10-02',
-  quote: 'UZ břicha 29. 9. 2026 (RDG pracoviště, Poliklinika Jižní)',
+const LETTER = '07_PL_zadost_KOC2_2026-10-02'
+
+// The five reports the GP's letter lists (numbered lines of report 07), in the backend's order; the GP's own epicrisis
+// (04) is not among them. The evidence quote is the verbatim numbered line, `label` the same without its number.
+const LISTED = [
+  { doc: '02_Laborator_2026-09-01', exam: '2026-09-01', org: 'labjih', recipient: 'Laboratoř LabJih', by: 'organization', label: 'Laboratorní vyšetření 1. 9. 2026 – krevní obraz, biochemie, moč chemicky a sediment, kultivace moči (LabJih)' },
+  { doc: '03_RTG_plic_2026-09-03', exam: '2026-09-03', org: 'rc-modrany', recipient: 'Radiologické centrum Modřany', by: 'organization', label: 'RTG plic 3. 9. 2026 (Radiologické centrum Modřany)' },
+  { doc: '05_Gastroenterologie_2026-09-15', exam: '2026-09-15', org: 'poliklinika-jizni', recipient: 'Poliklinika Jižní', by: 'organization', label: 'Gastroenterologické vyšetření 15. 9. 2026 (MUDr. Ivana Křížová, Poliklinika Jižní)' },
+  { doc: '06_UZ_bricha_2026-09-29', exam: '2026-09-29', org: 'poliklinika-jizni', recipient: 'Poliklinika Jižní', by: 'organization', label: 'UZ břicha 29. 9. 2026 (RDG pracoviště, Poliklinika Jižní)' },
+  { doc: '01_Kardiologie_2026-07-20', exam: '2026-07-20', org: 'kardio-jesenice', recipient: 'Kardiologická ambulance Jesenice', by: 'practitioner', label: 'Kardiologická kontrola 20. 7. 2026 (MUDr. Petr Malý)' },
+] as const
+
+const received = (doc: string) => DOCUMENTS.find((d) => d.id === doc)?.received.slice(0, 10)
+const requestId = (doc: string) => `req-${doc}`
+
+function proposals(today: string): Schemas['ProposalsOut'] {
+  return {
+    source_doc_id: LETTER,
+    proposals: LISTED.map((l, i) => {
+      const arrived = (received(l.doc) ?? '9999') <= today
+      return {
+        key: `${l.exam}-${i + 1}`,
+        label: l.label,
+        exam_date: l.exam,
+        status: arrived ? 'attached' : 'missing',
+        attached_doc_id: arrived ? l.doc : null,
+        recipient_org_id: l.org,
+        recipient_name: l.recipient,
+        resolved_by: l.by,
+        evidence: [{ doc_id: LETTER, quote: `${i + 1}. ${l.label}` }],
+      }
+    }),
+  }
 }
 
-/** Reports 01–06 are referenced by the GP's request but not attached (demo step 2). */
-function proposals(today: string): DocumentRequest[] {
-  return DOCUMENTS.slice(0, 6).filter((d) => d.received.slice(0, 10) > today).map((d) => ({
-    id: `req-${d.id}`,
-    title: d.title,
-    recipient: d.place,
-    docId: d.id,
-    requested: store.requested.includes(`req-${d.id}`),
-    evidence: REFERRAL_EVIDENCE,
+function requests(): Schemas['DocumentRequestOut'][] {
+  return LISTED.filter((l) => store.requested.includes(requestId(l.doc))).map((l) => ({
+    id: requestId(l.doc),
+    label: l.label,
+    recipient: l.recipient,
+    exam_date: l.exam,
+    due: '2026-10-06T12:00:00+02:00',
+    status: 'requested',
   }))
 }
 
@@ -49,22 +79,34 @@ export const handlers = [
   http.get('/api/cases/:id/audit', ({ params, request }) =>
     HttpResponse.json(isAlena(params.id) ? AUDIT.filter((a) => a.at.slice(0, 10) <= todayOf(request)) : []),
   ),
-  http.get('/api/cases/:id/document-requests', ({ params, request }) =>
-    HttpResponse.json(params.id === ALENA_ID ? proposals(todayOf(request)) : []),
+  http.get('/api/cases/:id/document-requests/proposals', ({ params, request }) =>
+    HttpResponse.json(isAlena(params.id) ? proposals(todayOf(request)) : { source_doc_id: null, proposals: [] }),
   ),
-  http.post('/api/cases/:id/document-requests', async ({ request }) => {
+  http.get('/api/cases/:id/document-requests', ({ params }) => HttpResponse.json(isAlena(params.id) ? requests() : [])),
+  http.post('/api/cases/:id/document-requests', async ({ params, request }) => {
     if (roleOf(request) !== 'coordinator') return problem(403, 'Podklady může vyžádat pouze koordinátorka')
-    const body = (await request.json()) as { ids?: string[] }
-    const valid = new Set(proposals(todayOf(request)).map((p) => p.id))
-    const ids = (body.ids ?? []).filter((i) => valid.has(i))
-    if (ids.length === 0) return problem(422, 'Vyberte alespoň jeden dokument')
-    for (const id of ids) if (!store.requested.includes(id)) store.requested.push(id)
-    return HttpResponse.json({ requested: ids.length })
+    const body = (await request.json()) as Schemas['DocumentRequestsBody']
+    const wanted = LISTED.filter((l) => body.items.some((i) => i.label === l.label && i.recipient_org_id === l.org))
+    if (wanted.length === 0) return problem(422, 'Vyberte alespoň jeden dokument')
+    for (const l of wanted) if (!store.requested.includes(requestId(l.doc))) store.requested.push(requestId(l.doc))
+    const today = todayOf(request)
+    const created: Schemas['DocumentRequestsCreated'] = {
+      case: toApiCase(caseById(String(params.id), today, store)!, today),
+      requests: requests().filter((r) => wanted.some((l) => requestId(l.doc) === r.id)),
+    }
+    return HttpResponse.json(created, { status: 201 })
   }),
-  http.post('/api/cases/:id/claim', ({ params }) => {
+  http.post('/api/cases/:id/transitions', async ({ params, request }) => {
     const id = String(params.id)
-    if (!store.claimed.includes(id)) store.claimed.push(id)
-    return HttpResponse.json({ ok: true })
+    const today = todayOf(request)
+    const c = caseById(id, today, store)
+    if (!c) return problem(404, 'Případ nebyl nalezen')
+    const { event } = (await request.json()) as Schemas['app__api__schemas__workflow__TransitionRequest']
+    if (event !== 'accept') return problem(422, 'Událost není v této ukázce podporována')
+    if (roleOf(request) !== 'coordinator') return problem(409, 'Případ smí převzít pouze koordinátorka')
+    if (c.state !== 'odeslano') return problem(409, 'Případ už byl převzat')
+    store.claimed.push(id)
+    return HttpResponse.json(toApiCase(caseById(id, today, store)!, today))
   }),
   http.post('/api/cases/:id/acknowledge', ({ params }) => {
     const id = String(params.id)

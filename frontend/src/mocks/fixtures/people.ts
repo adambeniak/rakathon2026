@@ -1,3 +1,4 @@
+import type { components } from '@/lib/api/schema'
 import type { Role } from '@/lib/domain'
 
 export interface DemoUser {
@@ -29,7 +30,17 @@ export const DEMO_USERS: Record<Role, DemoUser> = {
   },
 }
 
-export const KOC_DIRECTORY = [
-  { id: 'koc1', name: 'KOC 1 – Nemocnice Severní' },
-  { id: 'koc2', name: 'KOC 2 – Nemocnice Lipová' },
-] as const
+export const KOC_DIRECTORY: Array<components['schemas']['KocEntry']> = [
+  {
+    id: 'koc1-nemocnice-severni',
+    name: 'KOC 1 – Komplexní onkologické centrum Nemocnice Severní',
+    city: 'Praha 8',
+    coordinator: { id: 'koordinator@koc1-nemocnice-severni', display: 'Koordinátor KOC 1' },
+  },
+  {
+    id: 'koc2-nemocnice-lipova',
+    name: 'KOC 2 – Komplexní onkologické centrum Nemocnice Lipová',
+    city: 'Praha 4',
+    coordinator: { id: 'dvorakova-lucie@koc2-nemocnice-lipova', display: 'Koordinátor KOC 2' },
+  },
+]

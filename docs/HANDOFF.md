@@ -61,3 +61,7 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: run it against the real backend (launch → board → clock 16. 10. escalation) and take screenshots (no browser here); `make test-iris-local` after merge
   Risks: indicating physician comes from a constant list (directory has none, #67); 2 old task tests moved from wiring.test.tsx to features/coordination
   Issues: #67 (directory physicians), #78 (fail/cancel UI)
+- 2026-10-17 · claude (P3 frontend) · fix/ui-steps-1-2 · #31: referral (multipart prefill + submit, KOC from /api/directory/kocs), Převzít via /transitions accept, triage proposals + hint chip quoting 07, overview without /findings; all on the generated client, MSW handlers on contract paths; `pnpm gen:api` after main's #38/#60 (schema.d.ts committed); `make check` green (871 backend, 93 frontend)
+  Next: human enables STAFETA_DEMO_MODE=1 and runs the live check of steps 1–2 (#86), then screenshots + ux-reviewer (#87); mark the PR ready only after X-Demo-Role → 200
+  Risks: steps 1–2 never ran against the real backend (running stack answers 401, demo mode is off in its configuration); `payload` JSON mirrors backend ReferralSubmission by hand (contract types it as string); findings/timeline/messages/audit still on lib/api/http.ts (no contract endpoint)
+  Issues: #86 (live check), #87 (screenshots, ux-reviewer)

@@ -1,7 +1,10 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { adaptCase } from '@/features/cases/adapter'
 import type { components } from '@/lib/api/schema'
+import { server } from '@/mocks/server'
+import { problem } from '@/mocks/handlers/util'
 import { renderRoute } from '@/test/render'
 
 const ALENA = '/cases/rakathon-2026-prochazkova'
@@ -59,12 +62,76 @@ describe('demo steps 2 and 4', () => {
     renderRoute(ALENA, { today: '2026-10-02' })
     await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Alena Procházková' }))
     expect(await screen.findByRole('heading', { name: 'Chybějící podklady k vyžádání' })).toBeInTheDocument()
-    expect(screen.getAllByRole('checkbox')).toHaveLength(6)
-    expect(screen.getAllByText(/Adresát:/)).toHaveLength(6)
+    // The five reports the letter lists (01, 02, 03, 05, 06); the GP's own epicrisis (04) is not proposed.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(5)
+    expect(screen.getAllByText(/Adresát:/)).toHaveLength(5)
+    expect(screen.queryByText(/epikr/i)).toBeNull()
+    // The hint is sourced: its chip is report 07 (the letter) with a quote the API returned.
+    const hint = document.getElementById('triage-hint')!
+    await userEvent.click(within(hint).getByRole('button', { name: /^Zdroj:/ }))
+    expect(await screen.findByText(/^1\. Laboratorní vyšetření 1\. 9\. 2026/)).toBeInTheDocument() // verbatim line of report 07
     await userEvent.click(screen.getAllByRole('checkbox')[0]!) // deselect one
     await userEvent.click(screen.getByRole('button', { name: 'Vyžádat vybrané' }))
     await waitFor(() => expect(screen.getAllByText('Čeká na podklady').length).toBeGreaterThan(0))
-    expect(screen.getAllByText('Vyžádáno')).toHaveLength(5)
+    expect(await screen.findAllByText('Vyžádáno')).toHaveLength(4)
+  })
+
+  it('the case overview does not call /findings (they are shown on the handover) and has no error box', async () => {
+    const calls: string[] = []
+    server.use(
+      http.get('/api/cases/:id/findings', ({ request }) => {
+        calls.push(request.url)
+        return problem(404, 'Not Found')
+      }),
+    )
+    renderRoute(ALENA, { today: '2026-10-21' })
+    expect(await screen.findByText('Zjištění z dokumentace')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Otevřít handover' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(calls).toEqual([])
+  })
+
+  it('claim shows the problem title when the backend refuses', async () => {
+    server.use(http.post('/api/cases/:id/transitions', () => problem(409, 'Případ už byl převzat jiným koordinátorem')))
+    renderRoute(ALENA, { today: '2026-10-02' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Alena Procházková' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Případ se nepodařilo převzít. Případ už byl převzat jiným koordinátorem')
+  })
+
+  it('claim from the inbox turns the case into triage and moves it from Nový to Aktivní', async () => {
+    renderRoute('/inbox', { today: '2026-10-02' })
+    await screen.findByRole('heading', { name: /Nový/ })
+    const column = (name: RegExp) => within(screen.getByRole('heading', { name }).closest('section')!)
+    expect(await column(/Nový/).findByRole('article', { name: 'Alena Procházková' })).toBeInTheDocument() // odeslano is the only Nový state
+    expect(column(/Aktivní/).queryByRole('article', { name: 'Alena Procházková' })).toBeNull()
+    await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Alena Procházková' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Převzít případ: Alena/ })).toBeNull())
+    expect(within(screen.getByRole('article', { name: 'Alena Procházková' })).getByText('V triage')).toBeInTheDocument()
+    expect(column(/Aktivní/).getByRole('article', { name: 'Alena Procházková' })).toBeInTheDocument()
+    expect(column(/Nový/).queryByRole('article', { name: 'Alena Procházková' })).toBeNull()
+  })
+
+  it('a proposal without a resolved workplace cannot be requested, an attached report is not offered again', async () => {
+    server.use(
+      http.get('/api/cases/:id/document-requests/proposals', () =>
+        HttpResponse.json({
+          source_doc_id: '07_PL_zadost_KOC2_2026-10-02',
+          proposals: [
+            { key: 'a', label: 'MR mozku 5. 9. 2026 (Neznámé centrum Brno)', exam_date: '2026-09-05', status: 'missing', recipient_org_id: null, evidence: [{ doc_id: '07_PL_zadost_KOC2_2026-10-02', quote: '1. MR mozku 5. 9. 2026 (Neznámé centrum Brno)' }] },
+            { key: 'b', label: 'RTG plic 3. 9. 2026', exam_date: '2026-09-03', status: 'attached', attached_doc_id: '03_RTG_plic_2026-09-03', recipient_org_id: 'rc-modrany', evidence: [{ doc_id: '07_PL_zadost_KOC2_2026-10-02', quote: '2. RTG plic 3. 9. 2026' }] },
+          ],
+        }),
+      ),
+    )
+    renderRoute(ALENA, { today: '2026-10-02' })
+    await userEvent.click(await screen.findByRole('button', { name: 'Převzít případ: Alena Procházková' }))
+    await screen.findByRole('heading', { name: 'Chybějící podklady k vyžádání' })
+    const [unresolved, attached] = screen.getAllByRole('checkbox')
+    expect(unresolved).toBeDisabled()
+    expect(unresolved).not.toBeChecked()
+    expect(attached).toBeDisabled()
+    expect(screen.getByText('Již v případu')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Vyžádat vybrané' })).toBeDisabled()
   })
 })
 
@@ -149,16 +216,49 @@ describe('API-decided rendering', () => {
 })
 
 describe('referral confirmation', () => {
+  it('preselects the priority only from the letter, shows missing values as Chybí and blocks sending without required data', async () => {
+    server.use(
+      http.post('/api/referrals/prefill', () => {
+        const none = { value: null, status: 'missing', derived: false, evidence: [] }
+        return HttpResponse.json({ doc_id: 'x', given: none, family: none, sex: none, birth_date: none, age_text: none, birth_number: none, address: none, patient_phone: none, insurer_code: none, contact_person: none, requesting_gp: none, suspected_diagnosis: none, consent_statements: [], urgency_statement: none })
+      }),
+    )
+    renderRoute('/referral/new', { role: 'gp' })
+    await userEvent.click(await screen.findByRole('button', { name: /Použít ukázkovou žádost/ }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('V žádosti nejsou uvedeny povinné údaje')
+    expect(screen.getAllByText('Chybí').length).toBeGreaterThan(5)
+    expect(screen.getByLabelText(/Naléhavost žádosti/)).toHaveValue('routine') // never assumed
+    await userEvent.selectOptions(screen.getByLabelText('Cílové onkologické centrum'), 'koc2-nemocnice-lipova')
+    await userEvent.click(screen.getByRole('checkbox'))
+    expect(screen.getByRole('button', { name: 'Odeslat do KOC' })).toBeDisabled()
+  })
+
+  it('preselects Urgentní when the letter asks for it, and shows the problem title when sending fails', async () => {
+    server.use(http.post('/api/referrals', () => problem(403, 'Žádost může odeslat pouze praktický lékař')))
+    renderRoute('/referral/new', { role: 'gp' })
+    await userEvent.click(await screen.findByRole('button', { name: /Použít ukázkovou žádost/ }))
+    await screen.findByText('635722/1013')
+    expect(screen.getByLabelText(/Naléhavost žádosti/)).toHaveValue('urgent')
+    expect(screen.getByText('Souhlasí se sdílením informací s dcerou.')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Cílové onkologické centrum'), 'koc2-nemocnice-lipova')
+    await userEvent.click(screen.getByRole('checkbox'))
+    await userEvent.click(screen.getByRole('button', { name: 'Odeslat do KOC' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Žádost se nepodařilo odeslat. Žádost může odeslat pouze praktický lékař')
+  })
+
   it('sends the optional note and explains what happens next', async () => {
     renderRoute('/referral/new', { role: 'gp' })
     await userEvent.click(await screen.findByRole('button', { name: /Použít ukázkovou žádost/ }))
     await screen.findByText('635722/1013')
-    await userEvent.selectOptions(screen.getByLabelText('Cílové onkologické centrum'), 'koc2')
+    await userEvent.selectOptions(screen.getByLabelText('Cílové onkologické centrum'), 'koc2-nemocnice-lipova')
     await userEvent.click(screen.getByRole('checkbox'))
     await userEvent.type(screen.getByLabelText(/Poznámka pro koordinaci/), 'Pacientka je k zastižení odpoledne.')
     await userEvent.click(screen.getByRole('button', { name: 'Odeslat do KOC' }))
     expect(await screen.findByRole('heading', { name: 'Odesláno' })).toBeInTheDocument()
     expect(screen.getByText('Stav případu:')).toBeInTheDocument()
+    expect(screen.getByText('Odesláno', { selector: 'span' })).toBeInTheDocument() // state from the created case
+    expect(screen.getByText('Koordinátor KOC 2')).toBeInTheDocument() // who holds the baton
+    expect(screen.getByRole('link', { name: 'Otevřít případ' })).toHaveAttribute('href', '/cases/rakathon-2026-prochazkova')
     expect(screen.getByRole('heading', { name: 'Co bude dál' })).toBeInTheDocument()
   })
 })

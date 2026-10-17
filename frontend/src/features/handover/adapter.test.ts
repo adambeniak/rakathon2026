@@ -131,7 +131,7 @@ describe('adaptHandover', () => {
         { findings: [{ id: 'C1', kind: 'date_conflict', severity: 'high', message: 'Nesoulad mezi datem výkonu a vysazením apixabanu.' }] },
       ),
     )
-    expect(v.sections.find((s) => s.key === '7_medications')!.findings).toEqual([{ id: 'C1', message: 'Nesoulad mezi datem výkonu a vysazením apixabanu.', evidence: [] }])
+    expect(v.sections.find((s) => s.key === '7_medications')!.findings).toEqual([{ id: 'C1', kind: 'date_conflict', message: 'Nesoulad mezi datem výkonu a vysazením apixabanu.', evidence: [] }])
   })
 
   it('counts a section accepted as missing as reviewed and marks it', () => {

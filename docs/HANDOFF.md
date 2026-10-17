@@ -140,3 +140,8 @@ Newest at the bottom. Max 5 lines per entry: time · who/agent · branch · done
   Next: UI uses the fields after #122 merges (#161); verify the AuditEvent `subtype` search on IRIS (#163)
   Risks: not run against IRIS (Docker off); `GET /cases/{id}` has no membership check (pre-existing, #162)
   Issues: #161, #162, #163
+- 2026-10-17 · claude (P3/P4) · fix/fe-finding-chip-close-path · #173: handover findings carry the pill of their API `kind` (`pillForFinding` in StatusPill.tsx, exhaustive over FindingKind: missing→Chybí, stale→Zastaralé, needs_clarification→K upřesnění, contradictions→Nesouhlasí), neutral row. #174: mock `GET /api/cases` keeps `zpetna_vazba_odeslana` in the coordinator queue (Aktivní, like the backend bucket); demo-script step 6.5 names the queue path
+  Verified: make check steps one by one (backend 1077 passed; frontend lint/typecheck, vitest 181/181), new tests fail on the old code; mock-mode screenshots of the chips and the queue
+  Next: decide whether the live handover links missing/stale/clarification findings to sections like the mock (#179); queue card action text when the coordinator holds the baton to close (#180)
+  Risks: the mock queue now lists Horáková (feedback sent) and Alena after send_feedback, so card counts in Aktivní grow by one or two; no contract or backend change
+  Issues: #173, #174 closed by this PR; #179, #180 new

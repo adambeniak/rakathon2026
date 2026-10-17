@@ -1,3 +1,4 @@
+import type { components } from '@/lib/api/schema'
 import type { Evidence, HandoverSection } from '@/lib/domain'
 
 /** A document the handover leaves out (API `excluded_documents`); the API gives the reason, not the title. */
@@ -24,6 +25,8 @@ export interface MissingEntry {
 /** Finding of the consistency detector exactly as the API words it (`Handover.findings`). */
 export interface FindingView {
   id: string
+  /** What the detector found (conflict, missing, stale, …) as the API classifies it; it decides the pill. */
+  kind: components['schemas']['FindingKind']
   message: string
   /** Verbatim quotes the detector cites for the finding; may be empty. */
   evidence: Evidence[]

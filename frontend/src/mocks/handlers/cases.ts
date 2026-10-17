@@ -96,7 +96,7 @@ const roleDenied = (detail: string) => {
 export const handlers = [
   http.get('/api/cases', ({ request }) => {
     const today = todayOf(request)
-    // The GP portal also lists cases whose feedback was sent (the coordinator inbox archives them).
+    // The GP portal lists only the demo GP's own cases; the queue lists every case that is not closed.
     const list = roleOf(request) === 'gp' ? allCases(today, store).filter((c) => c.gp === GP) : inboxCases(today, store)
     return HttpResponse.json(list.map((c) => toApiCase(c, today)))
   }),

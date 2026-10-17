@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CaseStateBadge } from './CaseStateBadge'
 import { EvidenceChip } from './EvidenceChip'
-import { StatusPill, pillForHandover } from './StatusPill'
+import { StatusPill, pillForFinding, pillForHandover } from './StatusPill'
 import { CASE_STATES } from '@/lib/domain'
 
 describe('StatusPill', () => {
@@ -23,6 +23,16 @@ describe('StatusPill', () => {
     expect(pillForHandover('complete', true)).toEqual(['verified'])
     expect(pillForHandover('missing', false)).toEqual(['missing'])
     expect(pillForHandover('complete_with_conflict', false)).toEqual(['ai', 'conflict'])
+  })
+
+  it('labels a finding by its API kind: only contradictions are "Nesouhlasí"', () => {
+    expect(pillForFinding('date_conflict')).toBe('conflict')
+    expect(pillForFinding('metadata_mismatch')).toBe('conflict')
+    expect(pillForFinding('missing')).toBe('missing')
+    expect(pillForFinding('missing_document')).toBe('missing')
+    expect(pillForFinding('not_documented')).toBe('missing')
+    expect(pillForFinding('stale')).toBe('stale')
+    expect(pillForFinding('needs_clarification')).toBe('clarify')
   })
 })
 

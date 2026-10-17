@@ -238,8 +238,9 @@ curl -s -X PUT $BACKEND/api/demo/clock -H 'X-Demo-Role: coordinator' -H 'Content
      text, only a link to the GP portal.
   4. Role **Praktický lékař** → **Moji pacienti** → **Otevřít závěr MDT**: signed text with signer and time, and
      **Otevření závěru bylo zaznamenáno do auditní stopy.**
-  5. Role **Koordinátorka** → case → tab **Handover** → **Připravit MDT** (the only link to the MDT page once the case
-     is in **Zpětná vazba odeslána**) → **Uzavřít případ** → warning **Zda praktický lékař závěr otevřel, tato obrazovka
+  5. Role **Koordinátorka** → **Fronta případů** → column **Aktivní** (a case in **Zpětná vazba odeslána** stays
+     there until it is closed) → **Alena Procházková** → tab **Handover** → **Připravit MDT** (the only link to the
+     MDT page once the case is in **Zpětná vazba odeslána**) → **Uzavřít případ** → warning **Zda praktický lékař závěr otevřel, tato obrazovka
      nezjišťuje…** → **Uzavřít přesto** → **Případ je uzavřen.** State **Uzavřeno**.
 - **Must be visible:** the e-mail in Mailpit; the GP reading the conclusion signed by the physician (**Podepsal(a)
   <name> dne <date>**); state **Uzavřeno**; the case header **Časové intervaly** (T1, T2, T3) as returned by the API or

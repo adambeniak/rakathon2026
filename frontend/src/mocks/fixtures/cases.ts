@@ -165,7 +165,10 @@ export function caseById(id: string, today: string, s: MockStore): MockCase | un
   return allCases(today, s).find((c) => c.id === id)
 }
 
-/** Cases in the coordinator inbox (closed ones are archived). */
+/**
+ * Cases in the coordinator inbox (closed ones are archived). A case whose feedback was sent stays listed (bucket
+ * `aktivni`, contracts/case-states.md) until the coordinator closes it: the queue is her way back to „Uzavřít případ“.
+ */
 export function inboxCases(today: string, s: MockStore): MockCase[] {
-  return allCases(today, s).filter((c) => c.state !== 'uzavreno' && c.state !== 'zpetna_vazba_odeslana')
+  return allCases(today, s).filter((c) => c.state !== 'uzavreno')
 }

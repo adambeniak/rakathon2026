@@ -57,13 +57,15 @@ def build(source: Path = SOURCE, target: Path = TARGET) -> Path:
     tables = document.tables
     if len(tables) != 7:
         raise ValueError("unexpected MDT_zapis layout: expected seven tables")
-    basics, _members, diagnosis, comorbidities, results, _conclusion, _recommendation = tables
+    basics, _members, diagnosis, comorbidities, results, conclusion, _recommendation = tables
     _set_cell(basics, 0, 1, "{{ mdt_date }}")
     _set_cell(basics, 1, 1, "{{ patient_lines }}")
     _set_cell(basics, 2, 1, "{{ referring_lines }}")
     _set_cell(diagnosis, 0, 1, "{{ diagnosis_name }}")
     _set_cell(diagnosis, 1, 1, "{{ diagnosis_code }}")
     _set_cell(comorbidities, 0, 0, "{{ comorbidities_text }}")
+    # The signed MDT conclusion as signed; until a KOC physician signs it the box stays empty (for handwriting).
+    _set_cell(conclusion, 0, 0, "{{ conclusion_text }}")
     # docxtpl row loop: the first and the last row hold only the tags and disappear when rendered.
     _set_cell(results, 1, 0, "{%tr for r in results %}")
     for column, tag in enumerate(("{{ r.date }}", "{{ r.exam }}", "{{ r.result }}")):

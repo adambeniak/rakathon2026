@@ -16,12 +16,15 @@ from app.extraction.handover.review import overlay_review
 from app.outputs.build_template import SOURCE
 from app.outputs.mdt_record import (
     BANNER_FINAL,
+    CONCLUSION_NOTE,
     LABEL_ACCEPTED_MISSING,
     LABEL_CONFIRMED,
     LABEL_CONFIRMED_EDITED,
     LABEL_DRAFT,
     LABEL_MISSING,
+    RECOMMENDATION_IN_CONCLUSION,
     ReferringDoctor,
+    SignedConclusion,
     field_label,
     render_mdt_record,
 )
@@ -156,6 +159,27 @@ def test_conclusion_and_recommendation_are_left_to_the_physicians(story_handover
         at = lines.index(heading)
         assert lines[at + 1] == "Vyplní lékař na jednání MDT. Systém závěr ani doporučení nevytváří."
         assert lines[at + 2] == ""  # the empty table cell stays empty
+
+
+def test_after_the_sign_off_section_6_prints_the_signed_conclusion_and_7_points_to_it(
+    story_handover: Handover,
+) -> None:
+    text = "ZÁVĚR MDT\nZávěr podle jednání, RČ 635722/1013.\n\nDOPORUČENÍ MDT\n1. Bod zapsaný lékařem."
+    signed = SignedConclusion(
+        text=text, signer_display=PHYSICIAN.display, signed_at=datetime(2026, 10, 21, 9, 30, tzinfo=PRAGUE)
+    )
+
+    lines = _lines(render_mdt_record(story_handover, GP, EXPORTED_AT, conclusion=signed))
+
+    at = lines.index("6  Závěr MDT")
+    assert lines[at + 1] == f"{LABEL_CONFIRMED} (MUDr. Lenka Marková, 21. 10. 2026 09:30)\n{CONCLUSION_NOTE}"
+    assert lines[at + 2] == text.replace("635722/1013", "[RČ vynecháno]")  # as signed; birth number left out
+    at = lines.index("7  Doporučení MDT")
+    assert lines[at + 1] == RECOMMENDATION_IN_CONCLUSION  # never split out of the signed text
+    assert lines[at + 2] == ""
+    assert any(
+        line.endswith("Závěr MDT podepsán lékařem MUDr. Lenka Marková, 21. 10. 2026 09:30 (oddíl 6).") for line in lines
+    )
 
 
 def test_minimisation_no_birth_number_in_the_record(story_handover: Handover) -> None:

@@ -1,9 +1,12 @@
-"""MDT record (zápis z jednání MDT) as DOCX in the layout of `data/raw/MDT_zapis.docx`.
+"""MDT record (zápis z jednání MDT) in the layout of `data/raw/MDT_zapis.docx`, as DOCX (here) or PDF
+(`mdt_record_pdf`), both rendered from the one document model that `build_context` returns.
 
 Content comes ONLY from the handover as of the MDT start (confirmed or draft sections, findings, the list of excluded
-documents) and from directory facts about the referring doctor. Nothing is added: what the sources do not state is
-"Chybí"; sections 6 (Závěr MDT) and 7 (Doporučení MDT) are left for the physicians to write at the meeting; the system
-never drafts a conclusion or a recommendation. Every section carries a label of its review status:
+documents), from directory facts about the referring doctor and, once a KOC physician has signed it, from the signed
+MDT conclusion. Nothing is added: what the sources do not state is "Chybí". Section 6 (Závěr MDT) prints the signed
+conclusion as signed ("Potvrzeno lékařem", who, when); until then sections 6 and 7 (Doporučení MDT) are left for the
+physicians. The system never drafts, splits or rewords a conclusion or a recommendation (ADR mdt-record-post-mdt-pdf).
+Every section carries a label of its review status:
 
 - "Potvrzeno lékařem (kdo, kdy)"              the KOC physician confirmed the section (Provenance in FHIR)
 - "Částečně potvrzeno lékařem"                some of the section's source fields are confirmed, the rest are named
@@ -27,7 +30,7 @@ import io
 import re
 import zipfile
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Final
@@ -56,6 +59,13 @@ LABEL_DRAFT: Final = "Návrh AI – čeká na potvrzení lékařem"
 LABEL_MISSING: Final = "Chybí"
 MISSING_TEXT: Final = "Chybí"
 FOR_PHYSICIANS: Final = "Vyplní lékař na jednání MDT. Systém závěr ani doporučení nevytváří."
+CONCLUSION_NOTE: Final = (
+    "Text závěru MDT tak, jak jej lékař zapsal a podepsal; systém jej nemění ani nedoplňuje (rodná čísla vynechána)."
+)
+RECOMMENDATION_IN_CONCLUSION: Final = (
+    "Samostatně zapsáno není. Doporučení MDT, pokud je lékař uvedl, je součástí podepsaného závěru v oddílu 6. "
+    "Systém doporučení nevytváří."
+)
 NO_MEMBERS: Final = "Chybí – prezence členů MDT není v systému zaznamenána."
 BANNER_DRAFT: Final = "NÁVRH – zápis obsahuje oddíly, které lékař dosud nepotvrdil (viz označení oddílů)."
 BANNER_FINAL: Final = "Podklady sestavil systém Štafeta z dokumentace; všechny oddíly předávky potvrdil lékař."
@@ -127,7 +137,9 @@ _WAIVER_ITEMS: Final = {
 }
 _WAIVER_OTHER_TITLE: Final = "Další prominuté položky připravenosti k MDT"
 _ONSET_LABEL: Final = "Počátek obtíží"  # documented as free text ("od poloviny srpna"): no day-exact date is printed
-_MULTILINE_KEYS: Final = frozenset({"patient_lines", "referring_lines", "comorbidities_text", "diagnosis_name"})
+_MULTILINE_KEYS: Final = frozenset(
+    {"patient_lines", "referring_lines", "comorbidities_text", "diagnosis_name", "conclusion_text"}
+)
 
 _XML_ILLEGAL: Final = re.compile("[^\\u0009\\u000a\\u000d\\u0020-\\ud7ff\\ue000-\\ufffd\\U00010000-\\U0010ffff]")
 _LAYOUT_CONTROL: Final = re.compile("[\\a\\f\\v\\t]")
@@ -138,6 +150,39 @@ _TEXT_RUN: Final = re.compile(r"<w:t(?:\s[^>]*)?>([^<]*)</w:t>")
 
 class MdtRecordError(RuntimeError):
     """The rendered document is incomplete; never hand a truncated clinical document to a user."""
+
+
+@dataclass(frozen=True)
+class Run:
+    """A piece of text with its emphasis; the DOCX and the PDF renderer map it to their own formatting."""
+
+    text: str
+    bold: bool = False
+    italic: bool = False
+    color: str | None = None
+
+
+@dataclass(frozen=True)
+class Rich:
+    """Formatted text of the document model, renderer-neutral ("\\n" is a line break)."""
+
+    runs: tuple[Run, ...] = ()
+
+    def add(self, text: str, *, bold: bool = False, italic: bool = False, color: str | None = None) -> Rich:
+        return Rich((*self.runs, Run(text, bold, italic, color)))
+
+    @property
+    def text(self) -> str:
+        return "".join(r.text for r in self.runs)
+
+
+@dataclass(frozen=True)
+class SignedConclusion:
+    """The MDT conclusion as a KOC physician signed it (Composition mdt-conclusion): printed, never generated."""
+
+    text: str
+    signer_display: str
+    signed_at: datetime
 
 
 @dataclass(frozen=True)
@@ -195,7 +240,7 @@ def _waivers_at(waivers: Sequence[RecordedWaiver], place: str) -> list[str]:
 
 def section_label(
     fields: list[tuple[str, HandoverFieldBase]], *, note: str | None = None, extra: Sequence[str] = ()
-) -> RichText:
+) -> Rich:
     """Bold review label (who/when for confirmed sections) and, below it in grey, every note, conflict and missing item
     of the source fields. `fields` are (title, field) pairs; titles prefix the notes of multi-field sections."""
     labels = list(dict.fromkeys(field_label(f) for _, f in fields))
@@ -224,12 +269,11 @@ def section_label(
     if note:
         lines.append(note)
     lines += extra
-    text = RichText()
-    text.add(head, bold=True)
+    text = Rich().add(head, bold=True)
     if detail:
-        text.add(f" – {detail}")
+        text = text.add(f" – {detail}")
     for line in dict.fromkeys(_line(x) for x in lines):
-        text.add("\n" + line, italic=True, color=GREY)
+        text = text.add("\n" + line, italic=True, color=GREY)
     return text
 
 
@@ -241,7 +285,9 @@ def build_context(
     referring: ReferringDoctor | None,
     generated_at: datetime,
     waivers: Sequence[RecordedWaiver] = (),
+    conclusion: SignedConclusion | None = None,
 ) -> dict[str, Any]:
+    """The renderer-neutral document model: strings, `Rich` and lists of them, all sanitised."""
     f = handover.fields
     patient, contacts, weight = f.patient.value, f.contacts.value, f.weight_height
     as_of = handover.as_of.astimezone(PRAGUE)
@@ -264,18 +310,17 @@ def build_context(
         _contact(referring.phone if referring else None, referring.email if referring else None),
     ]
     draft = is_draft(handover)
-    banner = RichText()
-    banner.add(BANNER_DRAFT if draft else BANNER_FINAL, bold=True, color=RED if draft else None)
-    page_banner = RichText()
-    if draft:
-        page_banner.add(PAGE_BANNER_DRAFT, bold=True, color=RED)
+    banner = Rich().add(BANNER_DRAFT if draft else BANNER_FINAL, bold=True, color=RED if draft else None)
+    page_banner = Rich().add(PAGE_BANNER_DRAFT, bold=True, color=RED) if draft else Rich()
     generated = generated_at.astimezone(PRAGUE)
+    signed = _signed_text(conclusion) if conclusion else None
     context: dict[str, Any] = {
         "banner": banner,
         "page_banner": page_banner,
         "meta": (
             f"Stav podkladů k {mdt_text}. "
             f"Zahrnuto dokumentů: {len(handover.included_documents)}, nezahrnuto: {len(handover.excluded_documents)}."
+            + (f" Závěr MDT podepsán lékařem {signed} (oddíl 6)." if signed else "")
         ),
         "s1": section_label(
             _titled(handover, "patient", "contacts", "weight_height"),
@@ -285,8 +330,9 @@ def build_context(
         "s3": section_label(_titled(handover, "diagnosis")),
         "s4": section_label(_titled(handover, "comorbidities"), extra=_waivers_at(waivers, "s4")),
         "s5": section_label(_titled(handover, "examinations", "labs", "histology"), extra=_waivers_at(waivers, "s5")),
-        "s6": _plain(FOR_PHYSICIANS),
-        "s7": _plain(FOR_PHYSICIANS),
+        "s6": _conclusion_label(signed) if signed else _plain(FOR_PHYSICIANS),
+        "s7": _plain(RECOMMENDATION_IN_CONCLUSION if signed else FOR_PHYSICIANS),
+        "conclusion_text": conclusion.text if conclusion else "",
         "mdt_date": mdt_text,
         "patient_lines": "\n".join(patient_lines),
         "referring_lines": "\n".join(referring_lines),
@@ -313,10 +359,11 @@ def render_mdt_record(
     referring: ReferringDoctor | None,
     generated_at: datetime,
     waivers: Sequence[RecordedWaiver] = (),
+    conclusion: SignedConclusion | None = None,
 ) -> bytes:
-    context = build_context(handover, referring, generated_at, waivers)
+    context = build_context(handover, referring, generated_at, waivers, conclusion)
     template = DocxTemplate(str(TEMPLATE))
-    template.render(context, jinja_env=SandboxedEnvironment(autoescape=True))
+    template.render(_docx_values(context), jinja_env=SandboxedEnvironment(autoescape=True))
     buffer = io.BytesIO()
     template.save(buffer)
     data = buffer.getvalue()
@@ -331,6 +378,20 @@ def _verify_complete(data: bytes, footer: str) -> None:
     text = html.unescape("".join(_TEXT_RUN.findall(xml)))
     if footer not in text:
         raise MdtRecordError("the rendered MDT record is incomplete")
+
+
+def _docx_values(value: Any) -> Any:
+    """The document model with every `Rich` turned into a docxtpl `RichText` (which escapes the text itself)."""
+    if isinstance(value, Rich):
+        rich = RichText()
+        for run in value.runs:
+            rich.add(run.text, bold=run.bold, italic=run.italic, color=run.color)
+        return rich
+    if isinstance(value, dict):
+        return {k: _docx_values(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_docx_values(v) for v in value]
+    return value
 
 
 # --- section builders ------------------------------------------------------------------------------------------------
@@ -443,9 +504,7 @@ def _other_waivers(waivers: Sequence[RecordedWaiver]) -> list[dict[str, Any]]:
     lines = [waiver_line(w) for w in waivers if w.item not in _WAIVER_ITEMS]
     if not lines:
         return []
-    heading = RichText()
-    heading.add(_WAIVER_OTHER_TITLE, bold=True)
-    return [{"title": heading, "lines": lines}]
+    return [{"title": Rich().add(_WAIVER_OTHER_TITLE, bold=True), "lines": lines}]
 
 
 def _appendix_section(handover: Handover, key: str, title: str, extra: Sequence[str] = ()) -> dict[str, Any]:
@@ -462,9 +521,7 @@ def _appendix_section(handover: Handover, key: str, title: str, extra: Sequence[
         lines.append("Poznámka: " + _reword_note(field.note))
     lines.extend(extra)
     attested = _attestation(field)
-    heading = RichText()
-    heading.add(f"{title} – ", bold=True)
-    heading.add(field_label(field) + (f" ({attested})" if attested else ""), bold=True)
+    heading = Rich().add(f"{title} – {field_label(field)}" + (f" ({attested})" if attested else ""), bold=True)
     return {"title": heading, "lines": lines or [MISSING_TEXT]}
 
 
@@ -477,10 +534,18 @@ def _is_onset(item: HandoverItem, onset: str | None) -> bool:
     return item.label == _ONSET_LABEL or bool(onset and (onset in value or value in onset))
 
 
-def _plain(text: str) -> RichText:
-    rich = RichText()
-    rich.add(text, italic=True, color=GREY)
-    return rich
+def _plain(text: str) -> Rich:
+    return Rich().add(text, italic=True, color=GREY)
+
+
+def _signed_text(conclusion: SignedConclusion) -> str:
+    """Who signed the conclusion and when, in the shape of every other attestation ("jméno, 21. 10. 2026 09:30")."""
+    at = conclusion.signed_at.astimezone(PRAGUE)
+    return f"{_line(conclusion.signer_display or 'jméno neuvedeno')}, {_cz_date(at)} {at:%H:%M}"
+
+
+def _conclusion_label(signed: str) -> Rich:
+    return Rich().add(f"{LABEL_CONFIRMED} ({signed})", bold=True).add("\n" + CONCLUSION_NOTE, italic=True, color=GREY)
 
 
 def _contact(phone: str | None, email: str | None) -> str:
@@ -534,7 +599,7 @@ def _line(text: str) -> str:
 
 
 def _sanitise(context: dict[str, Any]) -> dict[str, Any]:
-    """Clean every plain string of the context; RichText parts are cleaned where they are built."""
+    """Clean every string of the model, the runs of `Rich` included (their line breaks are intended, so they stay)."""
     result: dict[str, Any] = {}
     for key, value in context.items():
         multiline = key in _MULTILINE_KEYS
@@ -543,13 +608,15 @@ def _sanitise(context: dict[str, Any]) -> dict[str, Any]:
         elif isinstance(value, list):
             result[key] = [_sanitise_item(v) for v in value]
         else:
-            result[key] = value
+            result[key] = _sanitise_item(value)
     return result
 
 
 def _sanitise_item(value: Any) -> Any:
     if isinstance(value, str):
         return _clean(value, multiline=False)
+    if isinstance(value, Rich):
+        return Rich(tuple(replace(r, text=_clean(r.text, multiline=True)) for r in value.runs))
     if isinstance(value, dict):
         return {k: _sanitise_item(v) for k, v in value.items()}
     if isinstance(value, list):

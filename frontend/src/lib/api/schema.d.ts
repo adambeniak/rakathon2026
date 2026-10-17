@@ -242,8 +242,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * MDT record in the MDT_zapis layout (DOCX), as of the MDT start
-         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. KOC team of the case only; every export is audited. PDF is not available yet.
+         * MDT record in the MDT_zapis layout (DOCX or PDF), as of the MDT start
+         * @description Content only from the handover as of `mdt_start` and its findings; reports created or received after it are listed as excluded ('po MDT'). Each section is labelled 'Potvrzeno lékařem' (who, when), 'Návrh AI – čeká na potvrzení lékařem' or 'Chybí', with its notes and missing items, and a blocking readiness item waived at `mark_ready_mdt` is printed next to its section (who, when, reason); a banner and a page header mark the document as a draft (and the file name carries NAVRH) while any section is unconfirmed. Once a KOC physician has signed the MDT conclusion (at or after `mdt_start`), section 6 prints its text as signed, labelled 'Potvrzeno lékařem' with who and when, and section 7 points to it; before that sections 6 and 7 (Závěr, Doporučení MDT) are left for the physicians. The system never writes a conclusion or a recommendation. `format=pdf` renders the same content as a PDF (fonts embedded). KOC team of the case only; every export is audited (with the conclusion's Composition when it is printed).
          */
         get: operations["handover-get_mdt_record"];
         put?: never;
@@ -4339,8 +4339,8 @@ export interface operations {
     "handover-get_mdt_record": {
         parameters: {
             query?: {
-                /** @description Only DOCX for now. */
-                format?: "docx";
+                /** @description File format: DOCX (default) or PDF. */
+                format?: "docx" | "pdf";
             };
             header?: {
                 "X-Demo-Role"?: string | null;
@@ -4352,12 +4352,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description DOCX document */
+            /** @description DOCX or PDF document (by `format`) */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/pdf": string;
                     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": string;
                 };
             };

@@ -24,6 +24,7 @@ from app.api.schemas.workflow import (
     TransitionRequest,
 )
 from app.domain.common import BUSINESS_ID_PATTERN
+from app.fhir.readiness import WaiverRequest
 from app.fhir.workflow import RequestItem, RequestView
 
 router = APIRouter(prefix="/cases", tags=["cases"])
@@ -65,6 +66,7 @@ async def transition_case(
         resume_on=body.resume_on,
         conclusion=body.conclusion,
         receipt_id=body.receipt_id,
+        waivers=[WaiverRequest(w.item, w.reason) for w in body.waivers],
     )
     overview = await reader.overview(case_id)
     return CaseSummary.model_validate(

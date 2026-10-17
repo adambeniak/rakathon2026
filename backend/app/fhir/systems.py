@@ -79,6 +79,7 @@ EXT_HANDOVER_EDITED_VALUE: Final = SD + "handover-edited-value"
 EXT_HANDOVER_SECTION: Final = SD + "handover-section"
 EXT_EVIDENCE_QUOTE: Final = SD + "evidence-quote"
 EXT_PREVIOUS_VALUE_HASH: Final = SD + "previous-value-sha256"
+EXT_READINESS_ITEM: Final = SD + "readiness-item"  # Provenance (waiver): the MDT readiness item that was waived
 
 # --- Pathway coordination (F2-4) ---
 CS_PATHWAY_ACTION: Final = CS + "pathway-action"

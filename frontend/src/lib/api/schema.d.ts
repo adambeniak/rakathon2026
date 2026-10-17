@@ -452,6 +452,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/insurer/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Insurer analytics over a simulated cohort: care durations, exam delays, coordinator load, indicator
+         * @description For the insurer's reviewer only. A FICTITIOUS cohort (pseudonymous codes, no patient identifiers) plus the demo case: per journey the milestone dates and the Europe/Prague calendar-day intervals between them (null when not recorded, never estimated); per hospital the medians, illustrative cost, coordinator utilisation and a 0–100 indicator; per coordinator the load. InsurerWeights, targets, capacity and the price list are returned as explicit demo assumptions. Fixture data only: no FHIR read, no AuditEvent.
+         */
+        get: operations["insurer-get_insurer_analytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/referrals": {
         parameters: {
             query?: never;
@@ -1501,6 +1521,35 @@ export interface components {
              */
             value_hash?: string | null;
         };
+        /** CoordinatorAnalytics */
+        CoordinatorAnalytics: {
+            /** Cases */
+            cases: number;
+            /**
+             * Display
+             * @description Staff name (fictitious); '(simulace)' marks a simulated coordinator.
+             */
+            display: string;
+            /** Hospital Id */
+            hospital_id: string;
+            /** Hospital Name */
+            hospital_name: string;
+            /** Id */
+            id: string;
+            /** Median Days Contact To Accepted */
+            median_days_contact_to_accepted: number | null;
+            /** Median Minutes Per Patient */
+            median_minutes_per_patient: number | null;
+            /** Minutes Total */
+            minutes_total: number;
+            /** Simulated */
+            simulated: boolean;
+            /**
+             * Utilisation Pct
+             * @description Minutes / (assumed capacity per week × weeks), in %.
+             */
+            utilisation_pct: number | null;
+        };
         /** CoordinatorContact */
         CoordinatorContact: {
             /**
@@ -2316,6 +2365,453 @@ export interface components {
             value_hash?: string | null;
         };
         /**
+         * HospitalAnalytics
+         * @example {
+         *       "badges": [
+         *         "fastest",
+         *         "lowest_cost"
+         *       ],
+         *       "cases": 6,
+         *       "coordinator_minutes_total": 795,
+         *       "coordinators": 1,
+         *       "cost_score": 1,
+         *       "id": "koc3-nemocnice-vychodni-sim",
+         *       "indicator": 100,
+         *       "indicator_rank": 1,
+         *       "median_coordinator_minutes": 132.5,
+         *       "median_cost_czk": 27850,
+         *       "median_days": {
+         *         "biopsy_order_to_biopsy": 5,
+         *         "contact_to_accepted": 0,
+         *         "contact_to_mdt": 11.5,
+         *         "contact_to_treatment": 20,
+         *         "ct_order_to_ct": 2.5,
+         *         "mdt_to_treatment": 9
+         *       },
+         *       "name": "KOC 3 – Nemocnice Východní (simulace)",
+         *       "simulated": true,
+         *       "speed_score": 1,
+         *       "utilisation_pct": 32.7,
+         *       "within_target_share": 1
+         *     }
+         */
+        HospitalAnalytics: {
+            /**
+             * Badges
+             * @description fastest = lowest median contact -> MDT; lowest_cost.
+             */
+            badges: ("fastest" | "lowest_cost")[];
+            /** Cases */
+            cases: number;
+            /**
+             * Coordinator Minutes Total
+             * @description Sum of recorded coordinator minutes (unrecorded = 0).
+             */
+            coordinator_minutes_total: number;
+            /** Coordinators */
+            coordinators: number;
+            /**
+             * Cost Score
+             * @description 0–1 inverted min-max of the median cost per case.
+             */
+            cost_score: number | null;
+            /** Id */
+            id: string;
+            /**
+             * Indicator
+             * @description 0–100 operational indicator (speed, illustrative cost, share within demo targets; see `assumptions.formula`); not a measure of quality of care.
+             */
+            indicator: number | null;
+            /**
+             * Indicator Rank
+             * @description 1 = highest indicator; equal values share a rank.
+             */
+            indicator_rank: number | null;
+            /**
+             * Median Coordinator Minutes
+             * @description Median coordinator minutes per patient.
+             */
+            median_coordinator_minutes: number | null;
+            /**
+             * Median Cost Czk
+             * @description Median illustrative cost per case (CZK), from `price_list`.
+             */
+            median_cost_czk: number | null;
+            median_days: components["schemas"]["InsurerIntervalMedians"];
+            /** Name */
+            name: string;
+            /**
+             * Simulated
+             * @description True for a hospital invented only for this cohort.
+             */
+            simulated: boolean;
+            /**
+             * Speed Score
+             * @description 0–1 inverted min-max of the median contact -> MDT.
+             */
+            speed_score: number | null;
+            /**
+             * Utilisation Pct
+             * @description Coordinator minutes / (coordinators × assumed capacity per week × weeks of the period), in %.
+             */
+            utilisation_pct: number | null;
+            /**
+             * Within Target Share
+             * @description 0–1 share of journeys within both demo targets, over journeys where both waits were measured.
+             */
+            within_target_share: number | null;
+        };
+        /**
+         * InsurerAnalytics
+         * @example {
+         *       "as_of": "2026-10-21T08:00:00+02:00",
+         *       "assumptions": {
+         *         "capacity": {
+         *           "minutes_per_week": 120,
+         *           "note": "Předpoklad pro demo.",
+         *           "period_end": "2026-10-21",
+         *           "period_start": "2026-06-02",
+         *           "weeks": 20.29
+         *         },
+         *         "formula": "Indikátor = 100 × (0,5 × rychlost + 0,3 × náklady + 0,2 × podíl v cíli)",
+         *         "price_list": [
+         *           {
+         *             "code": "MDT",
+         *             "label": "Projednání v MDT",
+         *             "price_czk": 1600
+         *           }
+         *         ],
+         *         "price_list_note": "Ilustrativní ceník pro demo.",
+         *         "speed_metric": "contact_to_mdt",
+         *         "targets": {
+         *           "biopsy_order_to_biopsy_max_days": 10,
+         *           "ct_order_to_ct_max_days": 7,
+         *           "note": "Předpoklad pro demo."
+         *         },
+         *         "weights": {
+         *           "cost": 0.3,
+         *           "speed": 0.5,
+         *           "target_share": 0.2
+         *         }
+         *       },
+         *       "coordinators": [],
+         *       "disclaimer": "Simulovaná data – fiktivní kohorta pro demo, ilustrativní ceník.",
+         *       "hospitals": [
+         *         {
+         *           "badges": [
+         *             "fastest",
+         *             "lowest_cost"
+         *           ],
+         *           "cases": 6,
+         *           "coordinator_minutes_total": 795,
+         *           "coordinators": 1,
+         *           "cost_score": 1,
+         *           "id": "koc3-nemocnice-vychodni-sim",
+         *           "indicator": 100,
+         *           "indicator_rank": 1,
+         *           "median_coordinator_minutes": 132.5,
+         *           "median_cost_czk": 27850,
+         *           "median_days": {
+         *             "biopsy_order_to_biopsy": 5,
+         *             "contact_to_accepted": 0,
+         *             "contact_to_mdt": 11.5,
+         *             "contact_to_treatment": 20,
+         *             "ct_order_to_ct": 2.5,
+         *             "mdt_to_treatment": 9
+         *           },
+         *           "name": "KOC 3 – Nemocnice Východní (simulace)",
+         *           "simulated": true,
+         *           "speed_score": 1,
+         *           "utilisation_pct": 32.7,
+         *           "within_target_share": 1
+         *         }
+         *       ],
+         *       "journeys": [
+         *         {
+         *           "code": "rakathon-2026-prochazkova",
+         *           "coordinator_display": "Bc. Lucie Dvořáková",
+         *           "cost_czk": 27850,
+         *           "hospital_id": "koc2-nemocnice-lipova",
+         *           "hospital_name": "KOC 2 – Nemocnice Lipová",
+         *           "intervals": [
+         *             {
+         *               "days": 6,
+         *               "end": "2026-10-08",
+         *               "key": "ct_order_to_ct",
+         *               "start": "2026-10-02",
+         *               "status": "measured"
+         *             },
+         *             {
+         *               "key": "mdt_to_treatment",
+         *               "start": "2026-10-21",
+         *               "status": "running"
+         *             }
+         *           ],
+         *           "milestones": [
+         *             {
+         *               "date": "2026-10-02",
+         *               "key": "gp_contacted_coordinator"
+         *             },
+         *             {
+         *               "key": "accepted"
+         *             },
+         *             {
+         *               "date": "2026-10-08",
+         *               "key": "ct_done"
+         *             },
+         *             {
+         *               "date": "2026-10-12",
+         *               "days_since_previous": 4,
+         *               "key": "biopsy_done"
+         *             },
+         *             {
+         *               "date": "2026-10-21",
+         *               "days_since_previous": 9,
+         *               "key": "mdt"
+         *             },
+         *             {
+         *               "key": "treatment_start"
+         *             }
+         *           ],
+         *           "simulated": false,
+         *           "within_target": true
+         *         }
+         *       ],
+         *       "rankings": {
+         *         "by_indicator": [
+         *           "koc3-nemocnice-vychodni-sim"
+         *         ],
+         *         "fastest": [
+         *           "koc3-nemocnice-vychodni-sim"
+         *         ],
+         *         "lowest_cost": [
+         *           "koc3-nemocnice-vychodni-sim"
+         *         ]
+         *       },
+         *       "simulated": true,
+         *       "summary": {
+         *         "cases": 24,
+         *         "median_days": {
+         *           "biopsy_order_to_biopsy": 8,
+         *           "contact_to_accepted": 1,
+         *           "contact_to_mdt": 18,
+         *           "contact_to_treatment": 28.5,
+         *           "ct_order_to_ct": 5,
+         *           "mdt_to_treatment": 13
+         *         },
+         *         "simulated_cases": 23
+         *       }
+         *     }
+         */
+        InsurerAnalytics: {
+            /**
+             * As Of
+             * Format: date-time
+             * @description Snapshot time of the cohort.
+             */
+            as_of: string;
+            assumptions: components["schemas"]["InsurerAssumptions"];
+            /** Coordinators */
+            coordinators: components["schemas"]["CoordinatorAnalytics"][];
+            /**
+             * Disclaimer
+             * @description Czech notice the UI must show with the data.
+             */
+            disclaimer: string;
+            /**
+             * Hospitals
+             * @description Ordered by `rankings.by_indicator`.
+             */
+            hospitals: components["schemas"]["HospitalAnalytics"][];
+            /**
+             * Journeys
+             * @description The demo case first, then simulated journeys by code.
+             */
+            journeys: components["schemas"]["JourneyAnalytics"][];
+            rankings: components["schemas"]["InsurerRankings"];
+            /**
+             * Simulated
+             * @description Always true: the cohort is fictitious (only the demo case is not simulated).
+             */
+            simulated: boolean;
+            summary: components["schemas"]["InsurerSummary"];
+        };
+        /** InsurerAssumptions */
+        InsurerAssumptions: {
+            capacity: components["schemas"]["InsurerCapacity"];
+            /**
+             * Formula
+             * @description The indicator formula in Czech, for display.
+             */
+            formula: string;
+            /** Price List */
+            price_list: components["schemas"]["InsurerPriceItem"][];
+            /** Price List Note */
+            price_list_note: string;
+            /**
+             * Speed Metric
+             * @enum {string}
+             */
+            speed_metric: "contact_to_accepted" | "ct_order_to_ct" | "biopsy_order_to_biopsy" | "contact_to_mdt" | "mdt_to_treatment" | "contact_to_treatment";
+            targets: components["schemas"]["InsurerTargets"];
+            weights: components["schemas"]["InsurerWeights"];
+        };
+        /** InsurerCapacity */
+        InsurerCapacity: {
+            /**
+             * Minutes Per Week
+             * @description Assumed coordinator time per week for the cases of this cohort.
+             */
+            minutes_per_week: number;
+            /** Note */
+            note: string;
+            /**
+             * Period End
+             * Format: date
+             */
+            period_end: string;
+            /**
+             * Period Start
+             * Format: date
+             */
+            period_start: string;
+            /** Weeks */
+            weeks: number;
+        };
+        /** InsurerInterval */
+        InsurerInterval: {
+            /**
+             * Days
+             * @description Whole Europe/Prague calendar days; null unless `status` = measured.
+             */
+            days: number | null;
+            /** End */
+            end: string | null;
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "contact_to_accepted" | "ct_order_to_ct" | "biopsy_order_to_biopsy" | "contact_to_mdt" | "mdt_to_treatment" | "contact_to_treatment";
+            /** Start */
+            start: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "measured" | "running" | "not_started" | "not_recorded" | "inconsistent";
+        };
+        /**
+         * InsurerIntervalMedians
+         * @description Median whole Europe/Prague calendar days over the journeys where the interval was measured; null = none.
+         */
+        InsurerIntervalMedians: {
+            /**
+             * Biopsy Order To Biopsy
+             * @description Biopsy ordered -> biopsy performed.
+             */
+            biopsy_order_to_biopsy: number | null;
+            /**
+             * Contact To Accepted
+             * @description GP contacted the coordinator -> coordinator accepted.
+             */
+            contact_to_accepted: number | null;
+            /**
+             * Contact To Mdt
+             * @description GP contacted the coordinator -> MDT.
+             */
+            contact_to_mdt: number | null;
+            /**
+             * Contact To Treatment
+             * @description GP contacted the coordinator -> treatment start.
+             */
+            contact_to_treatment: number | null;
+            /**
+             * Ct Order To Ct
+             * @description CT ordered -> CT performed.
+             */
+            ct_order_to_ct: number | null;
+            /**
+             * Mdt To Treatment
+             * @description MDT -> treatment start (only where a start is recorded).
+             */
+            mdt_to_treatment: number | null;
+        };
+        /** InsurerMilestone */
+        InsurerMilestone: {
+            /**
+             * Date
+             * @description Prague calendar date; null = not recorded, never estimated.
+             */
+            date: string | null;
+            /**
+             * Days Since Previous
+             * @description Days since the previous milestone in the list; null when either is not recorded.
+             */
+            days_since_previous: number | null;
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "gp_contacted_coordinator" | "accepted" | "ct_done" | "biopsy_done" | "mdt" | "treatment_start";
+        };
+        /** InsurerPriceItem */
+        InsurerPriceItem: {
+            /** Code */
+            code: string;
+            /** Label */
+            label: string;
+            /** Price Czk */
+            price_czk: number;
+        };
+        /** InsurerRankings */
+        InsurerRankings: {
+            /**
+             * By Indicator
+             * @description Hospital ids, highest indicator first; ties by name.
+             */
+            by_indicator: string[];
+            /**
+             * Fastest
+             * @description Hospital ids, lowest median contact -> MDT first.
+             */
+            fastest: string[];
+            /**
+             * Lowest Cost
+             * @description Hospital ids, lowest median cost per case first.
+             */
+            lowest_cost: string[];
+        };
+        /** InsurerSummary */
+        InsurerSummary: {
+            /**
+             * Cases
+             * @description Journeys in the cohort, the demo case included.
+             */
+            cases: number;
+            /** @description Medians over every journey of the cohort. */
+            median_days: components["schemas"]["InsurerIntervalMedians"];
+            /** Simulated Cases */
+            simulated_cases: number;
+        };
+        /** InsurerTargets */
+        InsurerTargets: {
+            /** Biopsy Order To Biopsy Max Days */
+            biopsy_order_to_biopsy_max_days: number;
+            /** Ct Order To Ct Max Days */
+            ct_order_to_ct_max_days: number;
+            /** Note */
+            note: string;
+        };
+        /** InsurerWeights */
+        InsurerWeights: {
+            /** Cost */
+            cost: number;
+            /** Speed */
+            speed: number;
+            /** Target Share */
+            target_share: number;
+        };
+        /**
          * IntervalStatus
          * @enum {string}
          */
@@ -2354,6 +2850,92 @@ export interface components {
              * @description When the KOC received the source document.
              */
             received_at: string;
+        };
+        /**
+         * JourneyAnalytics
+         * @example {
+         *       "code": "rakathon-2026-prochazkova",
+         *       "coordinator_display": "Bc. Lucie Dvořáková",
+         *       "cost_czk": 27850,
+         *       "hospital_id": "koc2-nemocnice-lipova",
+         *       "hospital_name": "KOC 2 – Nemocnice Lipová",
+         *       "intervals": [
+         *         {
+         *           "days": 6,
+         *           "end": "2026-10-08",
+         *           "key": "ct_order_to_ct",
+         *           "start": "2026-10-02",
+         *           "status": "measured"
+         *         },
+         *         {
+         *           "key": "mdt_to_treatment",
+         *           "start": "2026-10-21",
+         *           "status": "running"
+         *         }
+         *       ],
+         *       "milestones": [
+         *         {
+         *           "date": "2026-10-02",
+         *           "key": "gp_contacted_coordinator"
+         *         },
+         *         {
+         *           "key": "accepted"
+         *         },
+         *         {
+         *           "date": "2026-10-08",
+         *           "key": "ct_done"
+         *         },
+         *         {
+         *           "date": "2026-10-12",
+         *           "days_since_previous": 4,
+         *           "key": "biopsy_done"
+         *         },
+         *         {
+         *           "date": "2026-10-21",
+         *           "days_since_previous": 9,
+         *           "key": "mdt"
+         *         },
+         *         {
+         *           "key": "treatment_start"
+         *         }
+         *       ],
+         *       "simulated": false,
+         *       "within_target": true
+         *     }
+         */
+        JourneyAnalytics: {
+            /**
+             * Code
+             * @description Pseudonymous case code (SIM-…) or the demo case id; no patient identifiers.
+             */
+            code: string;
+            /** Coordinator Display */
+            coordinator_display: string;
+            /** Coordinator Minutes */
+            coordinator_minutes: number | null;
+            /**
+             * Cost Czk
+             * @description Illustrative cost of the recorded steps (CZK).
+             */
+            cost_czk: number;
+            /** Hospital Id */
+            hospital_id: string;
+            /** Hospital Name */
+            hospital_name: string;
+            /** Intervals */
+            intervals: components["schemas"]["InsurerInterval"][];
+            /**
+             * Milestones
+             * @description In pathway order: contact, accepted, CT, biopsy, MDT, start.
+             */
+            milestones: components["schemas"]["InsurerMilestone"][];
+            /** Simulated */
+            simulated: boolean;
+            /**
+             * Within Target
+             * @description Both demo targets met; null when a wait was not measured.
+             */
+            within_target: boolean | null;
         };
         JsonValue: unknown;
         /**
@@ -5872,6 +6454,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    "insurer-get_insurer_analytics": {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Demo-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsurerAnalytics"];
+                };
+            };
+            /** @description Uživatel není přihlášen (actor not identified) (application/problem+json) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Přístup byl odepřen (role not allowed) (application/problem+json) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Neočekávaná chyba serveru (unexpected server error) (application/problem+json) */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
         };

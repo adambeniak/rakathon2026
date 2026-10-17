@@ -1,0 +1,725 @@
+{
+  "tag": "stafeta-demo",
+  "simulated": true,
+  "description": "Fiktivní kohorta pro demo pohledu zdravotní pojišťovny. Kromě demo případu jsou všechny cesty simulované; kódy jsou pseudonymní, bez jmen pacientů, rodných čísel a dat narození.",
+  "as_of": "2026-10-21T08:00:00+02:00",
+  "coordinator_capacity_minutes_per_week": 120,
+  "hospitals": [
+    {
+      "id": "koc1-nemocnice-severni",
+      "name": "KOC 1 – Nemocnice Severní",
+      "simulated": false
+    },
+    {
+      "id": "koc2-nemocnice-lipova",
+      "name": "KOC 2 – Nemocnice Lipová",
+      "simulated": false
+    },
+    {
+      "id": "koc3-nemocnice-vychodni-sim",
+      "name": "KOC 3 – Nemocnice Východní (simulace)",
+      "simulated": true
+    },
+    {
+      "id": "koc4-nemocnice-horska-sim",
+      "name": "KOC 4 – Nemocnice Horská (simulace)",
+      "simulated": true
+    }
+  ],
+  "coordinators": [
+    {
+      "id": "ukazkova-petra@koc1-nemocnice-severni",
+      "display": "Bc. Petra Ukázková (simulace)",
+      "hospital_id": "koc1-nemocnice-severni",
+      "simulated": true
+    },
+    {
+      "id": "vzorova-jana@koc1-nemocnice-severni",
+      "display": "Mgr. Jana Vzorová (simulace)",
+      "hospital_id": "koc1-nemocnice-severni",
+      "simulated": true
+    },
+    {
+      "id": "dvorakova-lucie@koc2-nemocnice-lipova",
+      "display": "Bc. Lucie Dvořáková",
+      "hospital_id": "koc2-nemocnice-lipova",
+      "simulated": false
+    },
+    {
+      "id": "fiktivni-tomas@koc2-nemocnice-lipova",
+      "display": "Bc. Tomáš Fiktivní (simulace)",
+      "hospital_id": "koc2-nemocnice-lipova",
+      "simulated": true
+    },
+    {
+      "id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "display": "Bc. Eva Modelová (simulace)",
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "simulated": true
+    },
+    {
+      "id": "simulant-martin@koc4-nemocnice-horska-sim",
+      "display": "Mgr. Martin Simulant (simulace)",
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "simulated": true
+    },
+    {
+      "id": "prikladova-hana@koc4-nemocnice-horska-sim",
+      "display": "Bc. Hana Příkladová (simulace)",
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "simulated": true
+    }
+  ],
+  "price_list": {
+    "currency": "CZK",
+    "note": "Ilustrativní ceník pro demo – nejde o skutečné úhrady ani o sazebník zdravotní pojišťovny.",
+    "items": [
+      {
+        "code": "KOORD",
+        "label": "Koordinace případu (paušál)",
+        "price_czk": 1100
+      },
+      {
+        "code": "LAB_ZAKLAD",
+        "label": "Laboratorní vyšetření (základní panel)",
+        "price_czk": 850
+      },
+      {
+        "code": "CT_HRUDNIK_BRICHO",
+        "label": "CT hrudníku a břicha s kontrastem",
+        "price_czk": 6900
+      },
+      {
+        "code": "MR_BRICHO",
+        "label": "MR břicha",
+        "price_czk": 8400
+      },
+      {
+        "code": "PET_CT",
+        "label": "PET/CT",
+        "price_czk": 32000
+      },
+      {
+        "code": "EUS_FNB",
+        "label": "EUS s punkcí (EUS-FNB)",
+        "price_czk": 14500
+      },
+      {
+        "code": "HISTOLOGIE",
+        "label": "Histologické vyšetření",
+        "price_czk": 2900
+      },
+      {
+        "code": "MDT",
+        "label": "Projednání v MDT",
+        "price_czk": 1600
+      },
+      {
+        "code": "KONZ_ONKO",
+        "label": "Ambulantní konzultace",
+        "price_czk": 750
+      }
+    ]
+  },
+  "journeys": [
+    {
+      "code": "rakathon-2026-prochazkova",
+      "simulated": false,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "coordinator_id": "dvorakova-lucie@koc2-nemocnice-lipova",
+      "gp_contacted_coordinator": "2026-10-02T09:30:00+02:00",
+      "accepted": "2026-10-02",
+      "ct_ordered": "2026-10-02",
+      "ct_done": "2026-10-08",
+      "biopsy_ordered": "2026-10-02",
+      "biopsy_done": "2026-10-12",
+      "mdt": "2026-10-21T08:00:00+02:00",
+      "treatment_start": null,
+      "coordinator_minutes": 210,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-001",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "coordinator_id": "ukazkova-petra@koc1-nemocnice-severni",
+      "gp_contacted_coordinator": "2026-06-03",
+      "accepted": "2026-06-04",
+      "ct_ordered": "2026-06-04",
+      "ct_done": "2026-06-08",
+      "biopsy_ordered": "2026-06-09",
+      "biopsy_done": "2026-06-15",
+      "mdt": "2026-06-19",
+      "treatment_start": "2026-07-01",
+      "coordinator_minutes": 185,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO",
+        "LAB_ZAKLAD"
+      ]
+    },
+    {
+      "code": "SIM-2026-002",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "coordinator_id": "ukazkova-petra@koc1-nemocnice-severni",
+      "gp_contacted_coordinator": "2026-06-22",
+      "accepted": "2026-06-23",
+      "ct_ordered": "2026-06-23",
+      "ct_done": "2026-06-26",
+      "biopsy_ordered": "2026-06-26",
+      "biopsy_done": "2026-07-03",
+      "mdt": "2026-07-08",
+      "treatment_start": "2026-07-18",
+      "coordinator_minutes": 170,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-003",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "coordinator_id": "vzorova-jana@koc1-nemocnice-severni",
+      "gp_contacted_coordinator": "2026-07-14",
+      "accepted": "2026-07-14",
+      "ct_ordered": "2026-07-14",
+      "ct_done": "2026-07-19",
+      "biopsy_ordered": "2026-07-20",
+      "biopsy_done": "2026-07-26",
+      "mdt": "2026-07-29",
+      "treatment_start": "2026-08-12",
+      "coordinator_minutes": 205,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-004",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "coordinator_id": "vzorova-jana@koc1-nemocnice-severni",
+      "gp_contacted_coordinator": "2026-08-05",
+      "accepted": "2026-08-06",
+      "ct_ordered": "2026-08-06",
+      "ct_done": "2026-08-10",
+      "biopsy_ordered": "2026-08-10",
+      "biopsy_done": "2026-08-18",
+      "mdt": "2026-08-22",
+      "treatment_start": "2026-09-02",
+      "coordinator_minutes": 190,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-005",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "coordinator_id": "ukazkova-petra@koc1-nemocnice-severni",
+      "gp_contacted_coordinator": "2026-08-26",
+      "accepted": "2026-08-26",
+      "ct_ordered": "2026-08-27",
+      "ct_done": "2026-08-30",
+      "biopsy_ordered": "2026-08-30",
+      "biopsy_done": "2026-09-04",
+      "mdt": "2026-09-10",
+      "treatment_start": "2026-09-23",
+      "coordinator_minutes": 160,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-006",
+      "simulated": true,
+      "hospital_id": "koc1-nemocnice-severni",
+      "coordinator_id": "vzorova-jana@koc1-nemocnice-severni",
+      "gp_contacted_coordinator": "2026-09-16",
+      "accepted": "2026-09-17",
+      "ct_ordered": "2026-09-17",
+      "ct_done": "2026-09-21",
+      "biopsy_ordered": "2026-09-22",
+      "biopsy_done": "2026-09-29",
+      "mdt": "2026-10-03",
+      "treatment_start": null,
+      "coordinator_minutes": 175,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-007",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "coordinator_id": "dvorakova-lucie@koc2-nemocnice-lipova",
+      "gp_contacted_coordinator": "2026-06-08",
+      "accepted": "2026-06-09",
+      "ct_ordered": "2026-06-09",
+      "ct_done": "2026-06-15",
+      "biopsy_ordered": "2026-06-15",
+      "biopsy_done": "2026-06-24",
+      "mdt": "2026-06-28",
+      "treatment_start": "2026-07-13",
+      "coordinator_minutes": 230,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-008",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "coordinator_id": "fiktivni-tomas@koc2-nemocnice-lipova",
+      "gp_contacted_coordinator": "2026-06-30",
+      "accepted": "2026-07-02",
+      "ct_ordered": "2026-07-02",
+      "ct_done": "2026-07-09",
+      "biopsy_ordered": "2026-07-10",
+      "biopsy_done": "2026-07-18",
+      "mdt": "2026-07-23",
+      "treatment_start": "2026-08-05",
+      "coordinator_minutes": 245,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-009",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "coordinator_id": "dvorakova-lucie@koc2-nemocnice-lipova",
+      "gp_contacted_coordinator": "2026-07-21",
+      "accepted": "2026-07-22",
+      "ct_ordered": "2026-07-23",
+      "ct_done": "2026-07-28",
+      "biopsy_ordered": "2026-07-28",
+      "biopsy_done": "2026-08-07",
+      "mdt": "2026-08-11",
+      "treatment_start": "2026-08-27",
+      "coordinator_minutes": 210,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO",
+        "MR_BRICHO"
+      ]
+    },
+    {
+      "code": "SIM-2026-010",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "coordinator_id": "fiktivni-tomas@koc2-nemocnice-lipova",
+      "gp_contacted_coordinator": "2026-08-11",
+      "accepted": "2026-08-12",
+      "ct_ordered": "2026-08-12",
+      "ct_done": "2026-08-20",
+      "biopsy_ordered": "2026-08-21",
+      "biopsy_done": "2026-09-01",
+      "mdt": "2026-09-07",
+      "treatment_start": "2026-09-21",
+      "coordinator_minutes": 260,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-011",
+      "simulated": true,
+      "hospital_id": "koc2-nemocnice-lipova",
+      "coordinator_id": "dvorakova-lucie@koc2-nemocnice-lipova",
+      "gp_contacted_coordinator": "2026-09-01",
+      "accepted": "2026-09-03",
+      "ct_ordered": "2026-09-03",
+      "ct_done": "2026-09-09",
+      "biopsy_ordered": "2026-09-09",
+      "biopsy_done": "2026-09-18",
+      "mdt": "2026-09-23",
+      "treatment_start": null,
+      "coordinator_minutes": 225,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-012",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "coordinator_id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "gp_contacted_coordinator": "2026-06-10",
+      "accepted": "2026-06-10",
+      "ct_ordered": "2026-06-10",
+      "ct_done": "2026-06-12",
+      "biopsy_ordered": "2026-06-12",
+      "biopsy_done": "2026-06-17",
+      "mdt": "2026-06-21",
+      "treatment_start": "2026-06-30",
+      "coordinator_minutes": 130,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-013",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "coordinator_id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "gp_contacted_coordinator": "2026-07-01",
+      "accepted": "2026-07-01",
+      "ct_ordered": "2026-07-02",
+      "ct_done": "2026-07-05",
+      "biopsy_ordered": "2026-07-05",
+      "biopsy_done": "2026-07-09",
+      "mdt": "2026-07-12",
+      "treatment_start": "2026-07-20",
+      "coordinator_minutes": 120,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-014",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "coordinator_id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "gp_contacted_coordinator": "2026-07-20",
+      "accepted": "2026-07-21",
+      "ct_ordered": "2026-07-21",
+      "ct_done": "2026-07-23",
+      "biopsy_ordered": "2026-07-23",
+      "biopsy_done": "2026-07-29",
+      "mdt": "2026-08-02",
+      "treatment_start": "2026-08-12",
+      "coordinator_minutes": 145,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-015",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "coordinator_id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "gp_contacted_coordinator": "2026-08-10",
+      "accepted": "2026-08-10",
+      "ct_ordered": "2026-08-10",
+      "ct_done": "2026-08-13",
+      "biopsy_ordered": "2026-08-14",
+      "biopsy_done": "2026-08-19",
+      "mdt": "2026-08-24",
+      "treatment_start": "2026-09-02",
+      "coordinator_minutes": 135,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-016",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "coordinator_id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "gp_contacted_coordinator": "2026-08-31",
+      "accepted": "2026-08-31",
+      "ct_ordered": "2026-08-31",
+      "ct_done": "2026-09-04",
+      "biopsy_ordered": "2026-09-04",
+      "biopsy_done": "2026-09-08",
+      "mdt": "2026-09-11",
+      "treatment_start": "2026-09-18",
+      "coordinator_minutes": 125,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-017",
+      "simulated": true,
+      "hospital_id": "koc3-nemocnice-vychodni-sim",
+      "coordinator_id": "modelova-eva@koc3-nemocnice-vychodni-sim",
+      "gp_contacted_coordinator": "2026-09-21",
+      "accepted": "2026-09-22",
+      "ct_ordered": "2026-09-22",
+      "ct_done": "2026-09-24",
+      "biopsy_ordered": "2026-09-24",
+      "biopsy_done": "2026-09-29",
+      "mdt": "2026-10-03",
+      "treatment_start": null,
+      "coordinator_minutes": 140,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT"
+      ]
+    },
+    {
+      "code": "SIM-2026-018",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "coordinator_id": "simulant-martin@koc4-nemocnice-horska-sim",
+      "gp_contacted_coordinator": "2026-06-02",
+      "accepted": "2026-06-05",
+      "ct_ordered": "2026-06-06",
+      "ct_done": "2026-06-17",
+      "biopsy_ordered": "2026-06-19",
+      "biopsy_done": "2026-07-03",
+      "mdt": "2026-07-10",
+      "treatment_start": "2026-07-31",
+      "coordinator_minutes": 340,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO",
+        "PET_CT"
+      ]
+    },
+    {
+      "code": "SIM-2026-019",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "coordinator_id": "prikladova-hana@koc4-nemocnice-horska-sim",
+      "gp_contacted_coordinator": "2026-06-24",
+      "accepted": "2026-06-26",
+      "ct_ordered": "2026-06-26",
+      "ct_done": "2026-07-05",
+      "biopsy_ordered": "2026-07-06",
+      "biopsy_done": "2026-07-22",
+      "mdt": "2026-07-28",
+      "treatment_start": "2026-08-15",
+      "coordinator_minutes": 380,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-020",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "coordinator_id": "simulant-martin@koc4-nemocnice-horska-sim",
+      "gp_contacted_coordinator": "2026-07-15",
+      "accepted": "2026-07-19",
+      "ct_ordered": "2026-07-20",
+      "ct_done": "2026-08-02",
+      "biopsy_ordered": "2026-08-04",
+      "biopsy_done": "2026-08-16",
+      "mdt": "2026-08-24",
+      "treatment_start": "2026-09-17",
+      "coordinator_minutes": 355,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO",
+        "PET_CT",
+        "HISTOLOGIE"
+      ]
+    },
+    {
+      "code": "SIM-2026-021",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "coordinator_id": "prikladova-hana@koc4-nemocnice-horska-sim",
+      "gp_contacted_coordinator": "2026-08-04",
+      "accepted": "2026-08-06",
+      "ct_ordered": "2026-08-08",
+      "ct_done": "2026-08-18",
+      "biopsy_ordered": "2026-08-19",
+      "biopsy_done": "2026-09-06",
+      "mdt": "2026-09-13",
+      "treatment_start": "2026-10-02",
+      "coordinator_minutes": 400,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    },
+    {
+      "code": "SIM-2026-022",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "coordinator_id": "simulant-martin@koc4-nemocnice-horska-sim",
+      "gp_contacted_coordinator": "2026-08-25",
+      "accepted": "2026-08-28",
+      "ct_ordered": "2026-08-29",
+      "ct_done": "2026-09-10",
+      "biopsy_ordered": "2026-09-11",
+      "biopsy_done": "2026-09-26",
+      "mdt": "2026-10-02",
+      "treatment_start": null,
+      "coordinator_minutes": 365,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO",
+        "PET_CT"
+      ]
+    },
+    {
+      "code": "SIM-2026-023",
+      "simulated": true,
+      "hospital_id": "koc4-nemocnice-horska-sim",
+      "coordinator_id": "prikladova-hana@koc4-nemocnice-horska-sim",
+      "gp_contacted_coordinator": "2026-09-08",
+      "accepted": "2026-09-11",
+      "ct_ordered": null,
+      "ct_done": "2026-09-26",
+      "biopsy_ordered": "2026-09-28",
+      "biopsy_done": "2026-10-11",
+      "mdt": "2026-10-20",
+      "treatment_start": null,
+      "coordinator_minutes": 310,
+      "steps": [
+        "KOORD",
+        "LAB_ZAKLAD",
+        "CT_HRUDNIK_BRICHO",
+        "CT_HRUDNIK_BRICHO",
+        "MR_BRICHO",
+        "EUS_FNB",
+        "HISTOLOGIE",
+        "MDT",
+        "KONZ_ONKO"
+      ]
+    }
+  ]
+}

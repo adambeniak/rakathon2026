@@ -1,9 +1,11 @@
-"""SLA watchdog: escalate overdue tasks once.
+"""SLA watchdog: complete steps whose result report has arrived, and escalate overdue tasks once.
 
 `run_once` is the whole logic (testable without a loop): every open step past its earlier deadline (`due` or the
 promised `sla_due`) gets `escalated_at` stamped, which makes the escalation fire exactly once. GET /alerts computes
 overdue tasks at read time, so the watchdog only persists and audits the escalation. There is no delivery channel yet
-(`app.notify` is a stub); the escalation is visible in alerts and on the board.
+(`app.notify` is a stub); the escalation is visible in alerts and on the board. Before escalating, a step whose result
+report was received by `now` is completed (`app.domain.task_results`), so a delivered result is never escalated; this
+also catches up when the demo clock moves past a report uploaded earlier.
 """
 
 from __future__ import annotations
@@ -15,12 +17,14 @@ from datetime import datetime
 import httpx
 import structlog
 
+from app.api.services.coordination import deliver_received_results
 from app.domain.common import PartyRef, Role
 from app.domain.task_machine import escalate_if_overdue
+from app.domain.task_results import result_type
 from app.fhir.client import FhirClient
 from app.fhir.repository import FhirRepository
 from app.fhir.systems import DEMO_TAG_CODE
-from app.fhir.tasks import TaskStore
+from app.fhir.tasks import StoredTask, TaskStore
 from app.settings import Settings
 
 log = structlog.get_logger(__name__)
@@ -29,9 +33,14 @@ WATCHDOG_ACTOR = PartyRef(id="sla-watchdog", display="Štafeta – hlídání te
 
 
 async def run_once(store: TaskStore, now: datetime) -> list[str]:
-    """Escalate every overdue open task that was not escalated yet; returns the escalated task ids."""
+    """Complete steps whose result report has arrived, then escalate every overdue open task that was not escalated
+    yet; returns the escalated task ids."""
+    open_tasks = await store.list_open_everywhere()
+    delivered = await _deliver_results(store, open_tasks, now)
     escalated: list[str] = []
-    for stored in await store.list_open_everywhere():
+    for stored in open_tasks:
+        if stored.task.id in delivered:
+            continue
         result = escalate_if_overdue(stored.task, now)
         if not result.events:
             continue
@@ -51,6 +60,21 @@ async def run_once(store: TaskStore, now: datetime) -> list[str]:
         escalated.append(stored.task.id)
         log.info("task_escalated", task_id=stored.task.id, basis=event.payload["basis"])
     return escalated
+
+
+async def _deliver_results(store: TaskStore, open_tasks: list[StoredTask], now: datetime) -> set[str]:
+    """Steps completed because their result report was received by `now` (#132); one case at a time."""
+    cases = sorted({str(s.resource["partOf"][0]["reference"]) for s in open_tasks if result_type(s.task)})
+    delivered: set[str] = set()
+    for case_task_reference in cases:
+        try:
+            steps = await store.list_for_case(case_task_reference, audit=False)
+            done = await deliver_received_results(store, steps, now, audit=False)
+        except Exception:
+            log.exception("results_not_delivered", case_task=case_task_reference)
+            continue
+        delivered |= {task_id for task_id, _events in done}
+    return delivered
 
 
 async def watchdog_loop(settings: Settings, http: httpx.AsyncClient, clock_now: Callable[[], datetime]) -> None:

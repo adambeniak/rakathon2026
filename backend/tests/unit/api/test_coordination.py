@@ -16,6 +16,7 @@ from app.api.services.coordination import CoordinationService
 from app.api.watchdog import run_once
 from app.domain import clock
 from app.domain.common import PartyRef, Role
+from app.domain.document import SourceDocument
 from app.domain.errors import ForbiddenError, NotFoundError
 from app.domain.task import Task
 from app.fhir.cases import CaseHeader, LoadedCase
@@ -78,6 +79,7 @@ class FakeStore:
         self.documents = {RESULT_DOC: at("2026-10-02T08:00:00"), FUTURE_DOC: at("2026-10-26T12:00:00")}
         self.care_plans: set[str] = set()
         self.launches: list[dict[str, Any]] = []
+        self.result_documents: list[SourceDocument] = []  # what `patient_result_documents` searches
 
     def _stored(self, task: Task, fhir_id: str) -> StoredTask:
         resource = {
@@ -120,7 +122,7 @@ class FakeStore:
     async def create(self, header: CaseHeader, task: Task) -> str:
         return self._stored(task, str(len(self.resources) + 1)).fhir_id
 
-    async def list_for_case(self, case_task_reference: str) -> list[StoredTask]:
+    async def list_for_case(self, case_task_reference: str, *, audit: bool = True) -> list[StoredTask]:
         from app.domain.board import due_order
         from app.fhir.mappers.task import task_from_fhir
 
@@ -142,6 +144,11 @@ class FakeStore:
 
     async def patient_document_received_at(self, patient_reference: str, doc_id: str) -> datetime | None:
         return self.documents.get(doc_id)
+
+    async def patient_result_documents(
+        self, patient_reference: str, type_code: str, *, audit: bool = True
+    ) -> list[SourceDocument]:
+        return [d for d in self.result_documents if d.type_code == type_code]
 
     async def save(
         self, stored: StoredTask, task: Task, *, description: str, on_behalf_of: str | None = None

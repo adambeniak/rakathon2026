@@ -1,15 +1,21 @@
-"""POST /api/cases/{case_id}/documents: a received report; links it to its request and completes that request."""
+"""POST /api/cases/{case_id}/documents: a received report; links it to its request and completes that request.
+
+A result report also completes the pathway step it belongs to (e.g. histology report → step `histology`,
+`vysledek_dorucen`; rules in `app.domain.task_results`).
+"""
 
 from __future__ import annotations
 
 from datetime import date
 from typing import Annotated
 
+import structlog
 from fastapi import APIRouter, BackgroundTasks, File, Form, Path, UploadFile
 
 from app.api.deps import (
     ActorDep,
     CaseReaderDep,
+    CoordinationDep,
     DirectoryProviderDep,
     DocumentIndexerDep,
     RepositoryDep,
@@ -24,6 +30,8 @@ from app.api.uploads import read_upload
 from app.domain.common import BUSINESS_ID_PATTERN
 from app.domain.errors import InvalidInputError
 from app.retrieval.indexing import index_case_in_background
+
+log = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -49,6 +57,7 @@ async def upload_document(
     background: BackgroundTasks,
     indexer: DocumentIndexerDep,
     repository: RepositoryDep,
+    coordination: CoordinationDep,
     case_id: Annotated[str, Path(pattern=BUSINESS_ID_PATTERN, max_length=100)],
     request_id: Annotated[str | None, Form(pattern=BUSINESS_ID_PATTERN, max_length=140)] = None,
     authored_at: Annotated[date | None, Form(description="Date the report was written (ISO).")] = None,
@@ -67,6 +76,10 @@ async def upload_document(
         directory=await provider.get(),
         now=now,
     )
+    try:
+        await coordination.deliver_received_results(case_id, actor)
+    except Exception:  # the report is stored; the watchdog retries the step on its next round
+        log.exception("result_step_not_completed", case_id=case_id, doc_id=outcome.document.doc_id)
     # Vector index for "ask the case" (ADR-0004), after the response: the upload never waits for embeddings.
     background.add_task(index_case_in_background, case_id, reader, repository, indexer)
     overview = await reader.overview(case_id)

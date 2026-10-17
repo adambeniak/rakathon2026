@@ -9,10 +9,8 @@ SHELL := /bin/bash
 up:            ## start backend + mailpit against the IRIS configured in .env (team ACI)
 	docker compose up -d --build
 
-up-local:      ## same + local IRIS container (demo fallback; IRIS deletes its password file after reading it, so copy it fresh)
-	@test -s .iris/password.txt || { echo "Put the local IRIS password into .iris/password.txt AND into .env as IRIS_PASSWORD"; exit 1; }
-	@cp .iris/password.txt .iris/password && chmod 777 .iris && chmod 666 .iris/password
-	docker compose -f docker-compose.yml -f docker-compose.local-iris.yml up -d --build
+up-local:      ## same + local IRIS container (demo fallback); a fresh container gets a clean password file (scripts/iris_local_prepare.sh)
+	./scripts/up_local.sh
 
 down:
 	docker compose -f docker-compose.yml -f docker-compose.local-iris.yml down --remove-orphans

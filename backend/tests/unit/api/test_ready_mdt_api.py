@@ -208,7 +208,8 @@ def test_missing_section_blocks_and_names_the_item(make_client: Any) -> None:
     assert response.status_code == 409
     body = response.json()
     assert body["code"] == "guard_failed"
-    assert "performance_status" in body["detail"]
+    # The frontend reads the blocking items from this sentence (MarkReady `blockingItems`); keep both in step.
+    assert body["detail"] == "Připravenost k MDT není splněna, chybí: performance_status"
     assert _state(store) == "kompletni"
     assert store.transactions == 0
 
